@@ -1,6 +1,7 @@
 export type SeatIndex = 0 | 1 | 2 | 3;
 
 export type Suit = 'SPADES' | 'HEARTS' | 'CLUBS' | 'DIAMONDS';
+export type TeamId = 'A' | 'B';
 
 export interface Card {
   suit: Suit;
@@ -8,12 +9,17 @@ export interface Card {
   code: string;
 }
 
+export interface TrickPlay {
+  seat: SeatIndex;
+  card: Card;
+}
+
 export interface PlayerState {
   id: string;
   name: string;
   seat: SeatIndex;
   cards: Card[];
-  team: 'A' | 'B';
+  team: TeamId;
 }
 
 export interface GameState {
@@ -22,9 +28,12 @@ export interface GameState {
   currentTurn: SeatIndex;
   trumpSuit: Suit;
   trickNumber: number;
-  trickCards: Card[];
-  scores: { A: number; B: number };
-  capturedTens: { A: number; B: number };
+  trickCards: TrickPlay[];
+  lastTrick?: { cards: TrickPlay[]; winner: SeatIndex };
+  scores: Record<TeamId, number>;
+  capturedTens: Record<TeamId, number>;
+  capturedTensBySuit: Record<TeamId, Record<Suit, number>>;
+  winnerTeam?: TeamId | 'DRAW';
   players: PlayerState[];
   deck: Card[];
 }

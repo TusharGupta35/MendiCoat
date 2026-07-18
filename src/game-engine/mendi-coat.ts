@@ -2,6 +2,7 @@ import type { Card, GameState, SeatIndex, Suit } from '@/types/game';
 
 const SUITS: Suit[] = ['SPADES', 'HEARTS', 'CLUBS', 'DIAMONDS'];
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+const RANK_VALUE: Record<string, number> = { A: 14, K: 13, Q: 12, J: 11, '10': 10, '9': 9, '8': 8, '7': 7, '6': 6, '5': 5, '4': 4, '3': 3, '2': 2 };
 
 function createDeck(): Card[] {
   return SUITS.flatMap((suit) => RANKS.map((rank) => ({ suit, rank, code: `${rank}${suit[0]}` })));
@@ -32,7 +33,8 @@ export function createInitialGameState(roomCode: string, playerNames: string[]):
     name,
     seat: index as SeatIndex,
     cards: dealt[index],
-    team: (index % 2 === 0 ? 'A' : 'B') as 'A' | 'B',
+    // Seats 1 and 2 form Team A; Seats 3 and 4 form Team B.
+    team: (index < 2 ? 'A' : 'B') as 'A' | 'B',
   }));
 
   return {
@@ -44,6 +46,10 @@ export function createInitialGameState(roomCode: string, playerNames: string[]):
     trickCards: [],
     scores: { A: 0, B: 0 },
     capturedTens: { A: 0, B: 0 },
+    capturedTensBySuit: {
+      A: { SPADES: 0, HEARTS: 0, CLUBS: 0, DIAMONDS: 0 },
+      B: { SPADES: 0, HEARTS: 0, CLUBS: 0, DIAMONDS: 0 },
+    },
     players,
     deck: deck.slice(4),
   };
@@ -59,7 +65,7 @@ export function validateMove(gameState: GameState, seat: SeatIndex, card: Card):
 
   if (gameState.trickCards.length === 0) return { valid: true };
 
-  const leadSuit = gameState.trickCards[0].suit;
+  const leadSuit = gameState.trickCards[0].card.suit;
   const followSuit = player.cards.filter((entry) => entry.suit === leadSuit);
   if (followSuit.length > 0 && card.suit !== leadSuit) {
     return { valid: false, reason: 'Must follow suit' };
@@ -74,14 +80,31 @@ export function applyMove(gameState: GameState, seat: SeatIndex, card: Card): Ga
   if (!player) return nextState;
 
   player.cards = player.cards.filter((entry) => entry.code !== card.code);
-  nextState.trickCards.push(card);
+  nextState.trickCards.push({ seat, card });
 
   if (nextState.trickCards.length === 4) {
     const winnerSeat = determineTrickWinner(nextState);
+    const completedTrick = [...nextState.trickCards];
+    const winner = nextState.players.find((entry) => entry.seat === winnerSeat);
+    if (!winner) return nextState;
+
+    nextState.lastTrick = { cards: completedTrick, winner: winnerSeat };
+    const capturedTens = completedTrick.filter((play) => play.card.rank === '10');
+    nextState.capturedTens[winner.team] += capturedTens.length;
+    for (const ten of capturedTens) {
+      nextState.capturedTensBySuit[winner.team][ten.card.suit] += 1;
+    }
+    nextState.scores[winner.team] += 1;
     nextState.currentTurn = winnerSeat;
     nextState.trickCards = [];
     nextState.trickNumber += 1;
-    nextState.scores.A += 1;
+
+    if (nextState.trickNumber > 13) {
+      nextState.status = 'FINISHED';
+      nextState.winnerTeam = nextState.capturedTens.A === nextState.capturedTens.B
+        ? 'DRAW'
+        : nextState.capturedTens.A > nextState.capturedTens.B ? 'A' : 'B';
+    }
   } else {
     nextState.currentTurn = ((seat + 1) % 4) as SeatIndex;
   }
@@ -90,18 +113,20 @@ export function applyMove(gameState: GameState, seat: SeatIndex, card: Card): Ga
 }
 
 export function determineTrickWinner(gameState: GameState): SeatIndex {
-  const leadSuit = gameState.trickCards[0].suit;
+  const leadSuit = gameState.trickCards[0].card.suit;
   const trumpSuit = gameState.trumpSuit;
-  const winning = gameState.trickCards.reduce((best, card, index) => {
-    const currentSeat = (gameState.currentTurn + index) as SeatIndex;
-    const bestCard = gameState.trickCards[best.index];
-    const isTrump = card.suit === trumpSuit;
-    const isBestTrump = bestCard.suit === trumpSuit;
-    if (isTrump && !isBestTrump) return { index, seat: currentSeat };
-    if (!isTrump && isBestTrump) return best;
-    if (card.suit === leadSuit && bestCard.suit !== leadSuit) return { index, seat: currentSeat };
+  const winning = gameState.trickCards.reduce((best, play) => {
+    const candidate = play.card;
+    const bestCard = best.card;
+    const candidateIsTrump = candidate.suit === trumpSuit;
+    const bestIsTrump = bestCard.suit === trumpSuit;
+
+    if (candidateIsTrump !== bestIsTrump) return candidateIsTrump ? play : best;
+    if (candidateIsTrump && RANK_VALUE[candidate.rank] > RANK_VALUE[bestCard.rank]) return play;
+    if (!candidateIsTrump && candidate.suit === leadSuit && bestCard.suit !== leadSuit) return play;
+    if (candidate.suit === leadSuit && bestCard.suit === leadSuit && RANK_VALUE[candidate.rank] > RANK_VALUE[bestCard.rank]) return play;
     return best;
-  }, { index: 0, seat: gameState.currentTurn });
+  });
 
   return winning.seat;
 }

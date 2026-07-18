@@ -20,16 +20,24 @@ function firstLegalCard(gameState: GameState, seat: SeatIndex): Card | undefined
   return player?.cards.find((card) => validateMove(gameState, seat, card).valid);
 }
 
-function advanceBots(io: Server, room: RoomState) {
+function advanceBots(io: Server, roomCode: string, delayMs = 700) {
   // Development bots are intentionally simple. They only choose legal cards;
   // move validation and state transitions always remain server-authoritative.
-  while (room.gameState?.status === 'PLAYING' && room.gameState.currentTurn !== 0) {
+  setTimeout(() => {
+    const room = rooms.get(roomCode);
+    if (!room?.gameState || room.gameState.status !== 'PLAYING' || room.gameState.currentTurn === 0) return;
+
     const seat = room.gameState.currentTurn;
     const card = firstLegalCard(room.gameState, seat);
-    if (!card) break;
+    if (!card) return;
+
+    const completedTrick = room.gameState.trickCards.length === 3;
     room.gameState = applyMove(room.gameState, seat, card);
-  }
-  emitState(io, room);
+    rooms.set(roomCode, room);
+    emitState(io, room);
+    // Keep the four completed cards on-screen before the following bot move.
+    advanceBots(io, roomCode, completedTrick ? 1800 : 700);
+  }, delayMs);
 }
 
 export function createSocketServer(httpServer: import('node:http').Server) {
@@ -49,6 +57,8 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       const seat = existingSeat === -1 ? room.players.push(playerName) - 1 : existingSeat;
       rooms.set(roomCode, room);
       socket.join(roomCode);
+      socket.data.roomCode = roomCode;
+      socket.data.seat = seat;
       socket.emit('seat-assigned', seat);
       emitState(io, room);
     });
@@ -86,6 +96,24 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       callback?.({});
     });
 
+    socket.on('restart-game', ({ roomCode }: { roomCode: string }, callback?: (result: { error?: string }) => void) => {
+      const room = rooms.get(roomCode);
+      if (!room?.gameState || room.gameState.status !== 'FINISHED') {
+        callback?.({ error: 'Finish the current match before starting another one.' });
+        return;
+      }
+      if (socket.data.roomCode !== roomCode || socket.data.seat !== 0) {
+        callback?.({ error: 'Only Seat 1 can start the next match.' });
+        return;
+      }
+
+      room.gameState = createInitialGameState(roomCode, room.players);
+      rooms.set(roomCode, room);
+      io.to(roomCode).emit('game-started', room.gameState);
+      emitState(io, room);
+      callback?.({});
+    });
+
     socket.on('play-card', ({ roomCode, seat, card }: { roomCode: string; seat: number; card: any }) => {
       const room = rooms.get(roomCode);
       const gameState = room?.gameState;
@@ -97,10 +125,12 @@ export function createSocketServer(httpServer: import('node:http').Server) {
         return;
       }
 
+      const completedTrick = gameState.trickCards.length === 3;
       const nextState = applyMove(gameState, seat as 0 | 1 | 2 | 3, card);
       room.gameState = nextState;
       rooms.set(roomCode, room);
-      advanceBots(io, room);
+      emitState(io, room);
+      advanceBots(io, roomCode, completedTrick ? 1800 : 700);
     });
   });
 

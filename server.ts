@@ -12,7 +12,21 @@ async function startServer() {
   await app.prepare();
 
   const httpServer = createServer((request, response) => handle(request, response));
-  createSocketServer(httpServer);
+  const io = createSocketServer(httpServer);
+
+  let isShuttingDown = false;
+  const shutdown = (signal: string) => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+    console.log(`\n> Received ${signal}; closing server...`);
+
+    io.close(() => {
+      httpServer.close(() => process.exit(0));
+    });
+  };
+
+  process.once('SIGINT', () => shutdown('SIGINT'));
+  process.once('SIGTERM', () => shutdown('SIGTERM'));
 
   httpServer.listen(port, hostname, () => {
     console.log(`> Ready on http://localhost:${port}`);

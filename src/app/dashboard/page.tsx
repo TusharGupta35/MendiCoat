@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { CreateRoomButton } from '@/components/CreateRoomButton';
+import { DeleteRoomButton } from '@/components/DeleteRoomButton';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
@@ -18,7 +19,7 @@ export default async function DashboardPage() {
       rooms: {
         orderBy: { updatedAt: 'desc' },
         take: 8,
-        select: { id: true, name: true, code: true, status: true },
+        select: { id: true, name: true, code: true, status: true, hostId: true },
       },
     },
   });
@@ -53,16 +54,19 @@ export default async function DashboardPage() {
             <h2 className="text-xl font-semibold text-white">Recent rooms</h2>
             <div className="mt-4 space-y-3">
               {rooms.length === 0 ? <p className="text-sm text-slate-400">You have not joined any rooms yet.</p> : null}
-              {rooms.map((room: { id: string; name: string; code: string; status: string }) => (
-                <Link key={room.id} href={`/room/${room.code}`} className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/70 p-3 transition hover:border-slate-600">
+              {rooms.map((room) => (
+                <div key={room.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/70 p-3">
                   <div>
-                    <p className="font-medium text-white">{room.name}</p>
+                    <Link href={`/room/${room.code}`} className="font-medium text-white hover:text-amber-300">{room.name}</Link>
                     <p className="text-sm text-slate-400">{room.code}</p>
                   </div>
-                  <span className="rounded-full bg-slate-800 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-300">
-                    {room.status}
-                  </span>
-                </Link>
+                  <div className="flex items-center gap-3">
+                    <span className="rounded-full bg-slate-800 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-300">
+                      {room.status}
+                    </span>
+                    {room.hostId === user?.id ? <DeleteRoomButton roomCode={room.code} /> : null}
+                  </div>
+                </div>
               ))}
             </div>
           </div>

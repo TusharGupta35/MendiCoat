@@ -11,3 +11,18 @@ body {
 * {
   @apply box-border;
 }
+
+@keyframes card-play {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.82) rotate(-4deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0);
+  }
+}
+
+.animate-card-play {
+  animation: card-play 300ms ease-out both;
+}

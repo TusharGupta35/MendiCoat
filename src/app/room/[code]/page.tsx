@@ -42,7 +42,7 @@ export default async function RoomPage({ params }: { params: Promise<{ code: str
               const player = room.players[seat];
               return (
               <div key={seat} className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-                <p className="text-sm text-slate-400">Seat {seat + 1} · Team {seat % 2 === 0 ? 'A' : 'B'}</p>
+                <p className="text-sm text-slate-400">Seat {seat + 1} · Team {seat < 2 ? 'A' : 'B'}</p>
                 <p className="mt-2 font-medium text-white">{player?.name ?? 'Waiting for player'}</p>
               </div>
               );
