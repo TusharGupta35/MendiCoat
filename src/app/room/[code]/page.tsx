@@ -18,7 +18,7 @@ export default async function RoomPage({ params }: { params: Promise<{ code: str
     include: { players: { select: { id: true, name: true } } },
   });
   const currentUser = await prisma.user.findUnique({ where: { email: session.user.email } });
-  if (!room || !currentUser || !room.players.some((player: { id: string; name: string }) => player.id === currentUser.id)) {
+  if (!room || !currentUser || !room.players.some((player) => player.id === currentUser.id)) {
     redirect('/room/join');
   }
 
@@ -63,4 +63,3 @@ export default async function RoomPage({ params }: { params: Promise<{ code: str
     </main>
   );
 }
-
