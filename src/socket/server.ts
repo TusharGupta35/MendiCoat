@@ -90,6 +90,18 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       if (room.gameState) socket.emit('game-state-update', room.gameState);
     });
 
+    socket.on('restore-seat', ({ roomCode, playerId }: { roomCode: string; playerId: string }) => {
+      const room = rooms.get(roomCode);
+      const seat = room?.players.findIndex((player) => player?.id === playerId) ?? -1;
+      if (!room || seat < 0) return;
+
+      socket.join(roomCode);
+      socket.data.roomCode = roomCode;
+      socket.data.seat = seat as SeatIndex;
+      socket.emit('seat-assigned', seat);
+      emitState(io, room);
+    });
+
     socket.on('join-room', ({ roomCode, playerId, playerName, team }: { roomCode: string; playerId: string; playerName: string; team: TeamId }) => {
       const room = rooms.get(roomCode) ?? { roomCode, players: Array.from<RoomPlayer | undefined>({ length: 4 }) };
       const existingSeat = room.players.findIndex((player) => player?.id === playerId);
