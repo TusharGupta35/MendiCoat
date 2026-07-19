@@ -30,7 +30,7 @@ export interface GameState {
   trickNumber: number;
   trickCards: TrickPlay[];
   lastTrick?: { cards: TrickPlay[]; winner: SeatIndex };
-  scores: Record<TeamId, number>;
+  handsWon: Record<TeamId, number>;
   capturedTens: Record<TeamId, number>;
   capturedTensBySuit: Record<TeamId, Record<Suit, number>>;
   winnerTeam?: TeamId | 'DRAW';

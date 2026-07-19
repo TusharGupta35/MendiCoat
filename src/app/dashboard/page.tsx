@@ -48,7 +48,7 @@ const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
             <p className="mt-2 text-sm text-slate-400">
               Create a game room to invite four players. The room code will be shared with everyone in the match.
             </p>
-            <p className="mt-6 text-sm text-slate-400">Create a room to receive a unique 8-character code.</p>
+            <p className="mt-6 text-sm text-slate-400">Create a room to receive a unique 4-character code.</p>
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6">

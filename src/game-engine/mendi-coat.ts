@@ -44,7 +44,7 @@ export function createInitialGameState(roomCode: string, playerNames: string[]):
     trumpSuit: 'HEARTS',
     trickNumber: 1,
     trickCards: [],
-    scores: { A: 0, B: 0 },
+    handsWon: { A: 0, B: 0 },
     capturedTens: { A: 0, B: 0 },
     capturedTensBySuit: {
       A: { SPADES: 0, HEARTS: 0, CLUBS: 0, DIAMONDS: 0 },
@@ -94,16 +94,16 @@ export function applyMove(gameState: GameState, seat: SeatIndex, card: Card): Ga
     for (const ten of capturedTens) {
       nextState.capturedTensBySuit[winner.team][ten.card.suit] += 1;
     }
-    nextState.scores[winner.team] += 1;
+    nextState.handsWon[winner.team] += 1;
     nextState.currentTurn = winnerSeat;
     nextState.trickCards = [];
     nextState.trickNumber += 1;
 
     if (nextState.trickNumber > 13) {
       nextState.status = 'FINISHED';
-      nextState.winnerTeam = nextState.capturedTens.A === nextState.capturedTens.B
+      nextState.winnerTeam = nextState.handsWon.A === nextState.handsWon.B
         ? 'DRAW'
-        : nextState.capturedTens.A > nextState.capturedTens.B ? 'A' : 'B';
+        : nextState.handsWon.A > nextState.handsWon.B ? 'A' : 'B';
     }
   } else {
     nextState.currentTurn = ((seat + 1) % 4) as SeatIndex;

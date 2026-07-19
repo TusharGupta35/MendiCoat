@@ -39,7 +39,7 @@ export function JoinRoomForm() {
         name="code"
         value={code}
         onChange={(event) => setCode(event.target.value.toUpperCase())}
-        maxLength={8}
+        maxLength={4}
         required
         placeholder="ROOM CODE"
         aria-describedby={error ? 'room-code-error' : undefined}

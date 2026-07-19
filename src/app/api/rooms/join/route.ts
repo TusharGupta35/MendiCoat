@@ -11,8 +11,8 @@ export async function POST(request: NextRequest) {
 
   const payload = await request.json().catch(() => null);
   const code = typeof payload?.code === 'string' ? payload.code.trim().toUpperCase() : '';
-  if (!/^[A-F0-9]{8}$/.test(code)) {
-    return NextResponse.json({ error: 'Enter the 8-character room code shared by the host.' }, { status: 400 });
+  if (!/^[A-F0-9]{4}$/.test(code)) {
+    return NextResponse.json({ error: 'Enter the 4-character room code shared by the host.' }, { status: 400 });
   }
 
   const user = await prisma.user.findUnique({ where: { email: session.user.email } });
