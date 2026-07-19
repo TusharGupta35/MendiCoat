@@ -5,7 +5,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 function createRoomCode() {
-  return randomBytes(4).toString('hex').toUpperCase();
+  return randomBytes(2).toString('hex').toUpperCase();
 }
 
 export async function POST() {

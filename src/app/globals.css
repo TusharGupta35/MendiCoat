@@ -26,3 +26,57 @@ body {
 .animate-card-play {
   animation: card-play 300ms ease-out both;
 }
+
+.game-play-layout {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (orientation: portrait) {
+  .game-play-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .game-table,
+  .game-sidebar {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .game-table-grid {
+    grid-template-columns: minmax(58px, 1fr) minmax(88px, 1.35fr) minmax(58px, 1fr) !important;
+    min-height: 17.5rem !important;
+  }
+
+  .game-scores {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (min-width: 1024px), (orientation: landscape) and (max-height: 600px) {
+  .game-play-layout {
+    grid-template-columns: minmax(0, 1.2fr) minmax(15rem, 0.8fr);
+    align-items: start;
+  }
+
+  .game-sidebar {
+    min-width: 0;
+  }
+
+  .game-scores {
+    grid-template-columns: 1fr;
+  }
+
+  .game-table-grid {
+    min-height: 17rem;
+  }
+
+  .game-hand > div {
+    padding-top: 1.25rem;
+  }
+
+  .game-hand button {
+    height: 5.25rem;
+    width: 3.75rem;
+  }
+}
