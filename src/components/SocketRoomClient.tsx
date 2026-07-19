@@ -53,6 +53,7 @@ export function SocketRoomClient({ roomCode, playerId, playerName }: SocketRoomC
     const client = io({ path: "/socket.io" });
     setSocket(client);
     client.emit("watch-room", { roomCode });
+    client.emit("restore-seat", { roomCode, playerId });
     client.on("room-update", (payload: { players: RoomPlayer[] }) => setRoomPlayers(payload.players));
     client.on("seat-assigned", (payload: number) => setSeat(payload));
     client.on("game-started", (payload: GameState) => {
