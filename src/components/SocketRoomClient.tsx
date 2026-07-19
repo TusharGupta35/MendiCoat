@@ -134,6 +134,13 @@ export function SocketRoomClient({
     });
   }
 
+  function startGame() {
+    setError(null);
+    socket?.emit("start-game", { roomCode }, (result: { error?: string }) => {
+      if (result.error) setError(result.error);
+    });
+  }
+
   function playCard(card: GameState["players"][number]["cards"][number]) {
     if (seat === null || !socket) return;
     setError(null);
@@ -229,7 +236,7 @@ export function SocketRoomClient({
             openSeats === 0 ? (
               <button
                 type="button"
-                onClick={restartGame}
+                onClick={startGame}
                 className="mt-4 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400"
               >
                 Start Game
