@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import type { Card, GameState, Suit } from "@/types/game";
 
@@ -29,7 +29,10 @@ export function SocketRoomClient({ roomCode, playerId, playerName }: SocketRoomC
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [seat, setSeat] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [thoughtInput, setThoughtInput] = useState("");
+  const [visibleThought, setVisibleThought] = useState<{ name: string; message: string } | null>(null);
   const audioContext = useRef<AudioContext | null>(null);
+  const thoughtTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function playSound(frequency: number, duration = 0.09) {
     if (typeof window === "undefined") return;
@@ -65,11 +68,17 @@ export function SocketRoomClient({ roomCode, playerId, playerName }: SocketRoomC
     client.on("move-invalid", (message: string) => setError(message));
     client.on("room-full", () => setError("This room is full."));
     client.on("team-full", (team: TeamId) => setError(`Team ${team} is full. Choose the other team.`));
+    client.on("room-thought", (payload: { name: string; message: string }) => {
+      setVisibleThought(payload);
+      if (thoughtTimeout.current) clearTimeout(thoughtTimeout.current);
+      thoughtTimeout.current = setTimeout(() => setVisibleThought(null), 4000);
+    });
 
     return () => {
       client.disconnect();
       audioContext.current?.close();
       audioContext.current = null;
+      if (thoughtTimeout.current) clearTimeout(thoughtTimeout.current);
     };
   }, [roomCode]);
 
@@ -103,8 +112,20 @@ export function SocketRoomClient({ roomCode, playerId, playerName }: SocketRoomC
     });
   }
 
+  function sendThought(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const message = thoughtInput.trim();
+    if (!message) return;
+    setError(null);
+    socket?.emit("send-thought", { roomCode, message }, (result: { error?: string }) => {
+      if (result.error) setError(result.error);
+      else setThoughtInput("");
+    });
+  }
+
   return (
     <div className={`room-dashboard ${gameState ? "has-active-game" : "waiting-room-dashboard"} flex flex-col gap-4`}>
+      <div className="room-sidebar flex flex-col gap-4">
       <section className="live-room-panel rounded-xl border border-slate-800 bg-slate-950/70 p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -132,6 +153,15 @@ export function SocketRoomClient({ roomCode, playerId, playerName }: SocketRoomC
         </div>
         {seat !== null && !gameState && openSeats > 0 ? <button type="button" onClick={fillWithBots} className="mt-4 rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-amber-950 transition hover:bg-amber-300">Add {openSeats} bot{openSeats === 1 ? "" : "s"} and start</button> : null}
       </section>
+      {gameState ? <section className="table-chat-panel rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+        
+        {visibleThought ? <p className="mt-2 rounded-lg bg-slate-900 px-3 py-2 text-sm text-white"><span className="font-semibold text-amber-300">{visibleThought.name}:</span> {visibleThought.message}</p> : <p className="mt-2 text-sm text-slate-400">Share a quick thought with the table.</p>}
+        <form onSubmit={sendThought} className="mt-3 flex rounded-lg border border-slate-700 bg-slate-900 p-1">
+          <input value={thoughtInput} onChange={(event) => setThoughtInput(event.target.value)} maxLength={80} placeholder="Say something…" className="min-w-0 flex-1 bg-transparent px-2 py-1 text-sm text-white outline-none placeholder:text-slate-400" />
+          <button type="submit" className="rounded-md bg-amber-400 px-3 py-1 text-xs font-semibold text-emerald-950">Send</button>
+        </form>
+      </section> : null}
+      </div>
 
       {gameState ? <section className="active-game-panel space-y-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">

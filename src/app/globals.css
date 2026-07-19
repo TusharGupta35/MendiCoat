@@ -99,7 +99,7 @@ body {
     gap: 1.5rem;
   }
 
-  .room-dashboard.has-active-game .live-room-panel {
+  .room-dashboard.has-active-game .room-sidebar {
     grid-column: 1;
     grid-row: 1;
     position: sticky;

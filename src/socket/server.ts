@@ -172,6 +172,24 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       callback?.({});
     });
 
+    socket.on('send-thought', ({ roomCode, message }: { roomCode: string; message: string }, callback?: (result: { error?: string }) => void) => {
+      const room = rooms.get(roomCode);
+      const seat = socket.data.seat as SeatIndex | undefined;
+      const text = typeof message === 'string' ? message.trim().slice(0, 80) : '';
+
+      if (!room || socket.data.roomCode !== roomCode || seat === undefined || isBotSeat(room, seat)) {
+        callback?.({ error: 'Join the room before sending a thought.' });
+        return;
+      }
+      if (!text) {
+        callback?.({ error: 'Write a thought before sending it.' });
+        return;
+      }
+
+      io.to(roomCode).emit('room-thought', { name: room.players[seat]?.name ?? 'Player', message: text });
+      callback?.({});
+    });
+
     socket.on('play-card', ({ roomCode, card }: { roomCode: string; card: Card }) => {
       const room = rooms.get(roomCode);
       const gameState = room?.gameState;
