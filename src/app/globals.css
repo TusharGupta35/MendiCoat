@@ -80,3 +80,59 @@ body {
     width: 3.75rem;
   }
 }
+
+@media (min-width: 1280px) {
+  .room-page-header {
+    display: grid;
+    grid-template-columns: 18rem minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .room-page-header > a {
+    justify-self: end;
+  }
+
+  .room-dashboard.has-active-game {
+    display: grid;
+    grid-template-columns: 18rem minmax(0, 1fr);
+    align-items: start;
+    gap: 1.5rem;
+  }
+
+  .room-dashboard.has-active-game .live-room-panel {
+    grid-column: 1;
+    grid-row: 1;
+    position: sticky;
+    top: 1.5rem;
+  }
+
+  .room-dashboard.has-active-game .live-room-panel > .mt-4 {
+    grid-template-columns: 1fr;
+  }
+
+  .room-dashboard.has-active-game .team-heading {
+    white-space: nowrap;
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+  }
+
+  .room-dashboard.has-active-game .live-seat-label {
+    flex-shrink: 0;
+  }
+
+  .room-dashboard.has-active-game .live-seat-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: right;
+  }
+
+  .room-dashboard.has-active-game .active-game-panel {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .waiting-room-dashboard {
+    max-width: 58rem;
+  }
+}

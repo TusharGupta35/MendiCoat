@@ -104,25 +104,25 @@ export function SocketRoomClient({ roomCode, playerId, playerName }: SocketRoomC
   }
 
   return (
-    <div className="space-y-4">
-      <section className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
+    <div className={`room-dashboard ${gameState ? "has-active-game" : "waiting-room-dashboard"} flex flex-col gap-4`}>
+      <section className="live-room-panel rounded-xl border border-slate-800 bg-slate-950/70 p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-white">Live room</h2>
             <p className="mt-1 text-sm text-slate-400">Choose a team, then fill only the remaining seats with bots if needed.</p>
           </div>
-          <span className="rounded-full bg-amber-500/10 px-3 py-1 text-sm text-amber-400">{4 - openSeats} / 4</span>
+          <span className="shrink-0 whitespace-nowrap rounded-full bg-amber-500/10 px-3 py-1 text-sm text-amber-400">{4 - openSeats}/4</span>
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {(["A", "B"] as const).map((team) => (
             <div key={team} className="rounded-lg border border-slate-800 bg-slate-900 p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Team {team} · Seats {team === "A" ? "1 & 3" : "2 & 4"}</p>
+              <p className="team-heading text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Team {team} · Seats {team === "A" ? "1 & 3" : "2 & 4"}</p>
               <div className="mt-3 space-y-2">
                 {([team === "A" ? 0 : 1, team === "A" ? 2 : 3]).map((playerSeat) => {
                   const occupant = roomPlayers[playerSeat];
-                  return <div key={playerSeat} className="flex items-center justify-between rounded-md bg-slate-950/70 px-3 py-2 text-sm">
-                    <span className="text-slate-400">Seat {playerSeat + 1}</span>
-                    <span className={occupant?.isBot ? "text-amber-300" : "font-medium text-white"}>{occupant ? `${occupant.name}${occupant.isBot ? " · Bot" : ""}` : "Open"}</span>
+                  return <div key={playerSeat} className="flex items-center justify-between gap-2 rounded-md bg-slate-950/70 px-3 py-2 text-sm">
+                    <span className="live-seat-label text-slate-400">Seat {playerSeat + 1}</span>
+                    <span className={`live-seat-name ${occupant?.isBot ? "text-amber-300" : "font-medium text-white"}`}>{occupant ? `${occupant.name}${occupant.isBot ? " · Bot" : ""}` : "Open"}</span>
                   </div>;
                 })}
               </div>
@@ -133,7 +133,7 @@ export function SocketRoomClient({ roomCode, playerId, playerName }: SocketRoomC
         {seat !== null && !gameState && openSeats > 0 ? <button type="button" onClick={fillWithBots} className="mt-4 rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-amber-950 transition hover:bg-amber-300">Add {openSeats} bot{openSeats === 1 ? "" : "s"} and start</button> : null}
       </section>
 
-      {gameState ? <section className="space-y-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+      {gameState ? <section className="active-game-panel space-y-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm uppercase tracking-[0.3em] text-amber-400">Game started</p>
           <div className="flex gap-4 text-sm text-slate-200"><p>Turn: Seat {gameState.currentTurn + 1}</p><p>Trump: {gameState.trumpSuit}</p><p>Hand: {gameState.trickNumber}</p></div>

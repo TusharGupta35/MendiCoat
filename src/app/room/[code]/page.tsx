@@ -23,20 +23,21 @@ export default async function RoomPage({ params }: { params: Promise<{ code: str
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 py-12">
-      <div className="w-full max-w-3xl rounded-2xl border border-slate-800 bg-slate-900/80 p-8 shadow-2xl">
-        <p className="text-sm uppercase tracking-[0.35em] text-amber-400">Waiting room</p>
-        <h1 className="mt-2 text-3xl font-semibold text-white">Room {room.code}</h1>
-        <p className="mt-2 text-sm text-slate-400">Share this code: {room.code}</p>
+    <main className="min-h-screen bg-slate-950 px-6 py-8 lg:px-10 lg:py-10">
+      <div className="mx-auto w-full max-w-[1600px] rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl lg:p-8">
+        <header className="room-page-header">
+          <div>
+            <p className="text-sm uppercase tracking-[0.35em] text-amber-400">Waiting room</p>
+            <h1 className="mt-2 text-3xl font-semibold text-white">Room {room.code}</h1>
+            <p className="mt-2 text-sm text-slate-400">Share this code: {room.code}</p>
+          </div>
+          <Link href="/dashboard" className="mt-5 inline-flex rounded-lg border border-slate-700 px-4 py-2 font-medium text-slate-100 transition hover:bg-slate-800 lg:mt-0">
+            Back to dashboard
+          </Link>
+        </header>
 
         <div className="mt-8">
           <SocketRoomClient roomCode={room.code} playerId={currentUser.id} playerName={currentUser.name ?? 'Player'} />
-        </div>
-
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Link href="/dashboard" className="rounded-lg border border-slate-700 px-4 py-2 font-medium text-slate-100 transition hover:bg-slate-800">
-            Back to dashboard
-          </Link>
         </div>
       </div>
     </main>
