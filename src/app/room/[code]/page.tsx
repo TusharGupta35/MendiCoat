@@ -51,7 +51,7 @@ export default async function RoomPage({ params }: { params: Promise<{ code: str
         </div>
 
         <div className="mt-6">
-          <SocketRoomClient roomCode={room.code} playerName={currentUser.name ?? 'Player'} allowBots={process.env.NODE_ENV === 'development'} />
+          <SocketRoomClient roomCode={room.code} playerName={currentUser.name ?? 'Player'} allowBots />
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
