@@ -29,29 +29,8 @@ export default async function RoomPage({ params }: { params: Promise<{ code: str
         <h1 className="mt-2 text-3xl font-semibold text-white">Room {room.code}</h1>
         <p className="mt-2 text-sm text-slate-400">Share this code: {room.code}</p>
 
-        <div className="mt-8 rounded-xl border border-slate-800 bg-slate-950/70 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-white">Players</h2>
-              <p className="text-sm text-slate-400">The match will begin once 4 players join.</p>
-            </div>
-            <span className="rounded-full bg-amber-500/10 px-3 py-1 text-sm text-amber-400">{room.players.length} / 4</span>
-          </div>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            {[0, 1, 2, 3].map((seat) => {
-              const player = room.players[seat];
-              return (
-              <div key={seat} className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-                <p className="text-sm text-slate-400">Seat {seat + 1} · Team {seat < 2 ? 'A' : 'B'}</p>
-                <p className="mt-2 font-medium text-white">{player?.name ?? 'Waiting for player'}</p>
-              </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="mt-6">
-          <SocketRoomClient roomCode={room.code} playerName={currentUser.name ?? 'Player'} allowBots />
+        <div className="mt-8">
+          <SocketRoomClient roomCode={room.code} playerId={currentUser.id} playerName={currentUser.name ?? 'Player'} />
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
