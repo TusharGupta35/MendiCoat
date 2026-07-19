@@ -160,6 +160,42 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       advanceBots(io, roomCode);
     });
 
+    socket.on(
+      "start-game",
+      ({ roomCode }: { roomCode: string }, callback?: (result: { error?: string }) => void) => {
+        const room = rooms.get(roomCode);
+
+        if (!room) {
+          callback?.({ error: "Room not found." });
+          return;
+        }
+
+        if (room.gameState) {
+          callback?.({ error: "Game already started." });
+          return;
+        }
+
+        if (!room.players.every(Boolean)) {
+          callback?.({ error: "All four seats must be filled." });
+          return;
+        }
+
+        room.gameState = createInitialGameState(
+          roomCode,
+          room.players.map((player) => player!.name)
+        );
+
+        rooms.set(roomCode, room);
+
+        io.to(roomCode).emit("game-started", room.gameState);
+        emitState(io, room);
+
+        callback?.({});
+
+        advanceBots(io, roomCode);
+      }
+    );
+
     socket.on('restart-game', ({ roomCode }: { roomCode: string }, callback?: (result: { error?: string }) => void) => {
       const room = rooms.get(roomCode);
       if (!room?.gameState || room.gameState.status !== 'FINISHED') {
