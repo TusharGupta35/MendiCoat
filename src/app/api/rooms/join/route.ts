@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
   if (room.status !== 'LOBBY') {
     return NextResponse.json({ error: 'This game has already started.' }, { status: 409 });
   }
-  if (!room.players.some((player) => player.id === user.id) && room.players.length >= 4) {
+  if (!room.players.some((player: { id: string }) => player.id === user.id) && room.players.length >= 4) {
     return NextResponse.json({ error: 'This room is already full.' }, { status: 409 });
   }
 
