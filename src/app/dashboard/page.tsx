@@ -23,7 +23,8 @@ export default async function DashboardPage() {
       },
     },
   });
-  const rooms = user?.rooms ?? [];
+//   const rooms = user?.rooms ?? [];
+const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
 
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-12 text-slate-100">
@@ -54,7 +55,13 @@ export default async function DashboardPage() {
             <h2 className="text-xl font-semibold text-white">Recent rooms</h2>
             <div className="mt-4 space-y-3">
               {rooms.length === 0 ? <p className="text-sm text-slate-400">You have not joined any rooms yet.</p> : null}
-              {rooms.map((room) => (
+              {rooms.map((room: {
+                            id: string;
+                            name: string;
+                            code: string;
+                            status: string;  
+                            hostId: string; 
+                          }) => (
                 <div key={room.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/70 p-3">
                   <div>
                     <Link href={`/room/${room.code}`} className="font-medium text-white hover:text-amber-300">{room.name}</Link>

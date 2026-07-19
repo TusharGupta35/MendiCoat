@@ -34,7 +34,7 @@ export function createInitialGameState(roomCode: string, playerNames: string[]):
     seat: index as SeatIndex,
     cards: dealt[index],
     // Seats 1 and 2 form Team A; Seats 3 and 4 form Team B.
-    team: (index < 2 ? 'A' : 'B') as 'A' | 'B',
+    team: (index == 0 || index == 2 ? 'A' : 'B') as 'A' | 'B',
   }));
 
   return {
