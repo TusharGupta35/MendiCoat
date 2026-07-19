@@ -21,7 +21,7 @@ function firstLegalCard(gameState: GameState, seat: SeatIndex): Card | undefined
 }
 
 function advanceBots(io: Server, roomCode: string, delayMs = 700) {
-  // Development bots are intentionally simple. They only choose legal cards;
+  // Bots are intentionally simple. They only choose legal cards;
   // move validation and state transitions always remain server-authoritative.
   setTimeout(() => {
     const room = rooms.get(roomCode);
@@ -64,11 +64,6 @@ export function createSocketServer(httpServer: import('node:http').Server) {
     });
 
     socket.on('fill-bots', ({ roomCode }: { roomCode: string }, callback?: (result: { error?: string }) => void) => {
-      if (process.env.NODE_ENV === 'production') {
-        callback?.({ error: 'Bot filling is available only during development.' });
-        return;
-      }
-
       const room = rooms.get(roomCode);
       if (!room) {
         callback?.({ error: 'Connect to the room before adding bots.' });
