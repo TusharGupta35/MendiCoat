@@ -22,6 +22,12 @@ export interface PlayerState {
   team: TeamId;
 }
 
+export interface MatchResult {
+  winnerTeam: TeamId | 'DRAW';
+  capturedTens: Record<TeamId, number>;
+  handsWon: Record<TeamId, number>;
+}
+
 export interface GameState {
   roomCode: string;
   status: 'LOBBY' | 'PLAYING' | 'FINISHED';
