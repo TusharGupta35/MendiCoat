@@ -2,7 +2,7 @@
 
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
-import type { Card, GameState, Suit } from "@/types/game";
+import type { Card, GameState, MatchResult, Suit } from "@/types/game";
 
 interface SocketRoomClientProps {
   roomCode: string;
@@ -14,6 +14,7 @@ type TeamId = "A" | "B";
 type RoomPlayer = {
   name: string;
   isBot: boolean;
+  isOnline: boolean;
   seat: number;
   team: TeamId;
 } | null;
@@ -48,8 +49,11 @@ export function SocketRoomClient({
     null,
   ]);
   const [gameState, setGameState] = useState<GameState | null>(null);
+  const [matchHistory, setMatchHistory] = useState<MatchResult[]>([]);
   const [seat, setSeat] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [moveError, setMoveError] = useState<string | null>(null);
+  const [coatTeam, setCoatTeam] = useState<TeamId | null>(null);
   const [thoughtInput, setThoughtInput] = useState("");
   const [visibleThought, setVisibleThought] = useState<{
     name: string;
@@ -57,6 +61,8 @@ export function SocketRoomClient({
   } | null>(null);
   const audioContext = useRef<AudioContext | null>(null);
   const thoughtTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const moveErrorTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const coatTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function playSound(frequency: number, duration = 0.09) {
     if (typeof window === "undefined") return;
@@ -96,8 +102,17 @@ export function SocketRoomClient({
         return payload;
       });
     });
-    client.on("move-invalid", (message: string) => setError(message));
+    client.on("match-history", (payload: MatchResult[]) =>
+      setMatchHistory(payload),
+    );
+    client.on("move-invalid", (message: string) => {
+      setMoveError(message);
+      playSound(180, 0.18);
+      if (moveErrorTimeout.current) clearTimeout(moveErrorTimeout.current);
+      moveErrorTimeout.current = setTimeout(() => setMoveError(null), 2600);
+    });
     client.on("room-full", () => setError("This room is full."));
+    client.on("game-already-started", () => setError("This game has already started."));
     client.on("team-full", (team: TeamId) =>
       setError(`Team ${team} is full. Choose the other team.`),
     );
@@ -112,14 +127,42 @@ export function SocketRoomClient({
       audioContext.current?.close();
       audioContext.current = null;
       if (thoughtTimeout.current) clearTimeout(thoughtTimeout.current);
+      if (moveErrorTimeout.current) clearTimeout(moveErrorTimeout.current);
+      if (coatTimeout.current) clearTimeout(coatTimeout.current);
     };
   }, [roomCode]);
+
+  // A "coat" is a shutout: one team captured all four 10s. Flash it on the
+  // board for a few seconds when a match ends that way.
+  const finishedStatus = gameState?.status === "FINISHED" ? "FINISHED" : "LIVE";
+  useEffect(() => {
+    if (finishedStatus !== "FINISHED" || !gameState) {
+      setCoatTeam(null);
+      return;
+    }
+    const coated = (["A", "B"] as const).find(
+      (team) => gameState.capturedTens[team] === 4,
+    );
+    if (!coated) return;
+    setCoatTeam(coated);
+    playSound(720, 0.3);
+    if (coatTimeout.current) clearTimeout(coatTimeout.current);
+    coatTimeout.current = setTimeout(() => setCoatTeam(null), 5000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finishedStatus]);
 
   const player = seat === null ? undefined : gameState?.players[seat];
   const tablePlays = gameState?.trickCards.length
     ? gameState.trickCards
     : (gameState?.lastTrick?.cards ?? []);
   const openSeats = roomPlayers.filter((entry) => entry === null).length;
+  const historyTally = matchHistory.reduce(
+    (tally, result) => {
+      tally[result.winnerTeam] += 1;
+      return tally;
+    },
+    { A: 0, B: 0, DRAW: 0 },
+  );
 
   function joinTeam(team: TeamId) {
     setError(null);
@@ -144,6 +187,7 @@ export function SocketRoomClient({
   function playCard(card: GameState["players"][number]["cards"][number]) {
     if (seat === null || !socket) return;
     setError(null);
+    setMoveError(null);
     socket.emit("play-card", { roomCode, card });
   }
 
@@ -178,10 +222,6 @@ export function SocketRoomClient({
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-white">Live room</h2>
-              <p className="mt-1 text-sm text-slate-400">
-                Choose a team, then fill only the remaining seats with bots if
-                needed.
-              </p>
             </div>
             <span className="shrink-0 whitespace-nowrap rounded-full bg-amber-500/10 px-3 py-1 text-sm text-amber-400">
               {4 - openSeats}/4
@@ -208,12 +248,9 @@ export function SocketRoomClient({
                           <span className="live-seat-label text-slate-400">
                             Seat {playerSeat + 1}
                           </span>
-                          <span
-                            className={`live-seat-name ${occupant?.isBot ? "text-amber-300" : "font-medium text-white"}`}
-                          >
-                            {occupant
-                              ? `${occupant.name}${occupant.isBot ? " · Bot" : ""}`
-                              : "Open"}
+                          <span className={`live-seat-name inline-flex items-center justify-end gap-1 ${occupant?.isBot ? "text-amber-300" : "font-medium text-white"}`}>
+                            {occupant && !occupant.isBot ? <span title={occupant.isOnline ? "Online" : "Offline"} className={`h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-slate-900 ${occupant.isOnline ? "bg-emerald-400" : "bg-slate-600"}`} /> : null}
+                            {occupant ? `${occupant.name}${occupant.isBot ? " · Bot" : ""}` : "Open"}
                           </span>
                         </div>
                       );
@@ -252,6 +289,70 @@ export function SocketRoomClient({
             )
           ) : null}
         </section>
+        <section className="match-history-panel rounded-xl border border-slate-800 bg-slate-950/70 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-white">Match history</h2>
+              <span className="shrink-0 whitespace-nowrap rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300">
+                {matchHistory.length} played
+              </span>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-lg bg-slate-900 p-2">
+                <p className="text-xs uppercase tracking-wide text-amber-300">
+                  Team A
+                </p>
+                <p className="mt-1 text-2xl font-semibold text-white">
+                  {historyTally.A}
+                </p>
+              </div>
+              <div className="rounded-lg bg-slate-900 p-2">
+                <p className="text-xs uppercase tracking-wide text-slate-400">
+                  Draws
+                </p>
+                <p className="mt-1 text-2xl font-semibold text-white">
+                  {historyTally.DRAW}
+                </p>
+              </div>
+              <div className="rounded-lg bg-slate-900 p-2">
+                <p className="text-xs uppercase tracking-wide text-amber-300">
+                  Team B
+                </p>
+                <p className="mt-1 text-2xl font-semibold text-white">
+                  {historyTally.B}
+                </p>
+              </div>
+            </div>
+            {matchHistory.length > 0 ? (
+              <ol className="mt-3 space-y-1.5">
+                {matchHistory
+                  .map((result, index) => ({ result, index }))
+                  .reverse()
+                  .slice(0, 6)
+                  .map(({ result, index }) => (
+                    <li
+                      key={index}
+                      className="flex items-center justify-between gap-2 rounded-md bg-slate-950/70 px-3 py-1.5 text-sm"
+                    >
+                      <span className="text-slate-400">Match {index + 1}</span>
+                      <span
+                        className={`font-medium ${result.winnerTeam === "DRAW" ? "text-slate-300" : "text-amber-300"}`}
+                      >
+                        {result.winnerTeam === "DRAW"
+                          ? "Draw"
+                          : `Team ${result.winnerTeam} won`}
+                      </span>
+                      <span className="text-xs text-slate-500">
+                        10s {result.capturedTens.A}–{result.capturedTens.B}
+                      </span>
+                    </li>
+                  ))}
+              </ol>
+            ) : (
+              <p className="mt-3 text-sm text-slate-400">
+                No matches played yet — results will appear here.
+              </p>
+            )}
+          </section>
         {gameState ? (
           <section className="table-chat-panel rounded-xl border border-slate-800 bg-slate-950/70 p-3">
             {visibleThought ? (
@@ -296,12 +397,32 @@ export function SocketRoomClient({
             </p>
             <div className="flex gap-4 text-sm text-slate-200">
               <p>Turn: Seat {gameState.currentTurn + 1}</p>
-              <p>Trump: {gameState.trumpSuit}</p>
+              <p>Trump: {gameState.trumpSuit ?? "After Hand 1"}</p>
               <p>Hand: {gameState.trickNumber}</p>
             </div>
           </div>
           <div className="game-play-layout">
-            <div className="game-table overflow-hidden rounded-2xl border-4 border-amber-950/80 bg-emerald-800 p-2 shadow-[inset_0_0_50px_rgba(0,0,0,0.35)] sm:border-8 sm:p-6">
+            <div className="game-table relative overflow-hidden rounded-2xl border-4 border-amber-950/80 bg-emerald-800 p-2 shadow-[inset_0_0_50px_rgba(0,0,0,0.35)] sm:border-8 sm:p-6">
+              {moveError ? (
+                <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center p-4">
+                  <p
+                    role="alert"
+                    className="animate-card-play max-w-[80%] rounded-xl border border-rose-400/60 bg-rose-950/90 px-4 py-3 text-center text-sm font-semibold text-rose-100 shadow-xl backdrop-blur-sm"
+                  >
+                    {moveError}
+                  </p>
+                </div>
+              ) : null}
+              {coatTeam ? (
+                <div className="pointer-events-none absolute inset-0 z-40 flex flex-col items-center justify-center gap-2 bg-emerald-950/60 backdrop-blur-sm">
+                  <p className="animate-card-play text-6xl font-black uppercase tracking-[0.15em] text-amber-300 drop-shadow-[0_0_25px_rgba(251,191,36,0.7)] sm:text-8xl">
+                    COAT
+                  </p>
+                  <p className="text-sm font-semibold text-amber-100 sm:text-base">
+                    Team {coatTeam === "A" ? "B" : "A"} got all four 10s taken!
+                  </p>
+                </div>
+              ) : null}
               <p className="text-center text-xs font-semibold uppercase tracking-[0.22em] text-emerald-100/75">
                 {gameState.trickCards.length
                   ? "Current hand"

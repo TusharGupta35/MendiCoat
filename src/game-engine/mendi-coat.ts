@@ -25,6 +25,13 @@ function dealCards(deck: Card[], playerCount: number): Card[][] {
   return hands;
 }
 
+function sortHand(cards: Card[]) {
+  return [...cards].sort((left, right) => {
+    const suitDifference = SUITS.indexOf(left.suit) - SUITS.indexOf(right.suit);
+    return suitDifference || RANK_VALUE[right.rank] - RANK_VALUE[left.rank];
+  });
+}
+
 export function createInitialGameState(roomCode: string, playerNames: string[]): GameState {
   const deck = shuffleDeck(createDeck());
   const dealt = dealCards(deck, 4);
@@ -32,7 +39,7 @@ export function createInitialGameState(roomCode: string, playerNames: string[]):
     id: `${index + 1}`,
     name,
     seat: index as SeatIndex,
-    cards: dealt[index],
+    cards: sortHand(dealt[index]),
     // Partners sit opposite each other: Seats 1 and 3 are Team A.
     team: (index == 0 || index == 2 ? 'A' : 'B') as 'A' | 'B',
   }));
@@ -40,8 +47,8 @@ export function createInitialGameState(roomCode: string, playerNames: string[]):
   return {
     roomCode,
     status: 'PLAYING',
-    currentTurn: 0,
-    trumpSuit: 'HEARTS',
+    currentTurn: Math.floor(Math.random() * 4) as SeatIndex,
+    trumpSuit: null,
     trickNumber: 1,
     trickCards: [],
     handsWon: { A: 0, B: 0 },
@@ -89,6 +96,9 @@ export function applyMove(gameState: GameState, seat: SeatIndex, card: Card): Ga
     if (!winner) return nextState;
 
     nextState.lastTrick = { cards: completedTrick, winner: winnerSeat };
+    if (nextState.trickNumber === 1) {
+      nextState.trumpSuit = completedTrick.find((play) => play.seat === winnerSeat)?.card.suit ?? null;
+    }
     const capturedTens = completedTrick.filter((play) => play.card.rank === '10');
     nextState.capturedTens[winner.team] += capturedTens.length;
     for (const ten of capturedTens) {
@@ -101,9 +111,11 @@ export function applyMove(gameState: GameState, seat: SeatIndex, card: Card): Ga
 
     if (nextState.trickNumber > 13) {
       nextState.status = 'FINISHED';
-      nextState.winnerTeam = nextState.handsWon.A === nextState.handsWon.B
-        ? 'DRAW'
-        : nextState.handsWon.A > nextState.handsWon.B ? 'A' : 'B';
+      nextState.winnerTeam = nextState.capturedTens.A !== nextState.capturedTens.B
+        ? nextState.capturedTens.A > nextState.capturedTens.B ? 'A' : 'B'
+        : nextState.handsWon.A === nextState.handsWon.B
+          ? 'DRAW'
+          : nextState.handsWon.A > nextState.handsWon.B ? 'A' : 'B';
     }
   } else {
     nextState.currentTurn = ((seat + 1) % 4) as SeatIndex;
@@ -118,8 +130,8 @@ export function determineTrickWinner(gameState: GameState): SeatIndex {
   const winning = gameState.trickCards.reduce((best, play) => {
     const candidate = play.card;
     const bestCard = best.card;
-    const candidateIsTrump = candidate.suit === trumpSuit;
-    const bestIsTrump = bestCard.suit === trumpSuit;
+    const candidateIsTrump = trumpSuit !== null && candidate.suit === trumpSuit;
+    const bestIsTrump = trumpSuit !== null && bestCard.suit === trumpSuit;
 
     if (candidateIsTrump !== bestIsTrump) return candidateIsTrump ? play : best;
     if (candidateIsTrump && RANK_VALUE[candidate.rank] > RANK_VALUE[bestCard.rank]) return play;

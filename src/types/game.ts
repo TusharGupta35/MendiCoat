@@ -22,11 +22,17 @@ export interface PlayerState {
   team: TeamId;
 }
 
+export interface MatchResult {
+  winnerTeam: TeamId | 'DRAW';
+  capturedTens: Record<TeamId, number>;
+  handsWon: Record<TeamId, number>;
+}
+
 export interface GameState {
   roomCode: string;
   status: 'LOBBY' | 'PLAYING' | 'FINISHED';
   currentTurn: SeatIndex;
-  trumpSuit: Suit;
+  trumpSuit: Suit | null;
   trickNumber: number;
   trickCards: TrickPlay[];
   lastTrick?: { cards: TrickPlay[]; winner: SeatIndex };
