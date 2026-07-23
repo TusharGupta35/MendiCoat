@@ -14,6 +14,7 @@ type TeamId = "A" | "B";
 type RoomPlayer = {
   name: string;
   isBot: boolean;
+  isOnline: boolean;
   seat: number;
   team: TeamId;
 } | null;
@@ -98,6 +99,7 @@ export function SocketRoomClient({
     });
     client.on("move-invalid", (message: string) => setError(message));
     client.on("room-full", () => setError("This room is full."));
+    client.on("game-already-started", () => setError("This game has already started."));
     client.on("team-full", (team: TeamId) =>
       setError(`Team ${team} is full. Choose the other team.`),
     );
@@ -208,12 +210,9 @@ export function SocketRoomClient({
                           <span className="live-seat-label text-slate-400">
                             Seat {playerSeat + 1}
                           </span>
-                          <span
-                            className={`live-seat-name ${occupant?.isBot ? "text-amber-300" : "font-medium text-white"}`}
-                          >
-                            {occupant
-                              ? `${occupant.name}${occupant.isBot ? " · Bot" : ""}`
-                              : "Open"}
+                          <span className={`live-seat-name inline-flex items-center justify-end gap-1 ${occupant?.isBot ? "text-amber-300" : "font-medium text-white"}`}>
+                            {occupant && !occupant.isBot ? <span title={occupant.isOnline ? "Online" : "Offline"} className={`h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-slate-900 ${occupant.isOnline ? "bg-emerald-400" : "bg-slate-600"}`} /> : null}
+                            {occupant ? `${occupant.name}${occupant.isBot ? " · Bot" : ""}` : "Open"}
                           </span>
                         </div>
                       );

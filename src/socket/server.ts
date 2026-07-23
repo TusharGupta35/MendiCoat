@@ -12,6 +12,7 @@ interface RoomPlayer {
   id: string;
   name: string;
   isBot: boolean;
+  socketIds: Set<string>;
 }
 
 type TeamId = 'A' | 'B';
@@ -31,14 +32,31 @@ function isBotSeat(room: RoomState, seat: SeatIndex) {
   return room.players[seat]?.isBot === true;
 }
 
+function roomPlayersPayload(room: RoomState) {
+  return room.players.map((player, seat) => player ? {
+    name: player.name,
+    isBot: player.isBot,
+    isOnline: !player.isBot && player.socketIds.size > 0,
+    seat,
+    team: seat === 0 || seat === 2 ? 'A' : 'B',
+  } : null);
+}
+
+function markPlayerConnected(room: RoomState, playerId: string, socketId: string) {
+  room.players.find((player) => player?.id === playerId)?.socketIds.add(socketId);
+}
+
+function markRoomPlaying(roomCode: string) {
+  // The custom server is imported before Next.js loads .env.local. Importing
+  // Prisma only after a match starts avoids reading DATABASE_URL too early.
+  void import('@/lib/prisma')
+    .then(({ prisma }) => prisma.room.update({ where: { code: roomCode }, data: { status: 'PLAYING' } }))
+    .catch(() => undefined);
+}
+
 function emitState(io: Server, room: RoomState) {
   io.to(room.roomCode).emit('room-update', {
-    players: room.players.map((player, seat) => player ? {
-      name: player.name,
-      isBot: player.isBot,
-      seat,
-      team: seat === 0 || seat === 2 ? 'A' : 'B',
-    } : null),
+    players: roomPlayersPayload(room),
   });
   if (room.gameState) io.to(room.roomCode).emit('game-state-update', room.gameState);
 }
@@ -80,12 +98,7 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       const room = rooms.get(roomCode);
       if (!room) return;
       socket.emit('room-update', {
-        players: room.players.map((player, seat) => player ? {
-          name: player.name,
-          isBot: player.isBot,
-          seat,
-          team: seat === 0 || seat === 2 ? 'A' : 'B',
-        } : null),
+        players: roomPlayersPayload(room),
       });
       if (room.gameState) socket.emit('game-state-update', room.gameState);
     });
@@ -98,6 +111,8 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       socket.join(roomCode);
       socket.data.roomCode = roomCode;
       socket.data.seat = seat as SeatIndex;
+      socket.data.playerId = playerId;
+      markPlayerConnected(room, playerId, socket.id);
       socket.emit('seat-assigned', seat);
       emitState(io, room);
     });
@@ -111,7 +126,7 @@ export function createSocketServer(httpServer: import('node:http').Server) {
         return;
       }
       if (room.gameState && existingSeat === -1) {
-        socket.emit('room-full');
+        socket.emit('game-already-started');
         return;
       }
 
@@ -120,11 +135,13 @@ export function createSocketServer(httpServer: import('node:http').Server) {
         return;
       }
 
-      if (existingSeat === -1) room.players[seat] = { id: playerId, name: playerName, isBot: false };
+      if (existingSeat === -1) room.players[seat] = { id: playerId, name: playerName, isBot: false, socketIds: new Set() };
       rooms.set(roomCode, room);
       socket.join(roomCode);
       socket.data.roomCode = roomCode;
       socket.data.seat = seat;
+      socket.data.playerId = playerId;
+      markPlayerConnected(room, playerId, socket.id);
       socket.emit('seat-assigned', seat);
       emitState(io, room);
     });
@@ -143,7 +160,7 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       let botNumber = 1;
       for (let seat = 0; seat < 4; seat += 1) {
         if (room.players[seat]) continue;
-        room.players[seat] = { id: `bot-${seat}`, name: `Bot ${botNumber}`, isBot: true };
+        room.players[seat] = { id: `bot-${seat}`, name: `Bot ${botNumber}`, isBot: true, socketIds: new Set() };
         botNumber += 1;
       }
 
@@ -154,6 +171,7 @@ export function createSocketServer(httpServer: import('node:http').Server) {
 
       room.gameState = createInitialGameState(roomCode, room.players.map((player) => player!.name));
       rooms.set(roomCode, room);
+      markRoomPlaying(roomCode);
       io.to(roomCode).emit('game-started', room.gameState);
       emitState(io, room);
       callback?.({});
@@ -186,6 +204,7 @@ export function createSocketServer(httpServer: import('node:http').Server) {
         );
 
         rooms.set(roomCode, room);
+        markRoomPlaying(roomCode);
 
         io.to(roomCode).emit("game-started", room.gameState);
         emitState(io, room);
@@ -261,6 +280,18 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       rooms.set(roomCode, room);
       emitState(io, room);
       advanceBots(io, roomCode, completedTrick ? 1800 : 700);
+    });
+
+    socket.on('disconnect', () => {
+      const roomCode = socket.data.roomCode as string | undefined;
+      const playerId = socket.data.playerId as string | undefined;
+      if (!roomCode || !playerId) return;
+
+      const room = rooms.get(roomCode);
+      const player = room?.players.find((entry) => entry?.id === playerId);
+      if (!room || !player) return;
+      player.socketIds.delete(socket.id);
+      emitState(io, room);
     });
   });
 
