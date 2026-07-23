@@ -26,7 +26,7 @@ export interface GameState {
   roomCode: string;
   status: 'LOBBY' | 'PLAYING' | 'FINISHED';
   currentTurn: SeatIndex;
-  trumpSuit: Suit;
+  trumpSuit: Suit | null;
   trickNumber: number;
   trickCards: TrickPlay[];
   lastTrick?: { cards: TrickPlay[]; winner: SeatIndex };
