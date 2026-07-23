@@ -53,6 +53,7 @@ export function SocketRoomClient({
   const [seat, setSeat] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
+  const [coatTeam, setCoatTeam] = useState<TeamId | null>(null);
   const [thoughtInput, setThoughtInput] = useState("");
   const [visibleThought, setVisibleThought] = useState<{
     name: string;
@@ -61,6 +62,7 @@ export function SocketRoomClient({
   const audioContext = useRef<AudioContext | null>(null);
   const thoughtTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const moveErrorTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const coatTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function playSound(frequency: number, duration = 0.09) {
     if (typeof window === "undefined") return;
@@ -126,8 +128,28 @@ export function SocketRoomClient({
       audioContext.current = null;
       if (thoughtTimeout.current) clearTimeout(thoughtTimeout.current);
       if (moveErrorTimeout.current) clearTimeout(moveErrorTimeout.current);
+      if (coatTimeout.current) clearTimeout(coatTimeout.current);
     };
   }, [roomCode]);
+
+  // A "coat" is a shutout: one team captured all four 10s. Flash it on the
+  // board for a few seconds when a match ends that way.
+  const finishedStatus = gameState?.status === "FINISHED" ? "FINISHED" : "LIVE";
+  useEffect(() => {
+    if (finishedStatus !== "FINISHED" || !gameState) {
+      setCoatTeam(null);
+      return;
+    }
+    const coated = (["A", "B"] as const).find(
+      (team) => gameState.capturedTens[team] === 4,
+    );
+    if (!coated) return;
+    setCoatTeam(coated);
+    playSound(720, 0.3);
+    if (coatTimeout.current) clearTimeout(coatTimeout.current);
+    coatTimeout.current = setTimeout(() => setCoatTeam(null), 5000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finishedStatus]);
 
   const player = seat === null ? undefined : gameState?.players[seat];
   const tablePlays = gameState?.trickCards.length
@@ -388,6 +410,16 @@ export function SocketRoomClient({
                     className="animate-card-play max-w-[80%] rounded-xl border border-rose-400/60 bg-rose-950/90 px-4 py-3 text-center text-sm font-semibold text-rose-100 shadow-xl backdrop-blur-sm"
                   >
                     {moveError}
+                  </p>
+                </div>
+              ) : null}
+              {coatTeam ? (
+                <div className="pointer-events-none absolute inset-0 z-40 flex flex-col items-center justify-center gap-2 bg-emerald-950/60 backdrop-blur-sm">
+                  <p className="animate-card-play text-6xl font-black uppercase tracking-[0.15em] text-amber-300 drop-shadow-[0_0_25px_rgba(251,191,36,0.7)] sm:text-8xl">
+                    COAT
+                  </p>
+                  <p className="text-sm font-semibold text-amber-100 sm:text-base">
+                    Team {coatTeam === "A" ? "B" : "A"} got all four 10s taken!
                   </p>
                 </div>
               ) : null}

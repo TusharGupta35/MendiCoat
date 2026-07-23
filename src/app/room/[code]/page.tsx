@@ -33,8 +33,8 @@ export default async function RoomPage({
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 px-6 py-8 lg:px-10 lg:py-10">
-      <div className="mx-auto w-full max-w-[1600px] rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl lg:p-8">
+    <main className="min-h-screen bg-slate-950 px-2 py-4 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
+      <div className="mx-auto w-full max-w-[1600px] rounded-2xl border border-slate-800 bg-slate-900/80 p-3 shadow-2xl sm:p-6 lg:p-8">
         <header className="grid gap-6 lg:grid-cols-[1fr_auto_1fr] lg:items-center">
           {/* Left */}
           <div>

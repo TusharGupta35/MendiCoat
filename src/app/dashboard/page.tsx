@@ -27,9 +27,9 @@ export default async function DashboardPage() {
 const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
 
   return (
-    <main className="min-h-screen bg-slate-950 px-6 py-12 text-slate-100">
-      <div className="mx-auto flex max-w-5xl flex-col gap-8">
-        <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-6">
+    <main className="min-h-screen bg-slate-950 px-3 py-6 text-slate-100 sm:px-6 sm:py-12">
+      <div className="mx-auto flex max-w-5xl flex-col gap-6 sm:gap-8">
+        <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
           <div>
             <p className="text-sm uppercase tracking-[0.35em] text-amber-400">Dashboard</p>
             <h1 className="text-3xl font-semibold text-white">Welcome back, {session.user.name ?? 'player'}</h1>
@@ -43,7 +43,7 @@ const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
         </header>
 
         <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6">
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
             <h2 className="text-xl font-semibold text-white">Quick start</h2>
             <p className="mt-2 text-sm text-slate-400">
               Create a game room to invite four players. The room code will be shared with everyone in the match.
@@ -51,7 +51,7 @@ const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
             <p className="mt-6 text-sm text-slate-400">Create a room to receive a unique 4-character code.</p>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6">
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
             <h2 className="text-xl font-semibold text-white">Recent rooms</h2>
             <div className="mt-4 space-y-3">
               {rooms.length === 0 ? <p className="text-sm text-slate-400">You have not joined any rooms yet.</p> : null}
