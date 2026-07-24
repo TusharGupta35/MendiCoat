@@ -137,6 +137,7 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       socket.data.roomCode = roomCode;
       socket.data.seat = seat as SeatIndex;
       socket.data.playerId = playerId;
+      socket.data.name = room.players[seat]?.name ?? 'Player';
       markPlayerConnected(room, playerId, socket.id);
       socket.emit('seat-assigned', seat);
       emitState(io, room);
@@ -166,6 +167,7 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       socket.data.roomCode = roomCode;
       socket.data.seat = seat;
       socket.data.playerId = playerId;
+      socket.data.name = playerName;
       markPlayerConnected(room, playerId, socket.id);
       socket.emit('seat-assigned', seat);
       emitState(io, room);
@@ -307,9 +309,42 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       advanceBots(io, roomCode, completedTrick ? 1800 : 700);
     });
 
+    // --- Voice chat signalling ---
+    // The server only relays the WebRTC handshake between peers; the audio
+    // streams themselves flow directly browser-to-browser and never pass here.
+    socket.on('voice-join', async ({ roomCode }: { roomCode: string }) => {
+      if (socket.data.roomCode !== roomCode) return;
+      const voiceRoom = `voice:${roomCode}`;
+      const existing = await io.in(voiceRoom).fetchSockets();
+      const peers = existing
+        .filter((peer) => peer.id !== socket.id)
+        .map((peer) => ({ peerId: peer.id, name: (peer.data.name as string) ?? 'Player' }));
+
+      socket.join(voiceRoom);
+      // The newcomer receives the existing peers and initiates offers to them.
+      socket.emit('voice-peers', peers);
+      socket.to(voiceRoom).emit('voice-peer-joined', {
+        peerId: socket.id,
+        name: (socket.data.name as string) ?? 'Player',
+      });
+    });
+
+    socket.on('voice-signal', ({ to, data }: { to: string; data: unknown }) => {
+      io.to(to).emit('voice-signal', { from: socket.id, data });
+    });
+
+    socket.on('voice-leave', ({ roomCode }: { roomCode: string }) => {
+      const voiceRoom = `voice:${roomCode}`;
+      socket.leave(voiceRoom);
+      socket.to(voiceRoom).emit('voice-peer-left', { peerId: socket.id });
+    });
+
     socket.on('disconnect', () => {
       const roomCode = socket.data.roomCode as string | undefined;
       const playerId = socket.data.playerId as string | undefined;
+      if (roomCode) {
+        socket.to(`voice:${roomCode}`).emit('voice-peer-left', { peerId: socket.id });
+      }
       if (!roomCode || !playerId) return;
 
       const room = rooms.get(roomCode);

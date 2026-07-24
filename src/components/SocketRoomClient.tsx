@@ -2,8 +2,10 @@
 
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
+import { Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import type { Card, GameState, MatchResult, Suit } from "@/types/game";
 import { LoadingScreen } from "@/components/LoadingScreen";
+import { useVoiceChat } from "@/components/useVoiceChat";
 
 interface SocketRoomClientProps {
   roomCode: string;
@@ -43,6 +45,7 @@ export function SocketRoomClient({
   playerName,
 }: SocketRoomClientProps) {
   const [socket, setSocket] = useState<Socket | null>(null);
+  const voice = useVoiceChat(socket, roomCode);
   const [isConnected, setIsConnected] = useState(false);
   // Show the loading screen briefly when moving from the lobby into a game.
   const [enteringGame, setEnteringGame] = useState(false);
@@ -389,8 +392,46 @@ export function SocketRoomClient({
             )}
             <form
               onSubmit={sendThought}
-              className="mt-3 flex rounded-lg border border-slate-700 bg-slate-900 p-1"
+              className="mt-3 flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1"
             >
+              {seat !== null ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={voice.toggleMic}
+                    aria-pressed={voice.micOn}
+                    title={voice.micOn ? "Mute your microphone" : "Speak to the table"}
+                    className={`shrink-0 rounded-md p-1.5 transition ${
+                      voice.micOn
+                        ? "bg-emerald-500/20 text-emerald-300"
+                        : "text-slate-400 hover:bg-slate-800"
+                    }`}
+                  >
+                    {voice.micOn ? (
+                      <Mic className="h-4 w-4" />
+                    ) : (
+                      <MicOff className="h-4 w-4" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={voice.toggleSpeaker}
+                    aria-pressed={voice.speakerOn}
+                    title={voice.speakerOn ? "Mute other players" : "Hear other players"}
+                    className={`shrink-0 rounded-md p-1.5 transition ${
+                      voice.speakerOn
+                        ? "bg-amber-500/20 text-amber-300"
+                        : "text-slate-400 hover:bg-slate-800"
+                    }`}
+                  >
+                    {voice.speakerOn ? (
+                      <Volume2 className="h-4 w-4" />
+                    ) : (
+                      <VolumeX className="h-4 w-4" />
+                    )}
+                  </button>
+                </>
+              ) : null}
               <input
                 value={thoughtInput}
                 onChange={(event) => setThoughtInput(event.target.value)}
@@ -400,11 +441,16 @@ export function SocketRoomClient({
               />
               <button
                 type="submit"
-                className="rounded-md bg-amber-400 px-3 py-1 text-xs font-semibold text-emerald-950"
+                className="shrink-0 rounded-md bg-amber-400 px-3 py-1 text-xs font-semibold text-emerald-950"
               >
                 Send
               </button>
             </form>
+            {voice.error ? (
+              <p role="alert" className="mt-2 text-xs text-rose-300">
+                {voice.error}
+              </p>
+            ) : null}
           </section>
         ) : null}
       </div>
