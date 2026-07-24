@@ -485,7 +485,7 @@ export function SocketRoomClient({
                     COAT
                   </p>
                   <p className="text-sm font-semibold text-amber-100 sm:text-base">
-                    Team {coatTeam === "A" ? "B" : "A"} got all four 10s taken!
+                    Team {coatTeam} swept all four 10s!
                   </p>
                 </div>
               ) : null}
