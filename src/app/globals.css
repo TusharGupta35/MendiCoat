@@ -27,6 +27,32 @@ body {
   animation: card-play 300ms ease-out both;
 }
 
+@keyframes loader-ring {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-loader-ring {
+  animation: loader-ring 900ms linear infinite;
+}
+
+@keyframes loader-suit {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0) scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1);
+  }
+}
+
+.animate-loader-suit {
+  animation: loader-suit 1.2s ease-in-out infinite;
+}
+
 .game-play-layout {
   display: grid;
   gap: 1rem;
@@ -134,5 +160,8 @@ body {
 
   .waiting-room-dashboard {
     max-width: 58rem;
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
   }
 }
