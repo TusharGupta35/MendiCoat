@@ -96,8 +96,16 @@ export function applyMove(gameState: GameState, seat: SeatIndex, card: Card): Ga
     if (!winner) return nextState;
 
     nextState.lastTrick = { cards: completedTrick, winner: winnerSeat };
-    if (nextState.trickNumber === 1) {
-      nextState.trumpSuit = completedTrick.find((play) => play.seat === winnerSeat)?.card.suit ?? null;
+    // Trump is fixed by the first "cut": the first trick in which a player who
+    // is void in the led suit plays off-suit. Trump takes effect only from the
+    // NEXT trick, so this trick is resolved above with trump still unset (the
+    // cutting card does not win it). Once set, trump never changes — we only
+    // assign it while it is still null. The first off-suit card in play order
+    // is the cut.
+    if (nextState.trumpSuit === null) {
+      const leadSuit = completedTrick[0].card.suit;
+      const cut = completedTrick.find((play) => play.card.suit !== leadSuit);
+      if (cut) nextState.trumpSuit = cut.card.suit;
     }
     const capturedTens = completedTrick.filter((play) => play.card.rank === '10');
     nextState.capturedTens[winner.team] += capturedTens.length;
