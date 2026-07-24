@@ -98,6 +98,34 @@ export function useVoiceChat(
     setPeerCount(peers.current.size);
   }, []);
 
+  // Deterministic initiator: the peer with the greater socket id makes the
+  // offer, so exactly one side of each pair initiates regardless of who joined
+  // first. This removes glare and the join-order race that could otherwise
+  // leave a pair unconnected.
+  const isInitiator = useCallback((peerId: string) => {
+    const myId = socketRef.current?.id;
+    return !!myId && myId > peerId;
+  }, []);
+
+  // "failed" is terminal for the current ICE session but recoverable: the
+  // initiator restarts ICE (fresh candidates, same tracks) so a dropped pair
+  // re-establishes without a full teardown/rebuild.
+  const restartConnection = useCallback(
+    async (peerId: string, pc: RTCPeerConnection) => {
+      try {
+        const offer = await pc.createOffer({ iceRestart: true });
+        await pc.setLocalDescription(offer);
+        socketRef.current?.emit("voice-signal", {
+          to: peerId,
+          data: { sdp: pc.localDescription },
+        });
+      } catch (err) {
+        console.debug("[voice] ICE restart failed", err);
+      }
+    },
+    [],
+  );
+
   const createPeerConnection = useCallback(
     (peerId: string) => {
       const pc = new RTCPeerConnection(ICE_SERVERS);
@@ -131,25 +159,26 @@ export function useVoiceChat(
 
       pc.onconnectionstatechange = () => {
         console.debug("[voice] peer", peerId, "->", pc.connectionState);
-        if (pc.connectionState === "failed") {
+        if (pc.connectionState === "connected") {
+          // Clear any stale failure notice once audio is actually flowing.
+          setError(null);
+        } else if (pc.connectionState === "failed") {
           setError(
-            "Couldn't connect to a player's audio — their network may need a TURN relay.",
+            "Reconnecting a player's audio — their network may need a TURN relay.",
           );
-        }
-        if (
-          pc.connectionState === "failed" ||
-          pc.connectionState === "closed" ||
-          pc.connectionState === "disconnected"
-        ) {
+          if (isInitiator(peerId)) void restartConnection(peerId, pc);
+        } else if (pc.connectionState === "closed") {
           removePeer(peerId);
         }
+        // "disconnected" is intentionally not torn down: it is usually a
+        // transient blip that recovers to "connected" on its own.
       };
 
       peers.current.set(peerId, pc);
       setPeerCount(peers.current.size);
       return pc;
     },
-    [removePeer],
+    [removePeer, isInitiator, restartConnection],
   );
 
   // The newcomer always initiates toward each existing peer, so exactly one
@@ -165,6 +194,16 @@ export function useVoiceChat(
       });
     },
     [createPeerConnection],
+  );
+
+  // Call a peer only if we are its designated initiator; otherwise wait for
+  // their offer. Used for both existing peers (voice-peers) and newcomers
+  // (voice-peer-joined), so every pair connects exactly once.
+  const maybeCall = useCallback(
+    (peerId: string) => {
+      if (isInitiator(peerId)) void callPeer(peerId);
+    },
+    [callPeer, isInitiator],
   );
 
   const flushCandidates = useCallback(
@@ -298,10 +337,15 @@ export function useVoiceChat(
     if (!socket) return;
 
     const onPeers = (list: VoicePeer[]) => {
-      list.forEach((peer) => void callPeer(peer.peerId));
+      list.forEach((peer) => maybeCall(peer.peerId));
     };
+    const onPeerJoined = (peer: VoicePeer) => maybeCall(peer.peerId);
     const onSignal = (payload: { from: string; data: SignalData }) => {
-      void handleSignal(payload);
+      // Catch here so a signaling-state clash never surfaces as an unhandled
+      // promise rejection.
+      void handleSignal(payload).catch((err) =>
+        console.debug("[voice] signal error", err),
+      );
     };
     const onPeerLeft = ({ peerId }: { peerId: string }) => removePeer(peerId);
     // On reconnect the server has forgotten our voice membership, so re-announce
@@ -314,6 +358,7 @@ export function useVoiceChat(
     };
 
     socket.on("voice-peers", onPeers);
+    socket.on("voice-peer-joined", onPeerJoined);
     socket.on("voice-signal", onSignal);
     socket.on("voice-peer-left", onPeerLeft);
     socket.on("connect", onReconnect);
@@ -321,12 +366,13 @@ export function useVoiceChat(
 
     return () => {
       socket.off("voice-peers", onPeers);
+      socket.off("voice-peer-joined", onPeerJoined);
       socket.off("voice-signal", onSignal);
       socket.off("voice-peer-left", onPeerLeft);
       socket.off("connect", onReconnect);
       socket.off("disconnect", onDisconnect);
     };
-  }, [socket, callPeer, handleSignal, removePeer, roomCode]);
+  }, [socket, maybeCall, handleSignal, removePeer, roomCode]);
 
   // Tear everything down when the component unmounts.
   useEffect(() => () => leaveVoice(), [leaveVoice]);
