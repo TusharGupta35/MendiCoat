@@ -55,7 +55,7 @@ describe('trump selection by first cut', () => {
     expect(result.lastTrick?.winner).toBe(1);
   });
 
-  it('sets trump after the cutting trick, and that trick is resolved with no trump', () => {
+  it('sets trump immediately on the first cut, so the cutter wins that trick', () => {
     const result = playTrick(baseState(), [
       [0, card('9', 'HEARTS')],
       [1, card('K', 'HEARTS')],
@@ -63,24 +63,37 @@ describe('trump selection by first cut', () => {
       [3, card('3', 'HEARTS')],
     ]);
 
-    // Trump becomes the cutting suit...
+    // Trump is the cutting suit, in effect from this card on — so the cutter
+    // (seat 2) beats the hearts and wins the trick.
     expect(result.trumpSuit).toBe('SPADES');
-    // ...but only from the NEXT trick, so the cutter does NOT win this one;
-    // the highest heart (seat 1's K) takes it.
-    expect(result.lastTrick?.winner).toBe(1);
+    expect(result.lastTrick?.winner).toBe(2);
   });
 
-  it('uses the first off-suit card in play order when two players cut in the same trick', () => {
+  it('lets a later, higher card of the cutting suit over-trump the first cutter', () => {
+    // Hearts led; seat 2 cuts with 4♠ (trump = spades); seat 3 over-trumps 6♠.
     const result = playTrick(baseState(), [
       [0, card('9', 'HEARTS')],
-      [1, card('5', 'CLUBS')], // first cut
-      [2, card('2', 'SPADES')], // second cut, ignored for trump
-      [3, card('3', 'HEARTS')],
+      [1, card('K', 'HEARTS')],
+      [2, card('4', 'SPADES')],
+      [3, card('6', 'SPADES')],
     ]);
 
-    expect(result.trumpSuit).toBe('CLUBS');
-    // Still resolved without trump: highest heart is seat 0's 9.
-    expect(result.lastTrick?.winner).toBe(0);
+    expect(result.trumpSuit).toBe('SPADES');
+    expect(result.lastTrick?.winner).toBe(3);
+  });
+
+  it('keeps the first cutter as winner when a later player cuts a different suit', () => {
+    // Hearts led; seat 2 cuts 4♠ (trump = spades); seat 3 discards 8♦, which is
+    // not trump, so seat 2 still wins.
+    const result = playTrick(baseState(), [
+      [0, card('9', 'HEARTS')],
+      [1, card('K', 'HEARTS')],
+      [2, card('4', 'SPADES')],
+      [3, card('8', 'DIAMONDS')],
+    ]);
+
+    expect(result.trumpSuit).toBe('SPADES');
+    expect(result.lastTrick?.winner).toBe(2);
   });
 
   it('never changes trump once set, and honours it on later tricks', () => {

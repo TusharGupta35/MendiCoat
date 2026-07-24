@@ -89,24 +89,26 @@ export function applyMove(gameState: GameState, seat: SeatIndex, card: Card): Ga
   player.cards = player.cards.filter((entry) => entry.code !== card.code);
   nextState.trickCards.push({ seat, card });
 
+  // Trump is fixed by the first "cut": the first time a player who is void in
+  // the led suit plays off-suit. It takes effect IMMEDIATELY — from this card
+  // on, including the current trick — so the cutter wins the trick unless a
+  // later player over-trumps with a higher card of the same (trump) suit. Once
+  // set, trump never changes (only assigned while still null), so a later
+  // player discarding a different off-suit does not become trump.
+  if (nextState.trumpSuit === null && nextState.trickCards.length > 1) {
+    const leadSuit = nextState.trickCards[0].card.suit;
+    if (card.suit !== leadSuit) nextState.trumpSuit = card.suit;
+  }
+
   if (nextState.trickCards.length === 4) {
+    // determineTrickWinner now sees the trump set above, so the cutting trick
+    // is resolved with trump in effect.
     const winnerSeat = determineTrickWinner(nextState);
     const completedTrick = [...nextState.trickCards];
     const winner = nextState.players.find((entry) => entry.seat === winnerSeat);
     if (!winner) return nextState;
 
     nextState.lastTrick = { cards: completedTrick, winner: winnerSeat };
-    // Trump is fixed by the first "cut": the first trick in which a player who
-    // is void in the led suit plays off-suit. Trump takes effect only from the
-    // NEXT trick, so this trick is resolved above with trump still unset (the
-    // cutting card does not win it). Once set, trump never changes — we only
-    // assign it while it is still null. The first off-suit card in play order
-    // is the cut.
-    if (nextState.trumpSuit === null) {
-      const leadSuit = completedTrick[0].card.suit;
-      const cut = completedTrick.find((play) => play.card.suit !== leadSuit);
-      if (cut) nextState.trumpSuit = cut.card.suit;
-    }
     const capturedTens = completedTrick.filter((play) => play.card.rank === '10');
     nextState.capturedTens[winner.team] += capturedTens.length;
     for (const ten of capturedTens) {
