@@ -330,6 +330,11 @@ export function createSocketServer(httpServer: import('node:http').Server) {
     });
 
     socket.on('voice-signal', ({ to, data }: { to: string; data: unknown }) => {
+      const roomCode = socket.data.roomCode as string | undefined;
+      if (!roomCode) return;
+      // Only relay between two sockets that both share this room's voice channel.
+      const members = io.sockets.adapter.rooms.get(`voice:${roomCode}`);
+      if (!members?.has(socket.id) || !members.has(to)) return;
       io.to(to).emit('voice-signal', { from: socket.id, data });
     });
 
