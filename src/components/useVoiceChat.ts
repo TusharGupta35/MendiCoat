@@ -3,12 +3,43 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Socket } from "socket.io-client";
 
-// Public STUN server so peers can discover their reachable address. This is
-// enough for same-LAN or simple NATs; a TURN server would be needed to relay
-// audio across stricter/symmetric NATs, but that requires separate hosting.
-const ICE_SERVERS: RTCConfiguration = {
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-};
+// STUN lets peers discover their public address; that alone works on a LAN or
+// lenient home routers. Across the open internet, many players sit behind
+// strict/symmetric NATs (mobile data, corporate/uni networks) where a direct
+// path can't be found — those need a TURN relay to carry the audio.
+//
+// Set NEXT_PUBLIC_TURN_URL / _USERNAME / _CREDENTIAL to your own TURN server
+// for reliable connections (multiple URLs may be comma-separated). When unset
+// we fall back to Metered's free public "Open Relay" TURN so voice at least
+// works out of the box — fine for testing, not guaranteed for production load.
+function buildIceServers(): RTCIceServer[] {
+  const servers: RTCIceServer[] = [
+    { urls: "stun:stun.l.google.com:19302" },
+  ];
+
+  const turnUrl = process.env.NEXT_PUBLIC_TURN_URL;
+  if (turnUrl) {
+    servers.push({
+      urls: turnUrl.split(",").map((url) => url.trim()),
+      username: process.env.NEXT_PUBLIC_TURN_USERNAME,
+      credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
+    });
+  } else {
+    servers.push({
+      urls: [
+        "turn:openrelay.metered.ca:80",
+        "turn:openrelay.metered.ca:443",
+        "turn:openrelay.metered.ca:443?transport=tcp",
+      ],
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    });
+  }
+
+  return servers;
+}
+
+const ICE_SERVERS: RTCConfiguration = { iceServers: buildIceServers() };
 
 type VoicePeer = { peerId: string; name: string };
 type SignalData = {
@@ -84,6 +115,7 @@ export function useVoiceChat(
       };
 
       pc.ontrack = (event) => {
+        console.debug("[voice] receiving audio from", peerId);
         let el = audioEls.current.get(peerId);
         if (!el) {
           el = document.createElement("audio");
@@ -98,6 +130,12 @@ export function useVoiceChat(
       };
 
       pc.onconnectionstatechange = () => {
+        console.debug("[voice] peer", peerId, "->", pc.connectionState);
+        if (pc.connectionState === "failed") {
+          setError(
+            "Couldn't connect to a player's audio — their network may need a TURN relay.",
+          );
+        }
         if (
           pc.connectionState === "failed" ||
           pc.connectionState === "closed" ||
@@ -177,13 +215,26 @@ export function useVoiceChat(
 
   const joinVoice = useCallback(async () => {
     if (joined.current) return true;
+    // getUserMedia only exists in a secure context (HTTPS or localhost).
+    // Over a plain-HTTP LAN address (e.g. http://192.168.x.x:3000) the browser
+    // hides the mic entirely, so surface that instead of a generic error.
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError(
+        "Voice needs HTTPS or localhost — a plain http:// LAN address can't use the mic.",
+      );
+      return false;
+    }
     try {
       localStream.current = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: false,
       });
-    } catch {
-      setError("Microphone permission is needed for voice chat.");
+    } catch (err) {
+      const reason =
+        err instanceof DOMException && err.name === "NotAllowedError"
+          ? "Microphone permission was blocked. Allow it in your browser and retry."
+          : "Couldn't access a microphone for voice chat.";
+      setError(reason);
       return false;
     }
     localStream.current
