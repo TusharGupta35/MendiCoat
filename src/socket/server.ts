@@ -79,9 +79,15 @@ function commitMove(room: RoomState, seat: SeatIndex, card: Card) {
   return nextState;
 }
 
-function firstLegalCard(gameState: GameState, seat: SeatIndex): Card | undefined {
+function pickBotCard(gameState: GameState, seat: SeatIndex): Card | undefined {
   const player = gameState.players.find((entry) => entry.seat === seat);
-  return player?.cards.find((card) => validateMove(gameState, seat, card).valid);
+  if (!player) return undefined;
+  // Hands are suit-sorted (spades first), so always taking the first legal card
+  // would make a leading bot open with a spade every time — which fixes trump to
+  // spades on trick 1. Pick a random legal card instead.
+  const legalCards = player.cards.filter((card) => validateMove(gameState, seat, card).valid);
+  if (legalCards.length === 0) return undefined;
+  return legalCards[Math.floor(Math.random() * legalCards.length)];
 }
 
 function advanceBots(io: Server, roomCode: string, delayMs = 700) {
@@ -93,7 +99,7 @@ function advanceBots(io: Server, roomCode: string, delayMs = 700) {
 
     const seat = room.gameState.currentTurn;
     if (!isBotSeat(room, seat)) return;
-    const card = firstLegalCard(room.gameState, seat);
+    const card = pickBotCard(room.gameState, seat);
     if (!card) return;
 
     const completedTrick = room.gameState.trickCards.length === 3;

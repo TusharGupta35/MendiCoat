@@ -13,16 +13,21 @@ export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) redirect('/login');
 
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    include: {
-      rooms: {
-        orderBy: { updatedAt: 'desc' },
-        take: 8,
-        select: { id: true, name: true, code: true, status: true, hostId: true },
+  // Hold the branded loading screen for a minimum ~2s, overlapped with the
+  // query so it's the floor, not added on top of it.
+  const [, user] = await Promise.all([
+    new Promise((resolve) => setTimeout(resolve, 2000)),
+    prisma.user.findUnique({
+      where: { email: session.user.email },
+      include: {
+        rooms: {
+          orderBy: { updatedAt: 'desc' },
+          take: 8,
+          select: { id: true, name: true, code: true, status: true, hostId: true },
+        },
       },
-    },
-  });
+    }),
+  ]);
 //   const rooms = user?.rooms ?? [];
 const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
 

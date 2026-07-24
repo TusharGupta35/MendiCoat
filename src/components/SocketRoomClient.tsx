@@ -3,6 +3,7 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import type { Card, GameState, MatchResult, Suit } from "@/types/game";
+import { LoadingScreen } from "@/components/LoadingScreen";
 
 interface SocketRoomClientProps {
   roomCode: string;
@@ -42,6 +43,9 @@ export function SocketRoomClient({
   playerName,
 }: SocketRoomClientProps) {
   const [socket, setSocket] = useState<Socket | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  // Show the loading screen briefly when moving from the lobby into a game.
+  const [enteringGame, setEnteringGame] = useState(false);
   const [roomPlayers, setRoomPlayers] = useState<RoomPlayer[]>([
     null,
     null,
@@ -63,6 +67,7 @@ export function SocketRoomClient({
   const thoughtTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const moveErrorTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const coatTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const enteringGameTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function playSound(frequency: number, duration = 0.09) {
     if (typeof window === "undefined") return;
@@ -85,6 +90,9 @@ export function SocketRoomClient({
   useEffect(() => {
     const client = io({ path: "/socket.io" });
     setSocket(client);
+    setIsConnected(client.connected);
+    client.on("connect", () => setIsConnected(true));
+    client.on("disconnect", () => setIsConnected(false));
     client.emit("watch-room", { roomCode });
     client.emit("restore-seat", { roomCode, playerId });
     client.on("room-update", (payload: { players: RoomPlayer[] }) =>
@@ -94,6 +102,9 @@ export function SocketRoomClient({
     client.on("game-started", (payload: GameState) => {
       setGameState(payload);
       playSound(600, 0.16);
+      setEnteringGame(true);
+      if (enteringGameTimeout.current) clearTimeout(enteringGameTimeout.current);
+      enteringGameTimeout.current = setTimeout(() => setEnteringGame(false), 2000);
     });
     client.on("game-state-update", (payload: GameState) => {
       setGameState((previous) => {
@@ -129,6 +140,7 @@ export function SocketRoomClient({
       if (thoughtTimeout.current) clearTimeout(thoughtTimeout.current);
       if (moveErrorTimeout.current) clearTimeout(moveErrorTimeout.current);
       if (coatTimeout.current) clearTimeout(coatTimeout.current);
+      if (enteringGameTimeout.current) clearTimeout(enteringGameTimeout.current);
     };
   }, [roomCode]);
 
@@ -211,6 +223,14 @@ export function SocketRoomClient({
         else setThoughtInput("");
       },
     );
+  }
+
+  if (!isConnected) {
+    return <LoadingScreen message="Connecting to the room…" fullScreen={false} />;
+  }
+
+  if (enteringGame) {
+    return <LoadingScreen message="Dealing the cards…" fullScreen={false} />;
   }
 
   return (

@@ -17,13 +17,18 @@ export default async function RoomPage({
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) redirect("/login");
 
-  const room = await prisma.room.findUnique({
-    where: { code: code.toUpperCase() },
-    include: { players: { select: { id: true, name: true } } },
-  });
-  const currentUser = await prisma.user.findUnique({
-    where: { email: session.user.email },
-  });
+  // Hold the branded loading screen for a minimum ~2s, overlapped with the
+  // queries so it's the floor, not added on top of them.
+  const [, room, currentUser] = await Promise.all([
+    new Promise((resolve) => setTimeout(resolve, 2000)),
+    prisma.room.findUnique({
+      where: { code: code.toUpperCase() },
+      include: { players: { select: { id: true, name: true } } },
+    }),
+    prisma.user.findUnique({
+      where: { email: session.user.email },
+    }),
+  ]);
   if (
     !room ||
     !currentUser ||
