@@ -463,7 +463,7 @@ export function SocketRoomClient({
             </p>
             <div className="flex gap-4 text-sm text-slate-200">
               <p>Turn: Seat {gameState.currentTurn + 1}</p>
-              <p>Trump: {gameState.trumpSuit ?? "After Hand 1"}</p>
+              <p>Trump: {gameState.trumpSuit ?? "Until first cut"}</p>
               <p>Hand: {gameState.trickNumber}</p>
             </div>
           </div>
