@@ -494,7 +494,7 @@ export function SocketRoomClient({
                   ? "Current hand"
                   : "Last completed hand"}
               </p>
-              <div className="game-table-grid mt-3 grid min-h-[280px] grid-cols-[minmax(72px,1fr)_minmax(96px,1.35fr)_minmax(72px,1fr)] grid-rows-[auto_1fr_auto] gap-1 sm:min-h-[410px] sm:grid-cols-[minmax(74px,1fr)_minmax(130px,2fr)_minmax(74px,1fr)] sm:gap-2">
+              <div className="game-table-grid mt-3 grid h-[380px] grid-cols-[minmax(72px,1fr)_minmax(96px,1.35fr)_minmax(72px,1fr)] grid-rows-[auto_1fr_auto] gap-1 sm:h-[510px] sm:grid-cols-[minmax(74px,1fr)_minmax(130px,2fr)_minmax(74px,1fr)] sm:gap-2">
                 {[0, 1, 2, 3].map((tableSeat) => {
                   const play = tablePlays.find(
                     (entry) => entry.seat === tableSeat,
