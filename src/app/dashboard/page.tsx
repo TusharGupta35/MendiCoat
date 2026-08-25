@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { CreateRoomButton } from '@/components/CreateRoomButton';
 import { DeleteRoomButton } from '@/components/DeleteRoomButton';
+import { UsernameCard } from '@/components/UsernameCard';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
@@ -30,6 +31,8 @@ export default async function DashboardPage() {
   ]);
 //   const rooms = user?.rooms ?? [];
 const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
+  const accountName = user?.name ?? session.user.name ?? 'player';
+  const displayName = user?.username ?? accountName;
 
   return (
     <main className="min-h-screen bg-slate-950 px-3 py-6 text-slate-100 sm:px-6 sm:py-12">
@@ -37,7 +40,7 @@ const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
         <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
           <div>
             <p className="text-sm uppercase tracking-[0.35em] text-amber-400">Dashboard</p>
-            <h1 className="text-3xl font-semibold text-white">Welcome back, {session.user.name ?? 'player'}</h1>
+            <h1 className="text-3xl font-semibold text-white">Welcome back, {displayName}</h1>
           </div>
           <div className="flex gap-3">
             <CreateRoomButton />
@@ -48,12 +51,16 @@ const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
         </header>
 
         <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
-            <h2 className="text-xl font-semibold text-white">Quick start</h2>
-            <p className="mt-2 text-sm text-slate-400">
-              Create a game room to invite four players. The room code will be shared with everyone in the match.
-            </p>
-            <p className="mt-6 text-sm text-slate-400">Create a room to receive a unique 4-character code.</p>
+          <div className="flex flex-col gap-6">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
+              <h2 className="text-xl font-semibold text-white">Quick start</h2>
+              <p className="mt-2 text-sm text-slate-400">
+                Create a game room to invite four players. The room code will be shared with everyone in the match.
+              </p>
+              <p className="mt-6 text-sm text-slate-400">Create a room to receive a unique 4-character code.</p>
+            </div>
+
+            <UsernameCard username={user?.username ?? null} fallbackName={accountName} />
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">

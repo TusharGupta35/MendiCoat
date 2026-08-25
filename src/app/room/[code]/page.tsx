@@ -85,7 +85,7 @@ export default async function RoomPage({
           <SocketRoomClient
             roomCode={room.code}
             playerId={currentUser.id}
-            playerName={currentUser.name ?? "Player"}
+            playerName={currentUser.username ?? currentUser.name ?? "Player"}
           />
         </div>
       </div>
