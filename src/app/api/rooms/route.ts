@@ -26,7 +26,7 @@ export async function POST() {
       const room = await prisma.room.create({
         data: {
           code,
-          name: `${session.user.name ?? 'Player'}'s table`,
+          name: `${user.username ?? user.name ?? 'Player'}'s table`,
           hostId: user.id,
           players: { connect: { id: user.id } },
         },
