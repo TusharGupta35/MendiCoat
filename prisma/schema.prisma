@@ -36,7 +36,6 @@ model Session {
 model User {
   id            String    @id @default(cuid())
   name          String?
-  // Player-chosen display name. Falls back to the Google `name` until set.
   username      String?   @unique
   email         String?   @unique
   emailVerified DateTime?
