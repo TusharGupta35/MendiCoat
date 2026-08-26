@@ -8,22 +8,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build app
-        run: npm run build
-
       - name: Deploy to VM
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -31,10 +16,14 @@ jobs:
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
+            set -e
             cd /opt/app
             git pull origin MendiCoatProd
-            npm install
             cp .env.production .env.local
+            npm ci
+            npx prisma generate
+            pm2 stop mendicoat
+            rm -rf .next
             npm run build
-            npx prisma db push
-            pm2 restart mendicoat
+            pm2 restart mendicoat --update-env
+            pm2 save
