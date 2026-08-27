@@ -1,10 +1,11 @@
 "use client";
 
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type CSSProperties, type FormEvent, useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { Mic, MicOff, Volume2, VolumeX } from "lucide-react";
-import type { Card, GameState, MatchResult, Suit } from "@/types/game";
+import type { Card, GameState, MatchResult, SeatIndex, Suit, TrickPlay } from "@/types/game";
 import { LoadingScreen } from "@/components/LoadingScreen";
+import { PlayingCard } from "@/components/PlayingCard";
 import { useVoiceChat } from "@/components/useVoiceChat";
 
 interface SocketRoomClientProps {
@@ -29,14 +30,17 @@ const SUIT_SYMBOL: Record<Suit, string> = {
   DIAMONDS: "♦",
 };
 
+/**
+ * How long a completed trick stays face-up before being swept to its winner,
+ * and how long the sweep itself takes. The two together must stay under the
+ * 1800ms the server waits before the next bot move (see advanceBots in
+ * src/socket/server.ts), or a bot's card lands mid-presentation.
+ */
+const TRICK_HOLD_MS = 900;
+const TRICK_SWEEP_MS = 780;
+
 function cardLabel(card: Card) {
   return `${card.rank}${SUIT_SYMBOL[card.suit]}`;
-}
-
-function suitColor(suit: Suit) {
-  return suit === "HEARTS" || suit === "DIAMONDS"
-    ? "text-rose-600"
-    : "text-slate-900";
 }
 
 export function SocketRoomClient({
@@ -61,6 +65,22 @@ export function SocketRoomClient({
   const [error, setError] = useState<string | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
   const [coatTeam, setCoatTeam] = useState<TeamId | null>(null);
+  const [trumpReveal, setTrumpReveal] = useState<Suit | null>(null);
+  // The finished trick currently being shown: face-up first so everyone can
+  // read the fourth card, then swept to the winner.
+  const [presentedTrick, setPresentedTrick] = useState<{
+    trickNumber: number;
+    cards: TrickPlay[];
+    winner: SeatIndex;
+    phase: "hold" | "sweep";
+  } | null>(null);
+  // How far each seat's card must travel to land on the winner's, measured
+  // from the live layout — the grid columns are not equal widths, so this
+  // cannot be derived from seat numbers alone.
+  const [sweepOffsets, setSweepOffsets] = useState<Record<
+    number,
+    { x: number; y: number; rotation: number }
+  > | null>(null);
   const [thoughtInput, setThoughtInput] = useState("");
   const [visibleThought, setVisibleThought] = useState<{
     name: string;
@@ -70,24 +90,82 @@ export function SocketRoomClient({
   const thoughtTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const moveErrorTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const coatTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const trumpTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holdTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sweepTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tableCardRefs = useRef<Array<HTMLDivElement | null>>([null, null, null, null]);
+  // Previous values, so we can tell a fresh cut/trick from a state we just
+  // joined into — reconnecting mid-game should not replay either moment.
+  const seenStateRef = useRef(false);
+  const trumpSuitRef = useRef<Suit | null>(null);
+  const trickNumberRef = useRef(0);
   const enteringGameTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function playSound(frequency: number, duration = 0.09) {
-    if (typeof window === "undefined") return;
+  function audio() {
+    if (typeof window === "undefined") return null;
     audioContext.current ??= new AudioContext();
-    const context = audioContext.current;
-    void context.resume();
+    // Browsers start the context suspended until a gesture; resuming on every
+    // cue means the first click a player makes unlocks the rest.
+    void audioContext.current.resume();
+    return audioContext.current;
+  }
+
+  function tone(
+    frequency: number,
+    duration = 0.09,
+    delay = 0,
+    peak = 0.06,
+    type: OscillatorType = "sine",
+  ) {
+    const context = audio();
+    if (!context) return;
+    const start = context.currentTime + delay;
     const oscillator = context.createOscillator();
     const gain = context.createGain();
+    oscillator.type = type;
     oscillator.frequency.value = frequency;
-    gain.gain.setValueAtTime(0.06, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.001,
-      context.currentTime + duration,
-    );
+    gain.gain.setValueAtTime(peak, start);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
     oscillator.connect(gain).connect(context.destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + duration);
+    oscillator.start(start);
+    oscillator.stop(start + duration);
+  }
+
+  /** Named cues, so call sites read as intent instead of raw frequencies. */
+  function playCue(cue: "card" | "trick" | "trump" | "coat" | "invalid" | "start" | "tap") {
+    switch (cue) {
+      case "card":
+        // The original card beep. A quieter, noise-based "felt" version read as
+        // silence on normal speakers, so this stays as it was.
+        tone(280, 0.09, 0, 0.06);
+        return;
+      case "trick":
+        // Two rising notes: someone just took the trick.
+        tone(523, 0.1, 0, 0.05);
+        tone(784, 0.16, 0.08, 0.05);
+        return;
+      case "trump":
+        // A bell over a rising sweep for the cut that fixes trump.
+        tone(392, 0.12, 0, 0.05);
+        tone(587, 0.14, 0.1, 0.05);
+        tone(880, 0.4, 0.2, 0.06, "triangle");
+        return;
+      case "coat":
+        // Four-note fanfare for a shutout.
+        [523, 659, 784, 1047].forEach((frequency, index) =>
+          tone(frequency, index === 3 ? 0.5 : 0.14, index * 0.11, 0.06, "triangle"),
+        );
+        return;
+      case "invalid":
+        tone(150, 0.2, 0, 0.05, "sawtooth");
+        return;
+      case "start":
+        tone(440, 0.12, 0, 0.05);
+        tone(660, 0.18, 0.1, 0.05);
+        return;
+      case "tap":
+        tone(440, 0.05, 0, 0.045);
+    }
   }
 
   useEffect(() => {
@@ -104,7 +182,7 @@ export function SocketRoomClient({
     client.on("seat-assigned", (payload: number) => setSeat(payload));
     client.on("game-started", (payload: GameState) => {
       setGameState(payload);
-      playSound(600, 0.16);
+      playCue("start");
       setEnteringGame(true);
       if (enteringGameTimeout.current) clearTimeout(enteringGameTimeout.current);
       enteringGameTimeout.current = setTimeout(() => setEnteringGame(false), 2000);
@@ -112,7 +190,7 @@ export function SocketRoomClient({
     client.on("game-state-update", (payload: GameState) => {
       setGameState((previous) => {
         if (previous && payload.trickCards.length > previous.trickCards.length)
-          playSound(280);
+          playCue("card");
         return payload;
       });
     });
@@ -121,7 +199,7 @@ export function SocketRoomClient({
     );
     client.on("move-invalid", (message: string) => {
       setMoveError(message);
-      playSound(180, 0.18);
+      playCue("invalid");
       if (moveErrorTimeout.current) clearTimeout(moveErrorTimeout.current);
       moveErrorTimeout.current = setTimeout(() => setMoveError(null), 2600);
     });
@@ -151,9 +229,68 @@ export function SocketRoomClient({
       if (thoughtTimeout.current) clearTimeout(thoughtTimeout.current);
       if (moveErrorTimeout.current) clearTimeout(moveErrorTimeout.current);
       if (coatTimeout.current) clearTimeout(coatTimeout.current);
+      if (trumpTimeout.current) clearTimeout(trumpTimeout.current);
+      if (holdTimeout.current) clearTimeout(holdTimeout.current);
+      if (sweepTimeout.current) clearTimeout(sweepTimeout.current);
       if (enteringGameTimeout.current) clearTimeout(enteringGameTimeout.current);
     };
   }, [roomCode]);
+
+  // Trump is fixed by the first cut, mid-trick — the game's most dramatic beat,
+  // which until now only changed a line of text. Flash it on the table instead.
+  // Also chime whenever a trick is taken.
+  useEffect(() => {
+    if (!gameState) {
+      seenStateRef.current = false;
+      trumpSuitRef.current = null;
+      trickNumberRef.current = 0;
+      setPresentedTrick(null);
+      return;
+    }
+
+    const isFirstStateSeen = !seenStateRef.current;
+    const previousTrump = trumpSuitRef.current;
+    const previousTrick = trickNumberRef.current;
+    seenStateRef.current = true;
+    trumpSuitRef.current = gameState.trumpSuit;
+    trickNumberRef.current = gameState.trickNumber;
+    if (isFirstStateSeen) return;
+
+    if (gameState.trickNumber > previousTrick && gameState.lastTrick) {
+      playCue("trick");
+      // The server folds the fourth card straight into lastTrick, so the state
+      // that reports a finished trick has already emptied trickCards. Hold the
+      // four cards face-up here or nobody ever sees the card that won it.
+      const { cards, winner } = gameState.lastTrick;
+      setPresentedTrick({
+        trickNumber: gameState.trickNumber,
+        cards,
+        winner,
+        phase: "hold",
+      });
+      if (holdTimeout.current) clearTimeout(holdTimeout.current);
+      if (sweepTimeout.current) clearTimeout(sweepTimeout.current);
+      holdTimeout.current = setTimeout(
+        () =>
+          setPresentedTrick((current) =>
+            current ? { ...current, phase: "sweep" } : null,
+          ),
+        TRICK_HOLD_MS,
+      );
+      sweepTimeout.current = setTimeout(
+        () => setPresentedTrick(null),
+        TRICK_HOLD_MS + TRICK_SWEEP_MS,
+      );
+    }
+
+    if (gameState.trumpSuit && previousTrump === null) {
+      setTrumpReveal(gameState.trumpSuit);
+      playCue("trump");
+      if (trumpTimeout.current) clearTimeout(trumpTimeout.current);
+      trumpTimeout.current = setTimeout(() => setTrumpReveal(null), 2600);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState]);
 
   // A "coat" is a shutout: one team captured all four 10s. Flash it on the
   // board for a few seconds when a match ends that way.
@@ -168,7 +305,7 @@ export function SocketRoomClient({
     );
     if (!coated) return;
     setCoatTeam(coated);
-    playSound(720, 0.3);
+    playCue("coat");
     if (coatTimeout.current) clearTimeout(coatTimeout.current);
     coatTimeout.current = setTimeout(() => setCoatTeam(null), 5000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -177,9 +314,39 @@ export function SocketRoomClient({
   const myTeam: TeamId | null =
     seat === null ? null : seat === 0 || seat === 2 ? "A" : "B";
   const player = seat === null ? undefined : gameState?.players[seat];
-  const tablePlays = gameState?.trickCards.length
-    ? gameState.trickCards
-    : (gameState?.lastTrick?.cards ?? []);
+  // While a finished trick is being presented it takes precedence over live
+  // cards, so a fast next player cannot cut the moment short. The table view
+  // lags the server by at most the hold plus the sweep.
+  const collectedBy: SeatIndex | null =
+    presentedTrick?.phase === "sweep" ? presentedTrick.winner : null;
+  const tablePlays = presentedTrick
+    ? presentedTrick.cards
+    : (gameState?.trickCards ?? []);
+  // Measure the trip to the winner's card. Runs after the cards are on screen,
+  // so the first frame shows them at home and the sweep starts from there.
+  useEffect(() => {
+    if (collectedBy === null) {
+      setSweepOffsets(null);
+      return;
+    }
+    const target = tableCardRefs.current[collectedBy];
+    if (!target) return;
+    const targetRect = target.getBoundingClientRect();
+    const offsets: Record<number, { x: number; y: number; rotation: number }> = {};
+    tableCardRefs.current.forEach((element, seat) => {
+      if (!element) return;
+      const rect = element.getBoundingClientRect();
+      offsets[seat] = {
+        x: Math.round(targetRect.left - rect.left),
+        y: Math.round(targetRect.top - rect.top),
+        // Splay each card a little so the landed trick reads as a pile of four
+        // rather than one card, since they all arrive on the same spot.
+        rotation: [-9, -3, 4, 10][seat],
+      };
+    });
+    setSweepOffsets(offsets);
+  }, [collectedBy, presentedTrick?.trickNumber]);
+
   const openSeats = roomPlayers.filter((entry) => entry === null).length;
   const isTeamFull = (team: TeamId) =>
     (team === "A" ? [0, 2] : [1, 3]).every((teamSeat) => roomPlayers[teamSeat]);
@@ -193,13 +360,13 @@ export function SocketRoomClient({
 
   function joinTeam(team: TeamId) {
     setError(null);
-    playSound(440, 0.05);
+    playCue("tap");
     socket?.emit("join-room", { roomCode, playerId, playerName, team });
   }
 
   function switchTeam(team: TeamId) {
     setError(null);
-    playSound(440, 0.05);
+    playCue("tap");
     socket?.emit(
       "switch-team",
       { roomCode, team },
@@ -516,6 +683,16 @@ export function SocketRoomClient({
                   </p>
                 </div>
               ) : null}
+              {trumpReveal ? (
+                <div className="pointer-events-none absolute inset-0 z-40 flex flex-col items-center justify-center gap-1 bg-emerald-950/55 backdrop-blur-sm">
+                  <p className="animate-trump-reveal text-6xl leading-none text-amber-200 drop-shadow-[0_0_28px_rgba(255,217,112,0.8)] sm:text-8xl">
+                    {SUIT_SYMBOL[trumpReveal]}
+                  </p>
+                  <p className="animate-card-play text-xs font-black uppercase tracking-[0.3em] text-amber-300 sm:text-sm">
+                    {trumpReveal} is trump
+                  </p>
+                </div>
+              ) : null}
               {coatTeam ? (
                 <div className="pointer-events-none absolute inset-0 z-40 flex flex-col items-center justify-center gap-2 bg-emerald-950/60 backdrop-blur-sm">
                   <p className="animate-card-play text-6xl font-black uppercase tracking-[0.15em] text-amber-300 drop-shadow-[0_0_25px_rgba(251,191,36,0.7)] sm:text-8xl">
@@ -527,9 +704,7 @@ export function SocketRoomClient({
                 </div>
               ) : null}
               <p className="text-center text-xs font-semibold uppercase tracking-[0.22em] text-emerald-100/75">
-                {gameState.trickCards.length
-                  ? "Current hand"
-                  : "Last completed hand"}
+                {presentedTrick ? "Last completed hand" : "Current hand"}
               </p>
               <div className="game-table-grid mt-3 grid h-[380px] grid-cols-[minmax(72px,1fr)_minmax(96px,1.35fr)_minmax(72px,1fr)] grid-rows-[auto_1fr_auto] gap-1 sm:h-[510px] sm:grid-cols-[minmax(74px,1fr)_minmax(130px,2fr)_minmax(74px,1fr)] sm:gap-2">
                 {[0, 1, 2, 3].map((tableSeat) => {
@@ -556,17 +731,38 @@ export function SocketRoomClient({
                       </div>
                       {play ? (
                         <div
-                          className={`animate-card-play mx-auto mt-2 flex h-[4.5rem] w-12 flex-col justify-between rounded-md bg-stone-50 p-1 shadow-lg sm:h-24 sm:w-16 sm:p-1.5 ${suitColor(play.card.suit)}`}
+                          // Keyed by card, which is unique across a match, so
+                          // the cards already down are not remounted (and so do
+                          // not replay their entry animation) when the fourth
+                          // card lands.
+                          key={play.card.code}
+                          ref={(element) => {
+                            tableCardRefs.current[tableSeat] = element;
+                          }}
+                          className={`mx-auto mt-2 h-[4.5rem] w-12 sm:h-24 sm:w-16 ${
+                            collectedBy === null
+                              ? "animate-card-play"
+                              : // Wait for the measurement, so the sweep always
+                                // has a real destination to travel to.
+                                sweepOffsets
+                                ? "animate-trick-sweep"
+                                : ""
+                          }`}
+                          style={
+                            collectedBy === null || !sweepOffsets?.[tableSeat]
+                              ? undefined
+                              : ({
+                                  "--sweep-x": `${sweepOffsets[tableSeat].x}px`,
+                                  "--sweep-y": `${sweepOffsets[tableSeat].y}px`,
+                                  "--sweep-r": `${sweepOffsets[tableSeat].rotation}deg`,
+                                } as CSSProperties)
+                          }
                         >
-                          <span className="text-xs font-bold sm:text-sm">
-                            {cardLabel(play.card)}
-                          </span>
-                          <span className="self-center text-xl sm:text-2xl">
-                            {SUIT_SYMBOL[play.card.suit]}
-                          </span>
-                          <span className="self-end rotate-180 text-xs font-bold sm:text-sm">
-                            {cardLabel(play.card)}
-                          </span>
+                          <PlayingCard
+                            card={play.card}
+                            detail="compact"
+                            className="h-full w-full drop-shadow-[0_6px_10px_rgba(0,0,0,0.45)]"
+                          />
                         </div>
                       ) : null}
                     </div>
@@ -574,9 +770,11 @@ export function SocketRoomClient({
                 })}
                 <div className="col-start-2 row-start-2 hidden items-center justify-center sm:flex">
                   <div className="rounded-full border border-amber-300/30 bg-emerald-950/65 px-4 py-2 text-center text-xs text-amber-100">
-                    {gameState.lastTrick && !gameState.trickCards.length
-                      ? `Seat ${gameState.lastTrick.winner + 1} won the last hand`
-                      : "Play a card"}
+                    {presentedTrick
+                      ? `Seat ${presentedTrick.winner + 1} won the last hand`
+                      : gameState.lastTrick && !gameState.trickCards.length
+                        ? `Seat ${gameState.lastTrick.winner + 1} won the last hand`
+                        : "Play a card"}
                   </div>
                 </div>
               </div>
@@ -593,12 +791,13 @@ export function SocketRoomClient({
                       type="button"
                       disabled={seat !== gameState.currentTurn}
                       onClick={() => playCard(card)}
-                      className={`relative flex h-24 w-[4.5rem] shrink-0 flex-col items-start overflow-hidden rounded-lg border-2 border-stone-300 bg-stone-50 p-2.5 font-mono text-sm font-bold shadow-md transition hover:z-20 hover:-translate-y-5 hover:shadow-xl sm:h-28 sm:w-20 sm:text-base disabled:cursor-not-allowed disabled:brightness-75 ${index === 0 ? "" : "-ml-2 sm:-ml-3"} ${suitColor(card.suit)}`}
+                      aria-label={cardLabel(card)}
+                      className={`relative h-24 w-[4.5rem] shrink-0 rounded-lg transition hover:z-20 hover:-translate-y-5 sm:h-28 sm:w-20 disabled:cursor-not-allowed disabled:brightness-75 ${index === 0 ? "" : "-ml-2 sm:-ml-3"}`}
                     >
-                      <span className="leading-none">{cardLabel(card)}</span>
-                      <span className="mt-3 text-3xl leading-none sm:text-4xl">
-                        {SUIT_SYMBOL[card.suit]}
-                      </span>
+                      <PlayingCard
+                        card={card}
+                        className="h-full w-full drop-shadow-[0_8px_14px_rgba(0,0,0,0.6)]"
+                      />
                     </button>
                   ))}
                 </div>
