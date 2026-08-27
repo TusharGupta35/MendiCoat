@@ -7,7 +7,13 @@ interface RoomState {
   players: Array<RoomPlayer | undefined>;
   gameState?: GameState;
   matchHistory: MatchResult[];
+  /** Last status written to the database, so we only write on an actual change. */
+  persistedStatus?: RoomStatus;
+  /** Pending hand-back to the lobby for a room every human has left. */
+  resetTimer?: ReturnType<typeof setTimeout>;
 }
+
+type RoomStatus = 'LOBBY' | 'PLAYING';
 
 interface RoomPlayer {
   id: string;
@@ -29,6 +35,10 @@ function getAvailableSeat(room: RoomState, team: TeamId): SeatIndex | undefined 
   return TEAM_SEATS[team].find((seat) => !room.players[seat]);
 }
 
+function seatTeam(seat: SeatIndex | number): TeamId {
+  return seat === 0 || seat === 2 ? 'A' : 'B';
+}
+
 function isBotSeat(room: RoomState, seat: SeatIndex) {
   return room.players[seat]?.isBot === true;
 }
@@ -39,7 +49,7 @@ function roomPlayersPayload(room: RoomState) {
     isBot: player.isBot,
     isOnline: !player.isBot && player.socketIds.size > 0,
     seat,
-    team: seat === 0 || seat === 2 ? 'A' : 'B',
+    team: seatTeam(seat),
   } : null);
 }
 
@@ -47,15 +57,69 @@ function markPlayerConnected(room: RoomState, playerId: string, socketId: string
   room.players.find((player) => player?.id === playerId)?.socketIds.add(socketId);
 }
 
-function markRoomPlaying(roomCode: string) {
+/** How long an emptied-out room keeps its seats and match before resetting. */
+const EMPTY_ROOM_RESET_MS = 60_000;
+
+function hasConnectedHuman(room: RoomState) {
+  return room.players.some((player) => player && !player.isBot && player.socketIds.size > 0);
+}
+
+// A room is only "playing" while a live match has somebody watching it. A
+// finished match and an abandoned room both belong back in the lobby, so the
+// dashboard and the join route stop advertising a game nobody is in.
+function derivedRoomStatus(room: RoomState): RoomStatus {
+  const liveMatch = room.gameState?.status === 'PLAYING';
+  return liveMatch && hasConnectedHuman(room) ? 'PLAYING' : 'LOBBY';
+}
+
+function syncRoomStatus(room: RoomState) {
+  const status = derivedRoomStatus(room);
+  if (room.persistedStatus === status) return;
+  room.persistedStatus = status;
   // The custom server is imported before Next.js loads .env.local. Importing
-  // Prisma only after a match starts avoids reading DATABASE_URL too early.
+  // Prisma lazily avoids reading DATABASE_URL too early.
   void import('@/lib/prisma')
-    .then(({ prisma }) => prisma.room.update({ where: { code: roomCode }, data: { status: 'PLAYING' } }))
-    .catch(() => undefined);
+    .then(({ prisma }) => prisma.room.update({ where: { code: room.roomCode }, data: { status } }))
+    .catch(() => {
+      // Leave the next state change free to retry the write.
+      if (room.persistedStatus === status) room.persistedStatus = undefined;
+    });
+}
+
+/** True while the room still holds something a reset would clear. */
+function roomNeedsReset(room: RoomState) {
+  return room.gameState !== undefined || room.players.some(Boolean);
+}
+
+// Everyone disconnecting at once is usually a blip — a reload, a dropped
+// network — so an emptied room keeps its seats and its match for a grace
+// period. Only once that passes with nobody back does it return to a fresh
+// lobby, which also frees the seats ghosts were holding.
+function scheduleEmptyRoomReset(io: Server, room: RoomState) {
+  if (hasConnectedHuman(room) || !roomNeedsReset(room)) {
+    if (room.resetTimer) clearTimeout(room.resetTimer);
+    room.resetTimer = undefined;
+    return;
+  }
+  if (room.resetTimer) return;
+
+  room.resetTimer = setTimeout(() => {
+    room.resetTimer = undefined;
+    // The room may have been recreated, or refilled, while the timer ran.
+    if (rooms.get(room.roomCode) !== room || hasConnectedHuman(room)) return;
+    room.players = Array.from<RoomPlayer | undefined>({ length: 4 });
+    room.gameState = undefined;
+    // Match history is the room's own record, so it survives the reset.
+    io.to(room.roomCode).emit('room-reset');
+    emitState(io, room);
+  }, EMPTY_ROOM_RESET_MS);
 }
 
 function emitState(io: Server, room: RoomState) {
+  // Every mutation funnels through here, so deriving the room's status at this
+  // one point keeps the database honest without every handler remembering to.
+  syncRoomStatus(room);
+  scheduleEmptyRoomReset(io, room);
   io.to(room.roomCode).emit('room-update', {
     players: roomPlayersPayload(room),
   });
@@ -116,6 +180,14 @@ export function createSocketServer(httpServer: import('node:http').Server) {
     cors: { origin: '*', methods: ['GET', 'POST'] },
   });
 
+  // No room is live in memory at boot, so anything the database still calls
+  // PLAYING is a leftover from a previous process — including every room the
+  // old one-way status write stranded. This assumes a single server instance,
+  // which the in-memory room map already requires.
+  void import('@/lib/prisma')
+    .then(({ prisma }) => prisma.room.updateMany({ where: { status: 'PLAYING' }, data: { status: 'LOBBY' } }))
+    .catch(() => undefined);
+
   io.on('connection', (socket) => {
     socket.on('watch-room', ({ roomCode }: { roomCode: string }) => {
       socket.join(roomCode);
@@ -173,6 +245,53 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       emitState(io, room);
     });
 
+    // Players may move between teams for as long as the room is still in the
+    // lobby; once a game state exists the seats are locked to the dealt hands.
+    socket.on('switch-team', ({ roomCode, team }: { roomCode: string; team: TeamId }, callback?: (result: { error?: string }) => void) => {
+      const room = rooms.get(roomCode);
+      const playerId = socket.data.playerId as string | undefined;
+      if (!room || socket.data.roomCode !== roomCode || !playerId) {
+        callback?.({ error: 'Join the room before switching teams.' });
+        return;
+      }
+      if (room.gameState) {
+        callback?.({ error: 'The match has already started.' });
+        return;
+      }
+
+      const currentSeat = room.players.findIndex((player) => player?.id === playerId);
+      if (currentSeat < 0) {
+        callback?.({ error: 'Join the room before switching teams.' });
+        return;
+      }
+      if (seatTeam(currentSeat as SeatIndex) === team) {
+        callback?.({});
+        return;
+      }
+
+      const targetSeat = getAvailableSeat(room, team);
+      if (targetSeat === undefined) {
+        callback?.({ error: `Team ${team} is full. Ask someone there to switch first.` });
+        return;
+      }
+
+      const player = room.players[currentSeat]!;
+      room.players[currentSeat] = undefined;
+      room.players[targetSeat] = player;
+      rooms.set(roomCode, room);
+
+      // The player may have the room open in more than one tab; every socket of
+      // theirs holds a seat in socket.data that play-card later trusts.
+      for (const socketId of player.socketIds) {
+        const peer = io.sockets.sockets.get(socketId);
+        if (!peer) continue;
+        peer.data.seat = targetSeat;
+        peer.emit('seat-assigned', targetSeat);
+      }
+      emitState(io, room);
+      callback?.({});
+    });
+
     socket.on('fill-bots', ({ roomCode }: { roomCode: string }, callback?: (result: { error?: string }) => void) => {
       const room = rooms.get(roomCode);
       if (!room) {
@@ -198,7 +317,6 @@ export function createSocketServer(httpServer: import('node:http').Server) {
 
       room.gameState = createInitialGameState(roomCode, room.players.map((player) => player!.name));
       rooms.set(roomCode, room);
-      markRoomPlaying(roomCode);
       io.to(roomCode).emit('game-started', room.gameState);
       emitState(io, room);
       callback?.({});
@@ -231,7 +349,6 @@ export function createSocketServer(httpServer: import('node:http').Server) {
         );
 
         rooms.set(roomCode, room);
-        markRoomPlaying(roomCode);
 
         io.to(roomCode).emit("game-started", room.gameState);
         emitState(io, room);
