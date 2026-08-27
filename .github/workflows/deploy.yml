@@ -8,22 +8,37 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Deploy to VM
-        uses: appleboy/ssh-action@v1.0.0
+        uses: appleboy/ssh-action@v1.2.4
         with:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
+          port: 22
           script: |
             set -e
-            cd /opt/app
-            git pull origin MendiCoatProd
-            cp .env.production .env.local
+
+            cd /opt/MendiCoat
+
+            echo "Pulling latest code..."
+            git fetch origin MendiCoatProd
+            git reset --hard origin/MendiCoatProd
+
+            echo "Installing dependencies..."
             npm ci
+
+            echo "Generating Prisma client..."
             npx prisma generate
-            pm2 stop mendicoat
-            rm -rf .next
+
+            echo "Building application..."
             npm run build
+
+            echo "Restarting application..."
             pm2 restart mendicoat --update-env
+
+            echo "Saving PM2 process list..."
             pm2 save
+
+            echo "Deployment completed successfully."
