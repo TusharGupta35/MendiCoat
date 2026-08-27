@@ -16,9 +16,13 @@ jobs:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
+          passphrase: ${{ secrets.VM_SSH_PASSPHRASE }}
           port: 22
+
           script: |
             set -e
+
+            echo "Deployment started: $(date)"
 
             cd /opt/MendiCoat
 
@@ -41,4 +45,4 @@ jobs:
             echo "Saving PM2 process list..."
             pm2 save
 
-            echo "Deployment completed successfully."
+            echo "Deployment completed: $(date)"
