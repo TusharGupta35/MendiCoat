@@ -125,6 +125,14 @@ export function SocketRoomClient({
       if (moveErrorTimeout.current) clearTimeout(moveErrorTimeout.current);
       moveErrorTimeout.current = setTimeout(() => setMoveError(null), 2600);
     });
+    // The server hands an abandoned room back to the lobby. Anyone still
+    // watching it should land there too rather than on a dead board.
+    client.on("room-reset", () => {
+      setGameState(null);
+      setSeat(null);
+      setError(null);
+      setMoveError(null);
+    });
     client.on("room-full", () => setError("This room is full."));
     client.on("game-already-started", () => setError("This game has already started."));
     client.on("team-full", (team: TeamId) =>
@@ -166,11 +174,15 @@ export function SocketRoomClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [finishedStatus]);
 
+  const myTeam: TeamId | null =
+    seat === null ? null : seat === 0 || seat === 2 ? "A" : "B";
   const player = seat === null ? undefined : gameState?.players[seat];
   const tablePlays = gameState?.trickCards.length
     ? gameState.trickCards
     : (gameState?.lastTrick?.cards ?? []);
   const openSeats = roomPlayers.filter((entry) => entry === null).length;
+  const isTeamFull = (team: TeamId) =>
+    (team === "A" ? [0, 2] : [1, 3]).every((teamSeat) => roomPlayers[teamSeat]);
   const historyTally = matchHistory.reduce(
     (tally, result) => {
       tally[result.winnerTeam] += 1;
@@ -183,6 +195,18 @@ export function SocketRoomClient({
     setError(null);
     playSound(440, 0.05);
     socket?.emit("join-room", { roomCode, playerId, playerName, team });
+  }
+
+  function switchTeam(team: TeamId) {
+    setError(null);
+    playSound(440, 0.05);
+    socket?.emit(
+      "switch-team",
+      { roomCode, team },
+      (result: { error?: string }) => {
+        if (result.error) setError(result.error);
+      },
+    );
   }
 
   function fillWithBots() {
@@ -280,7 +304,7 @@ export function SocketRoomClient({
                     },
                   )}
                 </div>
-                {seat === null && !gameState ? (
+                {gameState ? null : seat === null ? (
                   <button
                     type="button"
                     onClick={() => joinTeam(team)}
@@ -288,7 +312,20 @@ export function SocketRoomClient({
                   >
                     Join Team {team}
                   </button>
-                ) : null}
+                ) : myTeam === team ? (
+                  <p className="mt-3 w-full rounded-lg border border-emerald-400/40 bg-emerald-400/5 px-3 py-2 text-center text-sm font-medium text-emerald-300">
+                    Your team
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => switchTeam(team)}
+                    disabled={isTeamFull(team)}
+                    className="mt-3 w-full rounded-lg border border-amber-400/50 px-3 py-2 text-sm font-medium text-amber-300 transition hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500 disabled:hover:bg-transparent"
+                  >
+                    {isTeamFull(team) ? `Team ${team} is full` : `Switch to Team ${team}`}
+                  </button>
+                )}
               </div>
             ))}
           </div>
