@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { CreateRoomButton } from '@/components/CreateRoomButton';
 import { DeleteRoomButton } from '@/components/DeleteRoomButton';
+import { GameInstructions } from '@/components/GameInstructions';
 import { UsernameEditor } from '@/components/UsernameEditor';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -58,6 +59,8 @@ const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
               </p>
               <p className="mt-6 text-sm text-slate-400">Create a room to receive a unique 4-character code.</p>
             </div>
+
+            <GameInstructions />
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
