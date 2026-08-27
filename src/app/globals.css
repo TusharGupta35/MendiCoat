@@ -1,11 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Outfit:wght@300;400;500;600;700&display=swap');
 @import 'tailwindcss';
+
+/* ==========================================================================
+   THEME EXPERIMENT — "Casino Night"
+   Everything between this banner and the matching END banner is the trial
+   theme. It re-skins the whole app by remapping the two palettes the UI is
+   built from (slate = surfaces, amber = accent), so no component needs to
+   change. Revert with:  git checkout src/app/globals.css
+   ========================================================================== */
+
+@theme {
+  --font-sans: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Baloo 2', 'Outfit', ui-sans-serif, system-ui, sans-serif;
+
+  /* Chunkier corners read as friendlier / more toy-like. */
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.125rem;
+  --radius-2xl: 1.5rem;
+
+  /* Surfaces: plum-ink, like the carpet around a card room. */
+  --color-slate-950: #150c26;
+  --color-slate-900: #211539;
+  --color-slate-800: #35234f;
+  --color-slate-700: #4d3373;
+  --color-slate-600: #63438f;
+  --color-slate-500: #8d76b2;
+  --color-slate-400: #ad98cd;
+  --color-slate-300: #cdc0e4;
+  --color-slate-200: #e3dbf1;
+  --color-slate-100: #f5f0fd;
+
+  /* Accent: warmer, brighter table gold. */
+  --color-amber-100: #fff6da;
+  --color-amber-200: #ffeaad;
+  --color-amber-300: #ffd970;
+  --color-amber-400: #ffc233;
+  --color-amber-500: #f5a615;
+  --color-amber-950: #3f2508;
+
+  /* Felt, a touch richer under the new lighting. */
+  --color-emerald-800: #12704a;
+  --color-emerald-950: #06301f;
+}
+
+/* ── END THEME EXPERIMENT (tokens) ─────────────────────────────────────── */
 
 :root {
   color-scheme: dark;
 }
 
 body {
-  @apply min-h-screen bg-slate-950 text-slate-100 antialiased;
+  @apply min-h-screen text-slate-100 antialiased;
+  font-family: var(--font-sans);
+  background-color: var(--color-slate-950);
+  /* Warm spotlight from above, cool felt bounce from below, suits tiled faintly
+     over both. background-attachment keeps it still while panels scroll. */
+  background-image:
+    radial-gradient(120% 80% at 50% -20%, rgba(245, 166, 21, 0.12), transparent 60%),
+    radial-gradient(90% 60% at 110% 110%, rgba(18, 112, 74, 0.18), transparent 60%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Cg fill='%23ffd970' fill-opacity='0.06' font-family='serif' font-size='30'%3E%3Ctext x='12' y='46'%3E%E2%99%A0%3C/text%3E%3Ctext x='82' y='46'%3E%E2%99%A5%3C/text%3E%3Ctext x='12' y='116'%3E%E2%99%A6%3C/text%3E%3Ctext x='82' y='116'%3E%E2%99%A3%3C/text%3E%3C/g%3E%3C/svg%3E");
+  background-attachment: fixed;
 }
 
 * {
@@ -165,3 +220,146 @@ body {
     width: 100%;
   }
 }
+
+/* ==========================================================================
+   THEME EXPERIMENT — "Casino Night" (surface treatments)
+   These rules hook onto the utility classes the components already carry, so
+   the trial needs no TSX edits. If we keep the theme, they should graduate
+   into real component classes (.btn-gold, .panel) applied in the markup.
+   Revert with:  git checkout src/app/globals.css
+   ========================================================================== */
+
+/* Every page shell paints an opaque bg-slate-950 over the body, which would
+   hide the lit ground above. Let the body show through — the shells still keep
+   their layout utilities. (Not scoped to divs: the join-code input and the
+   loading screen legitimately want a solid fill.) */
+main.bg-slate-950 {
+  background-color: transparent;
+}
+
+/* Display face on every heading, app-wide. */
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.005em;
+}
+
+h1 {
+  text-shadow: 0 2px 18px rgba(255, 193, 51, 0.18);
+}
+
+/* The uppercase amber eyebrow labels get a soft neon lift. */
+.text-amber-400,
+.text-amber-300 {
+  text-shadow: 0 0 16px rgba(255, 193, 51, 0.28);
+}
+
+/* Panels: lit from above, hairline of gold instead of grey. */
+.bg-slate-900\/80,
+.bg-slate-950\/70 {
+  background-color: rgba(33, 21, 57, 0.94);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(0, 0, 0, 0.18));
+  border-color: rgba(255, 217, 112, 0.16);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 20px 44px -28px rgba(0, 0, 0, 0.95);
+}
+
+/* Primary gold buttons become chunky arcade keys. Scoped to button/a so the
+   amber chips and translucent panels elsewhere are untouched. */
+button.bg-amber-500,
+a.bg-amber-500,
+button.bg-amber-400,
+a.bg-amber-400 {
+  background-image: linear-gradient(180deg, #ffe08a 0%, #ffc233 45%, #e0900c 100%);
+  border: 1px solid rgba(255, 231, 165, 0.8);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -2px 0 rgba(122, 62, 0, 0.32),
+    0 5px 0 -1px #8a5406,
+    0 12px 24px -10px rgba(245, 166, 21, 0.7);
+  text-shadow: 0 1px 0 rgba(255, 246, 218, 0.55);
+  transition: transform 110ms ease, box-shadow 110ms ease, filter 110ms ease;
+}
+
+button.bg-amber-500:hover:not(:disabled),
+a.bg-amber-500:hover,
+button.bg-amber-400:hover:not(:disabled),
+a.bg-amber-400:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+/* Press travels the full 5px of the bottom edge, so the key bottoms out. */
+button.bg-amber-500:active:not(:disabled),
+a.bg-amber-500:active,
+button.bg-amber-400:active:not(:disabled),
+a.bg-amber-400:active {
+  transform: translateY(4px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 2px 6px rgba(122, 62, 0, 0.4),
+    0 1px 0 -1px #8a5406;
+}
+
+button.bg-amber-500:disabled,
+button.bg-amber-400:disabled {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 3px 0 -1px #6d4405;
+}
+
+/* Secondary outline buttons get a matching, quieter raise. */
+a.border-slate-700,
+button.border-slate-700 {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(0, 0, 0, 0.22));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 4px 0 -1px rgba(10, 4, 20, 0.85);
+  transition: transform 110ms ease, box-shadow 110ms ease;
+}
+
+a.border-slate-700:hover,
+button.border-slate-700:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+a.border-slate-700:active,
+button.border-slate-700:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+/* The panel that frames the table: plum with a gold edge, rather than the
+   amber wash that turns muddy against the new surfaces. */
+section.bg-amber-500\/10 {
+  background-color: rgba(33, 21, 57, 0.75);
+  background-image: linear-gradient(180deg, rgba(255, 217, 112, 0.07), rgba(0, 0, 0, 0.2));
+  border-color: rgba(255, 217, 112, 0.3);
+  box-shadow: 0 24px 60px -34px rgba(0, 0, 0, 0.95);
+}
+
+/* The table itself: woven felt, gold inner trim, spotlight overhead. */
+.game-table {
+  background-image:
+    radial-gradient(120% 90% at 50% -10%, rgba(255, 255, 255, 0.14), transparent 55%),
+    repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.055) 0 2px, transparent 2px 4px),
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.035) 0 2px, transparent 2px 4px);
+}
+
+.game-table::after {
+  content: '';
+  position: absolute;
+  inset: 0.5rem;
+  border-radius: 1rem;
+  pointer-events: none;
+  border: 1px solid rgba(255, 217, 112, 0.22);
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.4);
+}
+
+/* Cards lift off the felt a little more convincingly. */
+.game-hand button {
+  box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* ── END THEME EXPERIMENT (surface treatments) ─────────────────────────── */

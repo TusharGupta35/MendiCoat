@@ -43,7 +43,7 @@ export function GameInstructions() {
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-xl font-semibold text-white">How to play</h2>
+        <h2 className="text-xl font-semibold text-white">How to play - By PRATIMA</h2>
         <span className="rounded-full bg-slate-800 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-300">
           4 players · 13 tricks
         </span>
