@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SocketRoomClient } from "@/components/SocketRoomClient";
+import { titleLabelById } from "@/lib/titles";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -36,6 +37,10 @@ export default async function RoomPage({
   ) {
     redirect("/room/join");
   }
+
+  // Resolved from the id alone: whether it was earned was settled when it was
+  // saved, so the table needs no stats query to print the words.
+  const wearing = titleLabelById(currentUser.title);
 
   return (
     <main className="min-h-screen bg-slate-950 px-2 py-4 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
@@ -87,6 +92,7 @@ export default async function RoomPage({
             playerId={currentUser.id}
             playerName={currentUser.username ?? currentUser.name ?? "Player"}
             playerAvatar={currentUser.avatar}
+            playerTitle={wearing}
           />
         </div>
       </div>

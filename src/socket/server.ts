@@ -1,4 +1,5 @@
 import { Server } from 'socket.io';
+import { chooseBotCard, isBotLevel, type BotLevel } from '@/game-engine/bot';
 import { createInitialGameState, validateMove, applyMove } from '@/game-engine/mendi-coat';
 import type { Card, GameState, MatchResult, SeatIndex, Suit } from '@/types/game';
 import { buildMatchSummary, type MatchSummary } from '@/lib/match-summary';
@@ -15,6 +16,8 @@ interface RoomState {
    * never rewritten.
    */
   series: SeriesState;
+  /** How hard the bots in this room play. */
+  botLevel: BotLevel;
   /** Row id of the match in progress, once the database has accepted it. */
   matchId?: string;
   /** Completed tricks of the match in progress; the game state drops them. */
@@ -63,6 +66,8 @@ interface RoomPlayer {
   name: string;
   /** Which built-in character this player picked, if any. */
   avatar?: string | null;
+  /** The title they wear at the table, already checked as earned. */
+  title?: string | null;
   isBot: boolean;
   socketIds: Set<string>;
 }
@@ -92,6 +97,7 @@ function roomPlayersPayload(room: RoomState) {
   return room.players.map((player, seat) => player ? {
     name: player.name,
     avatar: player.avatar ?? null,
+    title: player.title ?? null,
     id: player.id,
     isBot: player.isBot,
     isOnline: !player.isBot && player.socketIds.size > 0,
@@ -179,6 +185,7 @@ function emitState(io: Server, room: RoomState) {
   });
   io.to(room.roomCode).emit('match-history', room.matchHistory);
   io.to(room.roomCode).emit('series', room.series);
+  io.to(room.roomCode).emit('bot-level', room.botLevel);
   if (room.summary) io.to(room.roomCode).emit('match-summary', room.summary);
   if (room.gameState) io.to(room.roomCode).emit('game-state-update', room.gameState);
 }
@@ -252,17 +259,6 @@ function beginMatch(io: Server, room: RoomState, roomCode: string) {
   advanceBots(io, roomCode);
 }
 
-function pickBotCard(gameState: GameState, seat: SeatIndex): Card | undefined {
-  const player = gameState.players.find((entry) => entry.seat === seat);
-  if (!player) return undefined;
-  // Hands are suit-sorted (spades first), so always taking the first legal card
-  // would make a leading bot open with a spade every time — which fixes trump to
-  // spades on trick 1. Pick a random legal card instead.
-  const legalCards = player.cards.filter((card) => validateMove(gameState, seat, card).valid);
-  if (legalCards.length === 0) return undefined;
-  return legalCards[Math.floor(Math.random() * legalCards.length)];
-}
-
 function advanceBots(io: Server, roomCode: string, delayMs = 700) {
   // Bots are intentionally simple. They only choose legal cards;
   // move validation and state transitions always remain server-authoritative.
@@ -272,7 +268,7 @@ function advanceBots(io: Server, roomCode: string, delayMs = 700) {
 
     const seat = room.gameState.currentTurn;
     if (!isBotSeat(room, seat)) return;
-    const card = pickBotCard(room.gameState, seat);
+    const card = chooseBotCard(room.gameState, seat, room.botLevel);
     if (!card) return;
 
     const completedTrick = room.gameState.trickCards.length === 3;
@@ -307,6 +303,7 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       });
       socket.emit('match-history', room.matchHistory);
       socket.emit('series', room.series);
+      socket.emit('bot-level', room.botLevel);
       if (room.summary) socket.emit('match-summary', room.summary);
       if (room.gameState) socket.emit('game-state-update', room.gameState);
     });
@@ -326,8 +323,8 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       emitState(io, room);
     });
 
-    socket.on('join-room', ({ roomCode, playerId, playerName, playerAvatar, team }: { roomCode: string; playerId: string; playerName: string; playerAvatar?: string | null; team: TeamId }) => {
-      const room = rooms.get(roomCode) ?? { roomCode, players: Array.from<RoomPlayer | undefined>({ length: 4 }), matchHistory: [], trickLog: [], series: { ...DEFAULT_SERIES } };
+    socket.on('join-room', ({ roomCode, playerId, playerName, playerAvatar, playerTitle, team }: { roomCode: string; playerId: string; playerName: string; playerAvatar?: string | null; playerTitle?: string | null; team: TeamId }) => {
+      const room = rooms.get(roomCode) ?? { roomCode, players: Array.from<RoomPlayer | undefined>({ length: 4 }), matchHistory: [], trickLog: [], series: { ...DEFAULT_SERIES }, botLevel: 'normal' };
       const existingSeat = room.players.findIndex((player) => player?.id === playerId);
       const seat = existingSeat === -1 ? getAvailableSeat(room, team) : existingSeat as SeatIndex;
       if (seat === undefined) {
@@ -345,10 +342,12 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       }
 
       if (existingSeat === -1) {
-        room.players[seat] = { id: playerId, name: playerName, avatar: playerAvatar ?? null, isBot: false, socketIds: new Set() };
+        room.players[seat] = { id: playerId, name: playerName, avatar: playerAvatar ?? null, title: playerTitle ?? null, isBot: false, socketIds: new Set() };
       } else if (room.players[seat]) {
-        // A returning player may have changed their avatar since last sitting down.
+        // A returning player may have changed their avatar or title since
+        // last sitting down.
         room.players[seat].avatar = playerAvatar ?? null;
+        room.players[seat].title = playerTitle ?? null;
       }
       rooms.set(roomCode, room);
       socket.join(roomCode);
@@ -537,6 +536,27 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       callback?.({});
     });
 
+    socket.on('set-bot-level', ({ roomCode, level }: { roomCode: string; level: string }, callback?: (result: { error?: string }) => void) => {
+      const room = rooms.get(roomCode);
+      const seat = socket.data.seat as SeatIndex | undefined;
+      if (!room || socket.data.roomCode !== roomCode || seat === undefined || isBotSeat(room, seat)) {
+        callback?.({ error: 'Take a seat before changing the bots.' });
+        return;
+      }
+      if (!isBotLevel(level)) {
+        callback?.({ error: 'Pick easy, normal or hard.' });
+        return;
+      }
+
+      // Allowed mid-match: it only changes how the next card is chosen, and
+      // waiting for the match to end would be a strange restriction on a
+      // practice game.
+      room.botLevel = level;
+      rooms.set(roomCode, room);
+      emitState(io, room);
+      callback?.({});
+    });
+
     socket.on('send-thought', ({ roomCode, message }: { roomCode: string; message: string }, callback?: (result: { error?: string }) => void) => {
       const room = rooms.get(roomCode);
       const seat = socket.data.seat as SeatIndex | undefined;
@@ -551,7 +571,11 @@ export function createSocketServer(httpServer: import('node:http').Server) {
         return;
       }
 
-      io.to(roomCode).emit('room-thought', { name: room.players[seat]?.name ?? 'Player', message: text });
+      io.to(roomCode).emit('room-thought', {
+        name: room.players[seat]?.name ?? 'Player',
+        message: text,
+        seat,
+      });
       callback?.({});
     });
 

@@ -12,6 +12,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { weekOf } from '@/lib/challenges';
 import { snapshotFrom } from '@/lib/progress-feed';
+import { earnedTitles, titleLabel } from '@/lib/titles';
 import { getPlayerStats } from '@/lib/stats';
 
 export const dynamic = 'force-dynamic';
@@ -44,6 +45,10 @@ const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
   const snapshot = record
     ? snapshotFrom(record.level, record.milestones, record.feats, record.challenges, weekOf(new Date()))
     : null;
+  const wearing =
+    record && user
+      ? titleLabel(user.title, earnedTitles(record.milestones, record.feats, record.band.name))
+      : null;
 
   return (
     <main className="min-h-screen bg-slate-950 px-3 py-6 text-slate-100 sm:px-6 sm:py-12">
@@ -62,6 +67,9 @@ const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
             <div>
               <p className="text-sm uppercase tracking-[0.35em] text-amber-400">Dashboard</p>
               <UsernameEditor username={user?.username ?? null} fallbackName={accountName} />
+              {wearing ? (
+                <p className="text-sm font-medium text-amber-300">{wearing}</p>
+              ) : null}
             </div>
           </div>
           <div className="flex gap-3">
