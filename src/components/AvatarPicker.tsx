@@ -3,7 +3,7 @@
 import { Check, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Avatar } from '@/components/Avatar';
+import { Avatar, LevelAvatar } from '@/components/Avatar';
 import { AVATARS } from '@/lib/avatars';
 
 interface AvatarPickerProps {
@@ -13,13 +13,15 @@ interface AvatarPickerProps {
   userKey: string;
   name: string;
   photo?: string | null;
+  /** When given, the avatar wears the level ring. */
+  level?: { level: number; into: number; span: number };
 }
 
 /**
  * The avatar beside the player's name, and the modal for changing it. Mirrors
  * the username editor so the two controls behave the same way.
  */
-export function AvatarPicker({ avatar, userKey, name, photo }: AvatarPickerProps) {
+export function AvatarPicker({ avatar, userKey, name, photo, level }: AvatarPickerProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [choice, setChoice] = useState(avatar);
@@ -87,13 +89,26 @@ export function AvatarPicker({ avatar, userKey, name, photo }: AvatarPickerProps
         aria-label="Change your avatar"
         className="rounded-full transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
       >
-        <Avatar
-          avatar={avatar}
-          userKey={userKey}
-          name={name}
-          photo={photo}
-          className="h-14 w-14 sm:h-16 sm:w-16"
-        />
+        {level ? (
+          <LevelAvatar
+            avatar={avatar}
+            userKey={userKey}
+            name={name}
+            photo={photo}
+            level={level.level}
+            into={level.into}
+            span={level.span}
+            className="h-16 w-16 sm:h-[4.5rem] sm:w-[4.5rem]"
+          />
+        ) : (
+          <Avatar
+            avatar={avatar}
+            userKey={userKey}
+            name={name}
+            photo={photo}
+            className="h-14 w-14 sm:h-16 sm:w-16"
+          />
+        )}
       </button>
 
       {isOpen ? (

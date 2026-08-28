@@ -6,6 +6,7 @@ import { Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import type { Card, GameState, MatchResult, SeatIndex, Suit, TrickPlay } from "@/types/game";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { Avatar } from "@/components/Avatar";
+import { CardBack } from "@/components/PlayingCard";
 import type { MatchSummary } from "@/lib/match-summary";
 import { PlayingCard } from "@/components/PlayingCard";
 import { ProgressToast } from "@/components/ProgressCelebration";
@@ -77,6 +78,9 @@ export function SocketRoomClient({
   // wins take it.
   const [series, setSeries] = useState<{ target: number; from: number }>({ target: 3, from: 0 });
   const [summary, setSummary] = useState<MatchSummary | null>(null);
+  // True for the moment right after the table appears, while cards are being
+  // dealt out to the seats.
+  const [isDealing, setIsDealing] = useState(false);
   const [seat, setSeat] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
@@ -119,6 +123,7 @@ export function SocketRoomClient({
   const trumpSuitRef = useRef<Suit | null>(null);
   const trickNumberRef = useRef(0);
   const enteringGameTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dealTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function audio() {
     if (typeof window === "undefined") return null;
@@ -204,7 +209,14 @@ export function SocketRoomClient({
       playCue("start");
       setEnteringGame(true);
       if (enteringGameTimeout.current) clearTimeout(enteringGameTimeout.current);
-      enteringGameTimeout.current = setTimeout(() => setEnteringGame(false), 2000);
+      enteringGameTimeout.current = setTimeout(() => {
+        setEnteringGame(false);
+        // Only now is the table on screen, so this is when cards can be seen
+        // arriving at the seats.
+        setIsDealing(true);
+        if (dealTimeout.current) clearTimeout(dealTimeout.current);
+        dealTimeout.current = setTimeout(() => setIsDealing(false), 1000);
+      }, 2000);
     });
     client.on("game-state-update", (payload: GameState) => {
       setGameState((previous) => {
@@ -257,6 +269,7 @@ export function SocketRoomClient({
       if (holdTimeout.current) clearTimeout(holdTimeout.current);
       if (sweepTimeout.current) clearTimeout(sweepTimeout.current);
       if (enteringGameTimeout.current) clearTimeout(enteringGameTimeout.current);
+      if (dealTimeout.current) clearTimeout(dealTimeout.current);
     };
   }, [roomCode]);
 
@@ -909,8 +922,32 @@ export function SocketRoomClient({
                   // The slot is always here, card or no card. Rendering it only
                   // when a card is down made the whole seat shrink between
                   // tricks, which shifted the name every time.
+                  // Roughly from the middle of the table outward. A flourish,
+                  // so an approximate direction reads fine — unlike the sweep,
+                  // which has to land on a real card.
+                  const dealFrom = [
+                    { x: 0, y: -90 },
+                    { x: 70, y: 0 },
+                    { x: 0, y: 90 },
+                    { x: -70, y: 0 },
+                  ][tableSeat];
+
                   const cardSlot = (
                     <div className="h-[4.5rem] w-12 sm:h-24 sm:w-16">
+                      {isDealing && !play ? (
+                        <div
+                          className="animate-deal-out h-full w-full"
+                          style={
+                            {
+                              "--deal-x": `${dealFrom.x}px`,
+                              "--deal-y": `${dealFrom.y}px`,
+                              animationDelay: `${tableSeat * 90}ms`,
+                            } as CSSProperties
+                          }
+                        >
+                          <CardBack className="h-full w-full drop-shadow-[0_6px_10px_rgba(0,0,0,0.45)]" />
+                        </div>
+                      ) : null}
                       {play ? (
                         <div
                           // Keyed by card, which is unique across a match, so
@@ -995,7 +1032,11 @@ export function SocketRoomClient({
                       disabled={seat !== gameState.currentTurn}
                       onClick={() => playCard(card)}
                       aria-label={cardLabel(card)}
-                      className={`relative h-24 w-[4.5rem] shrink-0 rounded-lg transition hover:z-20 hover:-translate-y-5 sm:h-28 sm:w-20 disabled:cursor-not-allowed disabled:brightness-75 ${index === 0 ? "" : "-ml-2 sm:-ml-3"}`}
+                      className={`animate-deal-in relative h-24 w-[4.5rem] shrink-0 rounded-lg transition hover:z-20 hover:-translate-y-5 sm:h-28 sm:w-20 disabled:cursor-not-allowed disabled:brightness-75 ${index === 0 ? "" : "-ml-2 sm:-ml-3"}`}
+                      // Runs when the hand first mounts, which is exactly the
+                      // deal. Cards are only ever removed after that, so it
+                      // never replays mid-match.
+                      style={{ animationDelay: `${index * 45}ms` }}
                     >
                       <PlayingCard
                         card={card}

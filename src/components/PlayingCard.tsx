@@ -157,3 +157,39 @@ export function PlayingCard({ card, detail = 'full', className }: PlayingCardPro
     </svg>
   );
 }
+
+/**
+ * The back of a card, for cards in flight during a deal. Uses the table's own
+ * plum and gold rather than a generic pattern, so a card mid-deal still looks
+ * like it belongs to this deck.
+ */
+export function CardBack({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 100 140" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id="card-back-face" x1="0" y1="0" x2="0.4" y2="1">
+          <stop offset="0%" stopColor="#4a2f75" />
+          <stop offset="60%" stopColor="#2a1a45" />
+          <stop offset="100%" stopColor="#180e2b" />
+        </linearGradient>
+        <pattern id="card-back-weave" width="10" height="10" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+          <line x1="0" y1="0" x2="0" y2="10" stroke="#ffc233" strokeOpacity="0.14" strokeWidth="1.4" />
+        </pattern>
+      </defs>
+      <rect x="1.5" y="1.5" width="97" height="137" rx="9" fill="url(#card-back-face)" stroke="#ffc233" strokeOpacity="0.5" strokeWidth="1.5" />
+      <rect x="7" y="7" width="86" height="126" rx="6" fill="url(#card-back-weave)" />
+      <rect x="7" y="7" width="86" height="126" rx="6" fill="none" stroke="#ffc233" strokeOpacity="0.35" />
+      <text
+        x="50"
+        y="70"
+        fontSize="34"
+        textAnchor="middle"
+        dominantBaseline="central"
+        fill="#ffc233"
+        fillOpacity="0.55"
+      >
+        ♠
+      </text>
+    </svg>
+  );
+}
