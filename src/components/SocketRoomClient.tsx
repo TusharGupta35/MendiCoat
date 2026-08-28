@@ -6,6 +6,12 @@ import { Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import type { Card, GameState, MatchResult, SeatIndex, Suit, TrickPlay } from "@/types/game";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { PlayingCard } from "@/components/PlayingCard";
+import { ProgressToast } from "@/components/ProgressCelebration";
+import {
+  takeSnapshot,
+  type ProgressNews,
+  type ProgressSnapshot,
+} from "@/lib/progress-feed";
 import { useVoiceChat } from "@/components/useVoiceChat";
 
 interface SocketRoomClientProps {
@@ -66,6 +72,9 @@ export function SocketRoomClient({
   const [moveError, setMoveError] = useState<string | null>(null);
   const [coatTeam, setCoatTeam] = useState<TeamId | null>(null);
   const [trumpReveal, setTrumpReveal] = useState<Suit | null>(null);
+  // What the finished match earned, shown at the table rather than waiting for
+  // the player to wander back to the dashboard.
+  const [progressNews, setProgressNews] = useState<ProgressNews | null>(null);
   // The finished trick currently being shown: face-up first so everyone can
   // read the fourth card, then swept to the winner.
   const [presentedTrick, setPresentedTrick] = useState<{
@@ -295,6 +304,33 @@ export function SocketRoomClient({
   // A "coat" is a shutout: one team captured all four 10s. Flash it on the
   // board for a few seconds when a match ends that way.
   const finishedStatus = gameState?.status === "FINISHED" ? "FINISHED" : "LIVE";
+
+  // The match result is written by the server as the last card lands, so the
+  // snapshot is fetched a beat later and only for a real player.
+  useEffect(() => {
+    if (finishedStatus !== "FINISHED" || seat === null) return;
+    let cancelled = false;
+
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch("/api/me/progress");
+        if (!response.ok || cancelled) return;
+        const snapshot = (await response.json()) as ProgressSnapshot;
+        if (cancelled) return;
+        const news = takeSnapshot(snapshot);
+        if (news) setProgressNews(news);
+      } catch {
+        // A missed celebration is not worth interrupting the table for.
+      }
+    }, 1200);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finishedStatus]);
+
   useEffect(() => {
     if (finishedStatus !== "FINISHED" || !gameState) {
       setCoatTeam(null);
@@ -431,6 +467,11 @@ export function SocketRoomClient({
     <div
       className={`room-dashboard ${gameState ? "has-active-game" : "waiting-room-dashboard"} flex flex-col gap-4`}
     >
+      {progressNews ? (
+        <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4 sm:bottom-6">
+          <ProgressToast news={progressNews} onClose={() => setProgressNews(null)} />
+        </div>
+      ) : null}
       <div className="room-sidebar flex flex-col gap-4">
         <section className="live-room-panel rounded-xl border border-slate-800 bg-slate-950/70 p-4">
           <div className="flex items-center justify-between gap-3">

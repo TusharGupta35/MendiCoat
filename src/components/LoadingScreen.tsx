@@ -20,7 +20,7 @@ export function LoadingScreen({
     <div
       role="status"
       aria-live="polite"
-      className={`flex flex-col items-center justify-center gap-8 bg-slate-950 px-6 text-center ${
+      className={`suit-field suit-field-drift flex flex-col items-center justify-center gap-8 px-6 text-center ${
         fullScreen ? "min-h-screen" : "min-h-[280px] w-full rounded-2xl"
       }`}
     >

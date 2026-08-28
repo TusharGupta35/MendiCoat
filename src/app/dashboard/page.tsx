@@ -4,9 +4,14 @@ import { redirect } from 'next/navigation';
 import { CreateRoomButton } from '@/components/CreateRoomButton';
 import { DeleteRoomButton } from '@/components/DeleteRoomButton';
 import { GameInstructions } from '@/components/GameInstructions';
+import { ProgressWatch } from '@/components/ProgressCelebration';
+import { RecordCard } from '@/components/StatsPanels';
 import { UsernameEditor } from '@/components/UsernameEditor';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { weekOf } from '@/lib/challenges';
+import { snapshotFrom } from '@/lib/progress-feed';
+import { getPlayerStats } from '@/lib/stats';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -33,6 +38,11 @@ export default async function DashboardPage() {
 //   const rooms = user?.rooms ?? [];
 const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
   const accountName = user?.name ?? session.user.name ?? 'player';
+  const record = user ? await getPlayerStats(user.id) : null;
+  // Built from the stats already loaded, so the celebration costs no extra query.
+  const snapshot = record
+    ? snapshotFrom(record.level, record.milestones, record.feats, record.challenges, weekOf(new Date()))
+    : null;
 
   return (
     <main className="min-h-screen bg-slate-950 px-3 py-6 text-slate-100 sm:px-6 sm:py-12">
@@ -59,6 +69,10 @@ const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
               </p>
               <p className="mt-6 text-sm text-slate-400">Create a room to receive a unique 4-character code.</p>
             </div>
+
+            {record ? (
+              <RecordCard stats={record.stats} level={record.level} band={record.band} />
+            ) : null}
 
             <GameInstructions />
           </div>
@@ -91,6 +105,8 @@ const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
           </div>
         </section>
       </div>
+
+      {snapshot ? <ProgressWatch snapshot={snapshot} /> : null}
     </main>
   );
 }
