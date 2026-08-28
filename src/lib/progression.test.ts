@@ -127,7 +127,7 @@ describe('milestones', () => {
   });
 
   it('counts the best single partnership rather than every win', () => {
-    const partner = (userId: string) => [{ userId, name: userId, seat: 2, team: 'A' as const }];
+    const partner = (userId: string) => [{ userId, name: userId, avatar: null, seat: 2, team: 'A' as const }];
     const spread = [
       match({ winnerTeam: 'A', others: partner('a') }),
       match({ winnerTeam: 'A', others: partner('a') }),

@@ -27,7 +27,7 @@ function match(overrides: Partial<PlayedMatch> = {}): PlayedMatch {
   };
 }
 
-const partner = (userId: string, name: string) => ({ userId, name, seat: 2, team: 'A' as const });
+const partner = (userId: string, name: string) => ({ userId, name, avatar: null, seat: 2, team: 'A' as const });
 
 describe('careerStats', () => {
   it('counts wins, losses and draws separately', () => {
@@ -106,14 +106,14 @@ describe('partnerRecords', () => {
       match({ winnerTeam: 'A', team: 'A', others: [partner('u3', 'Arjun')] }),
     ]);
     expect(records).toEqual([
-      { userId: 'u2', name: 'Priya', played: 2, won: 1, winRate: 50 },
-      { userId: 'u3', name: 'Arjun', played: 1, won: 1, winRate: 100 },
+      { userId: 'u2', name: 'Priya', avatar: null, played: 2, won: 1, winRate: 50 },
+      { userId: 'u3', name: 'Arjun', avatar: null, played: 1, won: 1, winRate: 100 },
     ]);
   });
 
   it('ignores opponents, counting only the player on your own team', () => {
     const records = partnerRecords([
-      match({ team: 'A', others: [{ userId: 'u2', name: 'Rival', seat: 1, team: 'B' }] }),
+      match({ team: 'A', others: [{ userId: 'u2', name: 'Rival', avatar: null, seat: 1, team: 'B' }] }),
     ]);
     expect(records).toEqual([]);
   });

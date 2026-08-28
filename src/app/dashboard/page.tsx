@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
+import { AvatarPicker } from '@/components/AvatarPicker';
 import { CreateRoomButton } from '@/components/CreateRoomButton';
 import { DeleteRoomButton } from '@/components/DeleteRoomButton';
 import { GameInstructions } from '@/components/GameInstructions';
@@ -48,9 +49,19 @@ const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
     <main className="min-h-screen bg-slate-950 px-3 py-6 text-slate-100 sm:px-6 sm:py-12">
       <div className="mx-auto flex max-w-5xl flex-col gap-6 sm:gap-8">
         <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
-          <div>
-            <p className="text-sm uppercase tracking-[0.35em] text-amber-400">Dashboard</p>
-            <UsernameEditor username={user?.username ?? null} fallbackName={accountName} />
+          <div className="flex items-center gap-4">
+            {user ? (
+              <AvatarPicker
+                avatar={user.avatar}
+                userKey={user.id}
+                name={user.username ?? accountName}
+                photo={user.image}
+              />
+            ) : null}
+            <div>
+              <p className="text-sm uppercase tracking-[0.35em] text-amber-400">Dashboard</p>
+              <UsernameEditor username={user?.username ?? null} fallbackName={accountName} />
+            </div>
           </div>
           <div className="flex gap-3">
             <CreateRoomButton />

@@ -29,6 +29,8 @@ type RoomStatus = 'LOBBY' | 'PLAYING';
 interface RoomPlayer {
   id: string;
   name: string;
+  /** Which built-in character this player picked, if any. */
+  avatar?: string | null;
   isBot: boolean;
   socketIds: Set<string>;
 }
@@ -57,6 +59,8 @@ function isBotSeat(room: RoomState, seat: SeatIndex) {
 function roomPlayersPayload(room: RoomState) {
   return room.players.map((player, seat) => player ? {
     name: player.name,
+    avatar: player.avatar ?? null,
+    id: player.id,
     isBot: player.isBot,
     isOnline: !player.isBot && player.socketIds.size > 0,
     seat,
@@ -277,7 +281,7 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       emitState(io, room);
     });
 
-    socket.on('join-room', ({ roomCode, playerId, playerName, team }: { roomCode: string; playerId: string; playerName: string; team: TeamId }) => {
+    socket.on('join-room', ({ roomCode, playerId, playerName, playerAvatar, team }: { roomCode: string; playerId: string; playerName: string; playerAvatar?: string | null; team: TeamId }) => {
       const room = rooms.get(roomCode) ?? { roomCode, players: Array.from<RoomPlayer | undefined>({ length: 4 }), matchHistory: [], trickLog: [] };
       const existingSeat = room.players.findIndex((player) => player?.id === playerId);
       const seat = existingSeat === -1 ? getAvailableSeat(room, team) : existingSeat as SeatIndex;
@@ -295,7 +299,12 @@ export function createSocketServer(httpServer: import('node:http').Server) {
         return;
       }
 
-      if (existingSeat === -1) room.players[seat] = { id: playerId, name: playerName, isBot: false, socketIds: new Set() };
+      if (existingSeat === -1) {
+        room.players[seat] = { id: playerId, name: playerName, avatar: playerAvatar ?? null, isBot: false, socketIds: new Set() };
+      } else if (room.players[seat]) {
+        // A returning player may have changed their avatar since last sitting down.
+        room.players[seat].avatar = playerAvatar ?? null;
+      }
       rooms.set(roomCode, room);
       socket.join(roomCode);
       socket.data.roomCode = roomCode;

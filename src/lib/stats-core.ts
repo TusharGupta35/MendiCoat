@@ -20,7 +20,7 @@ export interface PlayedMatch {
   team: TeamId;
   seat: number;
   /** Every other human seat in the match. */
-  others: Array<{ userId: string; name: string; seat: number; team: TeamId }>;
+  others: Array<{ userId: string; name: string; avatar: string | null; seat: number; team: TeamId }>;
   tricks: PlayedTrick[];
 }
 
@@ -111,6 +111,7 @@ export function careerStats(matches: PlayedMatch[]): CareerStats {
 export interface PartnerRecord {
   userId: string;
   name: string;
+  avatar: string | null;
   played: number;
   won: number;
   winRate: number;
@@ -129,6 +130,7 @@ export function partnerRecords(matches: PlayedMatch[]): PartnerRecord[] {
     const record = byPartner.get(partner.userId) ?? {
       userId: partner.userId,
       name: partner.name,
+      avatar: partner.avatar,
       played: 0,
       won: 0,
       winRate: 0,

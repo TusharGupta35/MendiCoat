@@ -5,6 +5,7 @@ import { io, Socket } from "socket.io-client";
 import { Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import type { Card, GameState, MatchResult, SeatIndex, Suit, TrickPlay } from "@/types/game";
 import { LoadingScreen } from "@/components/LoadingScreen";
+import { Avatar } from "@/components/Avatar";
 import { PlayingCard } from "@/components/PlayingCard";
 import { ProgressToast } from "@/components/ProgressCelebration";
 import {
@@ -18,11 +19,14 @@ interface SocketRoomClientProps {
   roomCode: string;
   playerId: string;
   playerName: string;
+  playerAvatar: string | null;
 }
 
 type TeamId = "A" | "B";
 type RoomPlayer = {
   name: string;
+  avatar: string | null;
+  id: string;
   isBot: boolean;
   isOnline: boolean;
   seat: number;
@@ -53,6 +57,7 @@ export function SocketRoomClient({
   roomCode,
   playerId,
   playerName,
+  playerAvatar,
 }: SocketRoomClientProps) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const voice = useVoiceChat(socket, roomCode);
@@ -397,7 +402,7 @@ export function SocketRoomClient({
   function joinTeam(team: TeamId) {
     setError(null);
     playCue("tap");
-    socket?.emit("join-room", { roomCode, playerId, playerName, team });
+    socket?.emit("join-room", { roomCode, playerId, playerName, playerAvatar, team });
   }
 
   function switchTeam(team: TeamId) {
@@ -503,8 +508,16 @@ export function SocketRoomClient({
                           <span className="live-seat-label text-slate-400">
                             Seat {playerSeat + 1}
                           </span>
-                          <span className={`live-seat-name inline-flex items-center justify-end gap-1 ${occupant?.isBot ? "text-amber-300" : "font-medium text-white"}`}>
+                          <span className={`live-seat-name inline-flex items-center justify-end gap-1.5 ${occupant?.isBot ? "text-amber-300" : "font-medium text-white"}`}>
                             {occupant && !occupant.isBot ? <span title={occupant.isOnline ? "Online" : "Offline"} className={`h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-slate-900 ${occupant.isOnline ? "bg-emerald-400" : "bg-slate-600"}`} /> : null}
+                            {occupant && !occupant.isBot ? (
+                              <Avatar
+                                avatar={occupant.avatar}
+                                userKey={occupant.id}
+                                name={occupant.name}
+                                className="h-6 w-6"
+                              />
+                            ) : null}
                             {occupant ? `${occupant.name}${occupant.isBot ? " · Bot" : ""}` : "Open"}
                           </span>
                         </div>
@@ -759,17 +772,29 @@ export function SocketRoomClient({
                     "col-start-2 row-start-1 self-start justify-self-center",
                     "col-start-3 row-start-2 self-center justify-self-end",
                   ][tableSeat];
-                  return (
-                    <div key={tableSeat} className={`z-10 min-w-0 ${position}`}>
-                      <div
-                        className={`max-w-[76px] truncate rounded-full px-1.5 py-1 text-center text-[9px] font-semibold sm:max-w-none sm:px-2 sm:text-[10px] ${gameState.currentTurn === tableSeat && gameState.status === "PLAYING" ? "bg-amber-300 text-emerald-950" : "bg-emerald-950/70 text-emerald-100"}`}
-                        title={`${participant.name} · Seat ${tableSeat + 1}`}
-                      >
-                        {participant.name}{" "}
-                        <span className="hidden sm:inline">
-                          · S{tableSeat + 1}
-                        </span>
-                      </div>
+                  const nameChip = (
+                    <div
+                      className={`flex max-w-[86px] items-center gap-1 rounded-full px-1.5 py-1 text-center text-[9px] font-semibold sm:max-w-none sm:px-2 sm:text-[10px] ${gameState.currentTurn === tableSeat && gameState.status === "PLAYING" ? "bg-amber-300 text-emerald-950" : "bg-emerald-950/70 text-emerald-100"}`}
+                      title={`${participant.name} · Seat ${tableSeat + 1}`}
+                    >
+                      {roomPlayers[tableSeat] && !roomPlayers[tableSeat].isBot ? (
+                        <Avatar
+                          avatar={roomPlayers[tableSeat].avatar}
+                          userKey={roomPlayers[tableSeat].id}
+                          name={participant.name}
+                          className="h-4 w-4 sm:h-5 sm:w-5"
+                        />
+                      ) : null}
+                      <span className="min-w-0 truncate">{participant.name}</span>
+                      <span className="hidden shrink-0 sm:inline">· S{tableSeat + 1}</span>
+                    </div>
+                  );
+
+                  // The slot is always here, card or no card. Rendering it only
+                  // when a card is down made the whole seat shrink between
+                  // tricks, which shifted the name every time.
+                  const cardSlot = (
+                    <div className="h-[4.5rem] w-12 sm:h-24 sm:w-16">
                       {play ? (
                         <div
                           // Keyed by card, which is unique across a match, so
@@ -780,7 +805,7 @@ export function SocketRoomClient({
                           ref={(element) => {
                             tableCardRefs.current[tableSeat] = element;
                           }}
-                          className={`mx-auto mt-2 h-[4.5rem] w-12 sm:h-24 sm:w-16 ${
+                          className={`h-full w-full ${
                             collectedBy === null
                               ? "animate-card-play"
                               : // Wait for the measurement, so the sweep always
@@ -806,6 +831,27 @@ export function SocketRoomClient({
                           />
                         </div>
                       ) : null}
+                    </div>
+                  );
+
+                  return (
+                    <div
+                      key={tableSeat}
+                      className={`z-10 flex min-w-0 flex-col items-center gap-2 ${position}`}
+                    >
+                      {/* The player at the bottom of the table plays toward the
+                          middle, so their card sits above their name. */}
+                      {tableSeat === 0 ? (
+                        <>
+                          {cardSlot}
+                          {nameChip}
+                        </>
+                      ) : (
+                        <>
+                          {nameChip}
+                          {cardSlot}
+                        </>
+                      )}
                     </div>
                   );
                 })}

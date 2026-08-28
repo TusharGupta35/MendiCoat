@@ -92,7 +92,7 @@ async function playedMatches(userId: string): Promise<PlayedMatch[]> {
               userId: true,
               seat: true,
               team: true,
-              user: { select: { username: true, name: true } },
+              user: { select: { username: true, name: true, avatar: true } },
             },
           },
           tricks: {
@@ -130,6 +130,7 @@ async function playedMatches(userId: string): Promise<PlayedMatch[]> {
       .map((other) => ({
         userId: other.userId,
         name: displayName(other.user),
+        avatar: other.user?.avatar ?? null,
         seat: other.seat,
         team: other.team as TeamId,
       })),
@@ -166,6 +167,7 @@ export async function getProgressSnapshot(userId: string): Promise<ProgressSnaps
 export interface LeaderboardRow {
   userId: string;
   name: string;
+  avatar: string | null;
   played: number;
   won: number;
   winRate: number;
@@ -186,7 +188,11 @@ export async function getLeaderboard(limit = 10): Promise<LeaderboardRow[]> {
 async function leaderboard(limit: number): Promise<LeaderboardRow[]> {
   const seats = await prisma.matchPlayer.findMany({
     where: { match: { status: 'FINISHED', hadBots: false } },
-    select: { userId: true, won: true, user: { select: { username: true, name: true } } },
+    select: {
+      userId: true,
+      won: true,
+      user: { select: { username: true, name: true, avatar: true } },
+    },
   });
 
   const byUser = new Map<string, LeaderboardRow>();
@@ -194,6 +200,7 @@ async function leaderboard(limit: number): Promise<LeaderboardRow[]> {
     const row = byUser.get(seat.userId) ?? {
       userId: seat.userId,
       name: displayName(seat.user),
+      avatar: seat.user?.avatar ?? null,
       played: 0,
       won: 0,
       winRate: 0,

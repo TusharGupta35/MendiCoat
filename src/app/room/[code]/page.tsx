@@ -86,6 +86,7 @@ export default async function RoomPage({
             roomCode={room.code}
             playerId={currentUser.id}
             playerName={currentUser.username ?? currentUser.name ?? "Player"}
+            playerAvatar={currentUser.avatar}
           />
         </div>
       </div>
