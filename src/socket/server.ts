@@ -1,6 +1,7 @@
 import { Server } from 'socket.io';
 import { createInitialGameState, validateMove, applyMove } from '@/game-engine/mendi-coat';
 import type { Card, GameState, MatchResult, SeatIndex, Suit } from '@/types/game';
+import { buildMatchSummary, type MatchSummary } from '@/lib/match-summary';
 import { closeMatch, openMatch, trickEntry, type TrickLogEntry } from '@/socket/match-store';
 
 interface RoomState {
@@ -8,10 +9,21 @@ interface RoomState {
   players: Array<RoomPlayer | undefined>;
   gameState?: GameState;
   matchHistory: MatchResult[];
+  /**
+   * The running series. `from` is where in matchHistory the current one began,
+   * so a new series costs nothing but moving the marker — the history itself is
+   * never rewritten.
+   */
+  series: SeriesState;
   /** Row id of the match in progress, once the database has accepted it. */
   matchId?: string;
   /** Completed tricks of the match in progress; the game state drops them. */
   trickLog: TrickLogEntry[];
+  /**
+   * How the last finished match played out, kept so that a player who
+   * reconnects after it ends still sees the summary.
+   */
+  summary?: MatchSummary;
   /**
    * Trump as it stood when the current trick was led. Sampled per trick because
    * the cut usually lands mid-trick, so comparing against the state before the
@@ -25,6 +37,26 @@ interface RoomState {
 }
 
 type RoomStatus = 'LOBBY' | 'PLAYING';
+
+interface SeriesState {
+  /** Wins needed to take the series: best of 3 is a target of 2. */
+  target: number;
+  from: number;
+}
+
+/** Best of 1, 3, 5 or 7 — the wins needed to clinch each. */
+const SERIES_TARGETS = [1, 2, 3, 4];
+const DEFAULT_SERIES: SeriesState = { target: 3, from: 0 };
+
+/** Wins in the running series, and whether it has already been taken. */
+function seriesStanding(room: RoomState) {
+  const wins = { A: 0, B: 0 };
+  for (const result of room.matchHistory.slice(room.series.from)) {
+    if (result.winnerTeam !== 'DRAW') wins[result.winnerTeam] += 1;
+  }
+  const leader = Math.max(wins.A, wins.B);
+  return { wins, leader, decided: leader >= room.series.target };
+}
 
 interface RoomPlayer {
   id: string;
@@ -129,6 +161,8 @@ function scheduleEmptyRoomReset(io: Server, room: RoomState) {
     room.matchId = undefined;
     room.trickLog = [];
     room.trumpAtTrickStart = null;
+    room.summary = undefined;
+    room.series = { ...DEFAULT_SERIES };
     // Match history is the room's own record, so it survives the reset.
     io.to(room.roomCode).emit('room-reset');
     emitState(io, room);
@@ -144,6 +178,8 @@ function emitState(io: Server, room: RoomState) {
     players: roomPlayersPayload(room),
   });
   io.to(room.roomCode).emit('match-history', room.matchHistory);
+  io.to(room.roomCode).emit('series', room.series);
+  if (room.summary) io.to(room.roomCode).emit('match-summary', room.summary);
   if (room.gameState) io.to(room.roomCode).emit('game-state-update', room.gameState);
 }
 
@@ -171,6 +207,12 @@ function commitMove(room: RoomState, seat: SeatIndex, card: Card) {
       capturedTens: { ...nextState.capturedTens },
       handsWon: { ...nextState.handsWon },
     });
+    room.summary = buildMatchSummary(
+      nextState,
+      room.trickLog,
+      room.players.map((player) => player?.name),
+    );
+
     // Durable copy of the result. Deliberately not awaited: a database problem
     // must never stall or fail a move that has already been applied.
     const { matchId, roomCode, players, trickLog } = room;
@@ -191,6 +233,7 @@ function beginMatch(io: Server, room: RoomState, roomCode: string) {
   room.trickLog = [];
   room.matchId = undefined;
   room.trumpAtTrickStart = null;
+  room.summary = undefined;
   rooms.set(roomCode, room);
 
   const state = room.gameState;
@@ -263,6 +306,8 @@ export function createSocketServer(httpServer: import('node:http').Server) {
         players: roomPlayersPayload(room),
       });
       socket.emit('match-history', room.matchHistory);
+      socket.emit('series', room.series);
+      if (room.summary) socket.emit('match-summary', room.summary);
       if (room.gameState) socket.emit('game-state-update', room.gameState);
     });
 
@@ -282,7 +327,7 @@ export function createSocketServer(httpServer: import('node:http').Server) {
     });
 
     socket.on('join-room', ({ roomCode, playerId, playerName, playerAvatar, team }: { roomCode: string; playerId: string; playerName: string; playerAvatar?: string | null; team: TeamId }) => {
-      const room = rooms.get(roomCode) ?? { roomCode, players: Array.from<RoomPlayer | undefined>({ length: 4 }), matchHistory: [], trickLog: [] };
+      const room = rooms.get(roomCode) ?? { roomCode, players: Array.from<RoomPlayer | undefined>({ length: 4 }), matchHistory: [], trickLog: [], series: { ...DEFAULT_SERIES } };
       const existingSeat = room.players.findIndex((player) => player?.id === playerId);
       const seat = existingSeat === -1 ? getAvailableSeat(room, team) : existingSeat as SeatIndex;
       if (seat === undefined) {
@@ -433,6 +478,62 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       }
 
       beginMatch(io, room, roomCode);
+      callback?.({});
+    });
+
+    /**
+     * Changing the length never moves the marker, so nobody's wins disappear.
+     * It is only allowed at the two moments where that cannot mislead: before a
+     * series has been won by anyone, or once it is decided — where a longer
+     * target simply extends the same score into a longer contest.
+     */
+    socket.on('set-series', ({ roomCode, target }: { roomCode: string; target: number }, callback?: (result: { error?: string }) => void) => {
+      const room = rooms.get(roomCode);
+      const seat = socket.data.seat as SeatIndex | undefined;
+      if (!room || socket.data.roomCode !== roomCode || seat === undefined || isBotSeat(room, seat)) {
+        callback?.({ error: 'Take a seat before changing the series.' });
+        return;
+      }
+      if (!SERIES_TARGETS.includes(target)) {
+        callback?.({ error: 'Pick a series length of 1, 3, 5 or 7 matches.' });
+        return;
+      }
+      if (room.gameState && room.gameState.status === 'PLAYING') {
+        callback?.({ error: 'Finish the current match before changing the series.' });
+        return;
+      }
+
+      const { leader, decided } = seriesStanding(room);
+      if (!decided && leader > 0) {
+        callback?.({ error: 'The series is under way. It can be changed once it is decided.' });
+        return;
+      }
+      if (decided && target <= leader) {
+        callback?.({ error: 'Pick a longer series to carry this score on.' });
+        return;
+      }
+
+      room.series = { target, from: room.series.from };
+      rooms.set(roomCode, room);
+      emitState(io, room);
+      callback?.({});
+    });
+
+    socket.on('new-series', ({ roomCode }: { roomCode: string }, callback?: (result: { error?: string }) => void) => {
+      const room = rooms.get(roomCode);
+      const seat = socket.data.seat as SeatIndex | undefined;
+      if (!room || socket.data.roomCode !== roomCode || seat === undefined || isBotSeat(room, seat)) {
+        callback?.({ error: 'Take a seat before starting a series.' });
+        return;
+      }
+      if (room.gameState && room.gameState.status === 'PLAYING') {
+        callback?.({ error: 'Finish the current match first.' });
+        return;
+      }
+
+      room.series = { target: room.series.target, from: room.matchHistory.length };
+      rooms.set(roomCode, room);
+      emitState(io, room);
       callback?.({});
     });
 
