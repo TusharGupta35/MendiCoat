@@ -402,6 +402,33 @@ section.bg-amber-500\/10 {
   box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.4);
 }
 
+/* A reaction popping above a seat and drifting away. */
+@keyframes emote-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.5);
+  }
+  18% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.15);
+  }
+  30% {
+    transform: translateY(-6px) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(-14px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-26px) scale(0.9);
+  }
+}
+
+.animate-emote-pop {
+  animation: emote-pop 2600ms ease-out both;
+}
+
 /* Dealing: cards arrive from the middle of the table, one after another.
    `backwards` rather than `forwards` matters — the fill has to cover the
    stagger delay, but must not survive the animation, or it would pin the
@@ -493,7 +520,8 @@ section.bg-amber-500\/10 {
   .animate-trump-reveal,
   .animate-card-play,
   .animate-deal-in,
-  .animate-deal-out {
+  .animate-deal-out,
+  .animate-emote-pop {
     animation-duration: 1ms;
   }
 }

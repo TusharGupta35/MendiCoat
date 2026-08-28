@@ -7,6 +7,7 @@ import type { Card, GameState, MatchResult, SeatIndex, Suit, TrickPlay } from "@
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { Avatar } from "@/components/Avatar";
 import { CardBack } from "@/components/PlayingCard";
+import { EMOTES, isEmote } from "@/lib/emotes";
 import type { MatchSummary } from "@/lib/match-summary";
 import { PlayingCard } from "@/components/PlayingCard";
 import { ProgressToast } from "@/components/ProgressCelebration";
@@ -22,12 +23,14 @@ interface SocketRoomClientProps {
   playerId: string;
   playerName: string;
   playerAvatar: string | null;
+  playerTitle: string | null;
 }
 
 type TeamId = "A" | "B";
 type RoomPlayer = {
   name: string;
   avatar: string | null;
+  title: string | null;
   id: string;
   isBot: boolean;
   isOnline: boolean;
@@ -60,6 +63,7 @@ export function SocketRoomClient({
   playerId,
   playerName,
   playerAvatar,
+  playerTitle,
 }: SocketRoomClientProps) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const voice = useVoiceChat(socket, roomCode);
@@ -81,6 +85,9 @@ export function SocketRoomClient({
   // True for the moment right after the table appears, while cards are being
   // dealt out to the seats.
   const [isDealing, setIsDealing] = useState(false);
+  // The reaction floating over each seat, if any, keyed by seat.
+  const [emotes, setEmotes] = useState<Record<number, { emoji: string; at: number }>>({});
+  const [botLevel, setBotLevel] = useState<"easy" | "normal" | "hard">("normal");
   const [seat, setSeat] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
@@ -124,6 +131,7 @@ export function SocketRoomClient({
   const trickNumberRef = useRef(0);
   const enteringGameTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dealTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const emoteTimeouts = useRef<Array<ReturnType<typeof setTimeout> | null>>([null, null, null, null]);
 
   function audio() {
     if (typeof window === "undefined") return null;
@@ -252,11 +260,35 @@ export function SocketRoomClient({
     client.on("team-full", (team: TeamId) =>
       setError(`Team ${team} is full. Choose the other team.`),
     );
-    client.on("room-thought", (payload: { name: string; message: string }) => {
-      setVisibleThought(payload);
-      if (thoughtTimeout.current) clearTimeout(thoughtTimeout.current);
-      thoughtTimeout.current = setTimeout(() => setVisibleThought(null), 4000);
-    });
+    client.on(
+      "room-thought",
+      (payload: { name: string; message: string; seat?: number }) => {
+        // A reaction belongs over its sender's seat; anything else is a thought
+        // for the chat line.
+        if (payload.seat !== undefined && isEmote(payload.message)) {
+          const seat = payload.seat;
+          setEmotes((current) => ({
+            ...current,
+            [seat]: { emoji: payload.message.trim(), at: Date.now() },
+          }));
+          const pending = emoteTimeouts.current[seat];
+          if (pending) clearTimeout(pending);
+          emoteTimeouts.current[seat] = setTimeout(() => {
+            setEmotes((current) => {
+              const next = { ...current };
+              delete next[seat];
+              return next;
+            });
+          }, 2600);
+          return;
+        }
+
+        setVisibleThought(payload);
+        if (thoughtTimeout.current) clearTimeout(thoughtTimeout.current);
+        thoughtTimeout.current = setTimeout(() => setVisibleThought(null), 4000);
+      },
+    );
+    client.on("bot-level", (payload: "easy" | "normal" | "hard") => setBotLevel(payload));
 
     return () => {
       client.disconnect();
@@ -270,6 +302,7 @@ export function SocketRoomClient({
       if (sweepTimeout.current) clearTimeout(sweepTimeout.current);
       if (enteringGameTimeout.current) clearTimeout(enteringGameTimeout.current);
       if (dealTimeout.current) clearTimeout(dealTimeout.current);
+      for (const pending of emoteTimeouts.current) if (pending) clearTimeout(pending);
     };
   }, [roomCode]);
 
@@ -439,6 +472,17 @@ export function SocketRoomClient({
     });
   }
 
+  function sendEmote(emoji: string) {
+    socket?.emit("send-thought", { roomCode, message: emoji }, () => {});
+  }
+
+  function setBots(level: "easy" | "normal" | "hard") {
+    setError(null);
+    socket?.emit("set-bot-level", { roomCode, level }, (result: { error?: string }) => {
+      if (result?.error) setError(result.error);
+    });
+  }
+
   function startNewSeries() {
     setError(null);
     playCue("tap");
@@ -450,7 +494,7 @@ export function SocketRoomClient({
   function joinTeam(team: TeamId) {
     setError(null);
     playCue("tap");
-    socket?.emit("join-room", { roomCode, playerId, playerName, playerAvatar, team });
+    socket?.emit("join-room", { roomCode, playerId, playerName, playerAvatar, playerTitle, team });
   }
 
   function switchTeam(team: TeamId) {
@@ -566,7 +610,16 @@ export function SocketRoomClient({
                                 className="h-6 w-6"
                               />
                             ) : null}
-                            {occupant ? `${occupant.name}${occupant.isBot ? " · Bot" : ""}` : "Open"}
+                            <span className="min-w-0">
+                              <span className="block truncate">
+                                {occupant ? `${occupant.name}${occupant.isBot ? " · Bot" : ""}` : "Open"}
+                              </span>
+                              {occupant?.title ? (
+                                <span className="block truncate text-[10px] font-medium text-amber-300/80">
+                                  {occupant.title}
+                                </span>
+                              ) : null}
+                            </span>
                           </span>
                         </div>
                       );
@@ -732,6 +785,28 @@ export function SocketRoomClient({
                 </span>
               </div>
             )}
+
+            {roomPlayers.some((player) => player?.isBot) ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-slate-800 pt-2">
+                <span className="text-xs uppercase tracking-wide text-slate-500">Bots</span>
+                {(["easy", "normal", "hard"] as const).map((level) => (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => setBots(level)}
+                    disabled={seat === null}
+                    aria-pressed={botLevel === level}
+                    className={`rounded-full border px-2.5 py-1 text-xs font-semibold capitalize transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                      botLevel === level
+                        ? "border-amber-400 bg-amber-400/15 text-amber-300"
+                        : "border-slate-700 text-slate-400 hover:border-slate-500"
+                    }`}
+                  >
+                    {level}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             {matchHistory.length > 0 ? (
               <ol className="mt-3 space-y-1.5">
                 {matchHistory
@@ -777,9 +852,25 @@ export function SocketRoomClient({
                 Share a quick thought with the table.
               </p>
             )}
+            {seat !== null ? (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {EMOTES.map((emote) => (
+                  <button
+                    key={emote.emoji}
+                    type="button"
+                    onClick={() => sendEmote(emote.emoji)}
+                    title={emote.label}
+                    aria-label={emote.label}
+                    className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-lg leading-none transition hover:border-amber-400/60 hover:bg-slate-800 active:translate-y-0.5"
+                  >
+                    {emote.emoji}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <form
               onSubmit={sendThought}
-              className="mt-3 flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1"
+              className="mt-2 flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1"
             >
               {seat !== null ? (
                 <>
@@ -990,8 +1081,17 @@ export function SocketRoomClient({
                   return (
                     <div
                       key={tableSeat}
-                      className={`z-10 flex min-w-0 flex-col items-center gap-2 ${position}`}
+                      className={`relative z-10 flex min-w-0 flex-col items-center gap-2 ${position}`}
                     >
+                      {emotes[tableSeat] ? (
+                        <span
+                          key={emotes[tableSeat].at}
+                          className="animate-emote-pop pointer-events-none absolute -top-7 left-1/2 z-30 -translate-x-1/2 text-3xl drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]"
+                          aria-hidden="true"
+                        >
+                          {emotes[tableSeat].emoji}
+                        </span>
+                      ) : null}
                       {/* The player at the bottom of the table plays toward the
                           middle, so their card sits above their name. */}
                       {tableSeat === 0 ? (
@@ -1113,61 +1213,55 @@ export function SocketRoomClient({
                         </div>
                       </div>
 
-                      {/* Short labels in a fixed column: the long ones wrapped
-                          and dragged their cards out of line. */}
-                      <dl className="space-y-1.5 p-3 text-sm">
+                      {/* Full sentences rather than a label column: "Best",
+                          "Cut" and "Swing" were too terse to be understood, and
+                          the cut line never said the thing that matters about a
+                          cut — that it is what sets trump. */}
+                      <ul className="space-y-1.5 p-3 text-sm">
                         {summary.mvp ? (
-                          <div className="flex gap-3">
-                            <dt className="w-14 shrink-0 text-[11px] uppercase tracking-[0.14em] text-amber-300">
-                              Best
-                            </dt>
-                            <dd className="min-w-0 text-emerald-50">
-                              <span className="font-semibold">{summary.mvp.name}</span>
-                              <span className="text-emerald-100/60">
-                                {" "}
-                                — {summary.mvp.tricks} tricks, {summary.mvp.tens} 10s
-                              </span>
-                            </dd>
-                          </div>
+                          <li className="flex gap-2">
+                            <span aria-hidden="true">🏆</span>
+                            <span className="min-w-0 text-emerald-100/80">
+                              <span className="font-semibold text-emerald-50">
+                                {summary.mvp.name}
+                              </span>{" "}
+                              played best — {summary.mvp.tricks} tricks and {summary.mvp.tens} 10s
+                            </span>
+                          </li>
                         ) : null}
-                        <div className="flex gap-3">
-                          <dt className="w-14 shrink-0 text-[11px] uppercase tracking-[0.14em] text-amber-300">
-                            Cut
-                          </dt>
-                          <dd className="min-w-0 text-emerald-50">
+                        <li className="flex gap-2">
+                          <span aria-hidden="true">✂️</span>
+                          <span className="min-w-0 text-emerald-100/80">
                             {summary.cut ? (
                               <>
-                                <span className="font-semibold">{summary.cut.name}</span>
-                                <span className="text-emerald-100/60">
-                                  {" "}
-                                  played {summary.cut.card.slice(0, -1)}
-                                  {SUIT_SYMBOL[summary.cut.trumpSuit]} on trick{" "}
-                                  {summary.cut.trickNumber} and{" "}
-                                  {summary.cut.wonIt ? "took it" : "was over-trumped"}
-                                </span>
+                                <span className="font-semibold text-emerald-50">
+                                  {summary.cut.name}
+                                </span>{" "}
+                                cut with the {summary.cut.card.slice(0, -1)}
+                                {SUIT_SYMBOL[summary.cut.trumpSuit]} on trick{" "}
+                                {summary.cut.trickNumber}, making{" "}
+                                {summary.cut.trumpSuit.toLowerCase()} trump
+                                {summary.cut.wonIt
+                                  ? ", and took the trick"
+                                  : ", but was over-trumped"}
                               </>
                             ) : (
-                              <span className="text-emerald-100/60">
-                                Nobody cut — the hand ran on suit
-                              </span>
+                              "Nobody cut — the hand ran on suit, so there was no trump"
                             )}
-                          </dd>
-                        </div>
+                          </span>
+                        </li>
                         {summary.biggestTrick ? (
-                          <div className="flex gap-3">
-                            <dt className="w-14 shrink-0 text-[11px] uppercase tracking-[0.14em] text-amber-300">
-                              Swing
-                            </dt>
-                            <dd className="min-w-0 text-emerald-50">
-                              <span className="font-semibold">{summary.biggestTrick.name}</span>
-                              <span className="text-emerald-100/60">
-                                {" "}
-                                took {summary.biggestTrick.tens} 10s in one trick
-                              </span>
-                            </dd>
-                          </div>
+                          <li className="flex gap-2">
+                            <span aria-hidden="true">💥</span>
+                            <span className="min-w-0 text-emerald-100/80">
+                              <span className="font-semibold text-emerald-50">
+                                {summary.biggestTrick.name}
+                              </span>{" "}
+                              took {summary.biggestTrick.tens} 10s in a single trick
+                            </span>
+                          </li>
                         ) : null}
-                      </dl>
+                      </ul>
 
                       {/* Aligned columns rather than four little boxes, so the
                           numbers line up and never wrap mid-value. */}

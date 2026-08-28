@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { LevelAvatar } from '@/components/Avatar';
+import { TitlePicker } from '@/components/TitlePicker';
 import { ProgressWatch } from '@/components/ProgressCelebration';
 import {
   ChallengeList,
@@ -17,6 +18,7 @@ import { prisma } from '@/lib/prisma';
 import { weekOf } from '@/lib/challenges';
 import { snapshotFrom } from '@/lib/progress-feed';
 import { getLeaderboard, getPlayerStats } from '@/lib/stats';
+import { earnedTitles, titleLabel } from '@/lib/titles';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -27,7 +29,7 @@ export default async function StatsPage() {
 
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
-    select: { id: true, username: true, name: true, avatar: true, image: true },
+    select: { id: true, username: true, name: true, avatar: true, image: true, title: true },
   });
   if (!user) redirect('/login');
 
@@ -38,6 +40,8 @@ export default async function StatsPage() {
     ]);
 
   const snapshot = snapshotFrom(level, milestones, feats, challenges, weekOf(new Date()));
+  const titles = earnedTitles(milestones, feats, band.name);
+  const wearing = titleLabel(user.title, titles);
 
   return (
     <main className="min-h-screen bg-slate-950 px-3 py-6 text-slate-100 sm:px-6 sm:py-12">
@@ -60,6 +64,9 @@ export default async function StatsPage() {
                 <h1 className="text-3xl font-semibold text-white">
                   {user.username ?? user.name ?? 'player'}
                 </h1>
+                {wearing ? (
+                  <p className="mt-0.5 text-sm font-medium text-amber-300">{wearing}</p>
+                ) : null}
               </div>
             </div>
             <Link
@@ -110,6 +117,8 @@ export default async function StatsPage() {
             </>
           )}
         </header>
+
+        <TitlePicker titles={titles} current={user.title} />
 
         <ChallengeList challenges={challenges} />
 
