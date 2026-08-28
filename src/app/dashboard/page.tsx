@@ -56,6 +56,7 @@ const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
                 userKey={user.id}
                 name={user.username ?? accountName}
                 photo={user.image}
+                level={record?.level}
               />
             ) : null}
             <div>

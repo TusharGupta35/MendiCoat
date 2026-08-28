@@ -1,11 +1,13 @@
 "use client";
 
-import { type CSSProperties, type FormEvent, useEffect, useRef, useState } from "react";
+import { Fragment, type CSSProperties, type FormEvent, useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import type { Card, GameState, MatchResult, SeatIndex, Suit, TrickPlay } from "@/types/game";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { Avatar } from "@/components/Avatar";
+import { CardBack } from "@/components/PlayingCard";
+import type { MatchSummary } from "@/lib/match-summary";
 import { PlayingCard } from "@/components/PlayingCard";
 import { ProgressToast } from "@/components/ProgressCelebration";
 import {
@@ -72,6 +74,13 @@ export function SocketRoomClient({
   ]);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [matchHistory, setMatchHistory] = useState<MatchResult[]>([]);
+  // Which slice of the history counts toward the running series, and how many
+  // wins take it.
+  const [series, setSeries] = useState<{ target: number; from: number }>({ target: 3, from: 0 });
+  const [summary, setSummary] = useState<MatchSummary | null>(null);
+  // True for the moment right after the table appears, while cards are being
+  // dealt out to the seats.
+  const [isDealing, setIsDealing] = useState(false);
   const [seat, setSeat] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
@@ -114,6 +123,7 @@ export function SocketRoomClient({
   const trumpSuitRef = useRef<Suit | null>(null);
   const trickNumberRef = useRef(0);
   const enteringGameTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dealTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function audio() {
     if (typeof window === "undefined") return null;
@@ -199,7 +209,14 @@ export function SocketRoomClient({
       playCue("start");
       setEnteringGame(true);
       if (enteringGameTimeout.current) clearTimeout(enteringGameTimeout.current);
-      enteringGameTimeout.current = setTimeout(() => setEnteringGame(false), 2000);
+      enteringGameTimeout.current = setTimeout(() => {
+        setEnteringGame(false);
+        // Only now is the table on screen, so this is when cards can be seen
+        // arriving at the seats.
+        setIsDealing(true);
+        if (dealTimeout.current) clearTimeout(dealTimeout.current);
+        dealTimeout.current = setTimeout(() => setIsDealing(false), 1000);
+      }, 2000);
     });
     client.on("game-state-update", (payload: GameState) => {
       setGameState((previous) => {
@@ -211,6 +228,11 @@ export function SocketRoomClient({
     client.on("match-history", (payload: MatchResult[]) =>
       setMatchHistory(payload),
     );
+    client.on("series", (payload: { target: number; from: number }) =>
+      setSeries(payload),
+    );
+    client.on("match-summary", (payload: MatchSummary) => setSummary(payload));
+    client.on("game-started", () => setSummary(null));
     client.on("move-invalid", (message: string) => {
       setMoveError(message);
       playCue("invalid");
@@ -247,6 +269,7 @@ export function SocketRoomClient({
       if (holdTimeout.current) clearTimeout(holdTimeout.current);
       if (sweepTimeout.current) clearTimeout(sweepTimeout.current);
       if (enteringGameTimeout.current) clearTimeout(enteringGameTimeout.current);
+      if (dealTimeout.current) clearTimeout(dealTimeout.current);
     };
   }, [roomCode]);
 
@@ -391,13 +414,38 @@ export function SocketRoomClient({
   const openSeats = roomPlayers.filter((entry) => entry === null).length;
   const isTeamFull = (team: TeamId) =>
     (team === "A" ? [0, 2] : [1, 3]).every((teamSeat) => roomPlayers[teamSeat]);
-  const historyTally = matchHistory.reduce(
+  // The series is just the tail of the history, so nothing has to be stored
+  // twice and a finished series stays readable until a new one starts.
+  const seriesMatches = matchHistory.slice(series.from);
+  const seriesScore = seriesMatches.reduce(
     (tally, result) => {
       tally[result.winnerTeam] += 1;
       return tally;
     },
     { A: 0, B: 0, DRAW: 0 },
   );
+  const seriesWinner: TeamId | null =
+    seriesScore.A >= series.target ? "A" : seriesScore.B >= series.target ? "B" : null;
+  const seriesLeader = Math.max(seriesScore.A, seriesScore.B);
+  // Once a team is on the board the length is locked, so a change can never
+  // wipe a win that has already been played for.
+  const seriesUnderway = !seriesWinner && seriesLeader > 0;
+  const matchInProgress = gameState?.status === "PLAYING";
+
+  function setSeriesTarget(target: number) {
+    setError(null);
+    socket?.emit("set-series", { roomCode, target }, (result: { error?: string }) => {
+      if (result?.error) setError(result.error);
+    });
+  }
+
+  function startNewSeries() {
+    setError(null);
+    playCue("tap");
+    socket?.emit("new-series", { roomCode }, (result: { error?: string }) => {
+      if (result?.error) setError(result.error);
+    });
+  }
 
   function joinTeam(team: TeamId) {
     setError(null);
@@ -572,37 +620,118 @@ export function SocketRoomClient({
         </section>
         <section className="match-history-panel rounded-xl border border-slate-800 bg-slate-950/70 p-4">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-white">Match history</h2>
+              <h2 className="text-lg font-semibold text-white">
+                {seriesWinner ? "Series won" : "Series"}
+              </h2>
               <span className="shrink-0 whitespace-nowrap rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300">
-                {matchHistory.length} played
+                First to {series.target}
               </span>
             </div>
-            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-lg bg-slate-900 p-2">
-                <p className="text-xs uppercase tracking-wide text-amber-300">
-                  Team A
-                </p>
-                <p className="mt-1 text-2xl font-semibold text-white">
-                  {historyTally.A}
-                </p>
-              </div>
-              <div className="rounded-lg bg-slate-900 p-2">
-                <p className="text-xs uppercase tracking-wide text-slate-400">
-                  Draws
-                </p>
-                <p className="mt-1 text-2xl font-semibold text-white">
-                  {historyTally.DRAW}
-                </p>
-              </div>
-              <div className="rounded-lg bg-slate-900 p-2">
-                <p className="text-xs uppercase tracking-wide text-amber-300">
-                  Team B
-                </p>
-                <p className="mt-1 text-2xl font-semibold text-white">
-                  {historyTally.B}
-                </p>
-              </div>
+
+            {/* Score first, because during a series it is the only number that
+                matters; the lifetime tally moves below it. */}
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-slate-900 p-3">
+              {(["A", "B"] as const).map((team, index) => (
+                <div key={team} className={`min-w-0 flex-1 ${index === 1 ? "text-right" : ""}`}>
+                  <p className="text-xs uppercase tracking-wide text-amber-300">Team {team}</p>
+                  <p
+                    className={`mt-0.5 text-3xl font-semibold tabular-nums ${
+                      seriesWinner === team ? "text-amber-300" : "text-white"
+                    }`}
+                  >
+                    {seriesScore[team]}
+                  </p>
+                  <div className={`mt-1.5 flex gap-1 ${index === 1 ? "justify-end" : ""}`}>
+                    {Array.from({ length: Math.max(series.target, seriesScore[team]) }, (_, pip) => (
+                      <span
+                        key={pip}
+                        className={`h-1.5 w-4 rounded-full ${
+                          pip < seriesScore[team] ? "bg-amber-400" : "bg-slate-800"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <span className="shrink-0 self-start text-xs text-slate-500">
+                {seriesScore.DRAW > 0 ? `${seriesScore.DRAW} drawn` : null}
+              </span>
             </div>
+
+            {seriesWinner ? (
+              <div className="mt-3 space-y-2 rounded-lg border border-amber-400/40 bg-amber-500/10 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-amber-200">
+                    Team {seriesWinner} takes it {seriesScore[seriesWinner]}–
+                    {seriesScore[seriesWinner === "A" ? "B" : "A"]}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={startNewSeries}
+                    disabled={seat === null || matchInProgress}
+                    className="rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-semibold text-amber-950 transition disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    New series
+                  </button>
+                </div>
+                {/* Extending keeps this score and plays on to a longer target,
+                    so only targets the leader has not already passed appear. */}
+                {[1, 2, 3, 4].some((target) => target > seriesLeader) ? (
+                  <div className="flex flex-wrap items-center gap-2 border-t border-amber-400/20 pt-2">
+                    <span className="text-xs uppercase tracking-wide text-amber-200/70">
+                      Or play on, best of
+                    </span>
+                    {[1, 2, 3, 4]
+                      .filter((target) => target > seriesLeader)
+                      .map((target) => (
+                        <button
+                          key={target}
+                          type="button"
+                          onClick={() => setSeriesTarget(target)}
+                          disabled={seat === null || matchInProgress}
+                          title={`Keep this score and play on to ${target} wins`}
+                          className="rounded-full border border-amber-400/50 px-2.5 py-1 text-xs font-semibold text-amber-200 transition hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {target * 2 - 1}
+                        </button>
+                      ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : seriesUnderway ? (
+              <p className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-xs text-slate-400">
+                Series under way — first to {series.target}. The length can be changed once it
+                is decided.
+              </p>
+            ) : (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="text-xs uppercase tracking-wide text-slate-500">Best of</span>
+                {[1, 2, 3, 4].map((target) => (
+                  <button
+                    key={target}
+                    type="button"
+                    onClick={() => setSeriesTarget(target)}
+                    disabled={seat === null || matchInProgress}
+                    aria-pressed={series.target === target}
+                    title={
+                      matchInProgress
+                        ? "Finish the current match first"
+                        : `First to ${target}`
+                    }
+                    className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                      series.target === target
+                        ? "border-amber-400 bg-amber-400/15 text-amber-300"
+                        : "border-slate-700 text-slate-400 hover:border-slate-500"
+                    }`}
+                  >
+                    {target * 2 - 1}
+                  </button>
+                ))}
+                <span className="ml-auto text-xs text-slate-500">
+                  {matchHistory.length} played in this room
+                </span>
+              </div>
+            )}
             {matchHistory.length > 0 ? (
               <ol className="mt-3 space-y-1.5">
                 {matchHistory
@@ -793,8 +922,32 @@ export function SocketRoomClient({
                   // The slot is always here, card or no card. Rendering it only
                   // when a card is down made the whole seat shrink between
                   // tricks, which shifted the name every time.
+                  // Roughly from the middle of the table outward. A flourish,
+                  // so an approximate direction reads fine — unlike the sweep,
+                  // which has to land on a real card.
+                  const dealFrom = [
+                    { x: 0, y: -90 },
+                    { x: 70, y: 0 },
+                    { x: 0, y: 90 },
+                    { x: -70, y: 0 },
+                  ][tableSeat];
+
                   const cardSlot = (
                     <div className="h-[4.5rem] w-12 sm:h-24 sm:w-16">
+                      {isDealing && !play ? (
+                        <div
+                          className="animate-deal-out h-full w-full"
+                          style={
+                            {
+                              "--deal-x": `${dealFrom.x}px`,
+                              "--deal-y": `${dealFrom.y}px`,
+                              animationDelay: `${tableSeat * 90}ms`,
+                            } as CSSProperties
+                          }
+                        >
+                          <CardBack className="h-full w-full drop-shadow-[0_6px_10px_rgba(0,0,0,0.45)]" />
+                        </div>
+                      ) : null}
                       {play ? (
                         <div
                           // Keyed by card, which is unique across a match, so
@@ -879,7 +1032,11 @@ export function SocketRoomClient({
                       disabled={seat !== gameState.currentTurn}
                       onClick={() => playCard(card)}
                       aria-label={cardLabel(card)}
-                      className={`relative h-24 w-[4.5rem] shrink-0 rounded-lg transition hover:z-20 hover:-translate-y-5 sm:h-28 sm:w-20 disabled:cursor-not-allowed disabled:brightness-75 ${index === 0 ? "" : "-ml-2 sm:-ml-3"}`}
+                      className={`animate-deal-in relative h-24 w-[4.5rem] shrink-0 rounded-lg transition hover:z-20 hover:-translate-y-5 sm:h-28 sm:w-20 disabled:cursor-not-allowed disabled:brightness-75 ${index === 0 ? "" : "-ml-2 sm:-ml-3"}`}
+                      // Runs when the hand first mounts, which is exactly the
+                      // deal. Cards are only ever removed after that, so it
+                      // never replays mid-match.
+                      style={{ animationDelay: `${index * 45}ms` }}
                     >
                       <PlayingCard
                         card={card}
@@ -911,20 +1068,154 @@ export function SocketRoomClient({
                 ))}
               </div>
               {gameState.status === "FINISHED" ? (
-                <div className="rounded-lg border border-amber-400/50 bg-amber-400/10 p-4 text-center">
-                  <p className="text-xl font-semibold text-white">
+                <div className="space-y-3">
+                  <p className="rounded-lg border border-amber-400/50 bg-amber-400/10 py-3 text-center text-xl font-semibold text-white">
                     {gameState.winnerTeam === "DRAW"
                       ? "The match is a draw."
                       : `Team ${gameState.winnerTeam} wins!`}
                   </p>
+
+                  {summary ? (
+                    // Kept out of the winner banner: nesting panels inside it
+                    // stacked amber on emerald on rose and read as clutter.
+                    <div className="divide-y divide-emerald-800/60 rounded-lg bg-emerald-950/60">
+                      <div className="p-3">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-amber-300">
+                          Where the 10s went
+                        </p>
+                        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          {summary.tenCaptures.length === 0 ? (
+                            <p className="text-sm text-emerald-100/60">No 10s were taken.</p>
+                          ) : (
+                            summary.tenCaptures.map((capture) => (
+                              <div
+                                key={capture.card}
+                                className="rounded-md bg-emerald-950/70 px-2.5 py-2 text-center"
+                              >
+                                <p
+                                  className={`text-base font-semibold leading-none ${
+                                    capture.suit === "HEARTS" || capture.suit === "DIAMONDS"
+                                      ? "text-rose-300"
+                                      : "text-slate-100"
+                                  }`}
+                                >
+                                  10{SUIT_SYMBOL[capture.suit]}
+                                </p>
+                                <p className="mt-1.5 truncate text-xs text-emerald-100">
+                                  {capture.name}
+                                </p>
+                                <p className="text-[10px] text-emerald-300/60">
+                                  Team {capture.team}
+                                </p>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Short labels in a fixed column: the long ones wrapped
+                          and dragged their cards out of line. */}
+                      <dl className="space-y-1.5 p-3 text-sm">
+                        {summary.mvp ? (
+                          <div className="flex gap-3">
+                            <dt className="w-14 shrink-0 text-[11px] uppercase tracking-[0.14em] text-amber-300">
+                              Best
+                            </dt>
+                            <dd className="min-w-0 text-emerald-50">
+                              <span className="font-semibold">{summary.mvp.name}</span>
+                              <span className="text-emerald-100/60">
+                                {" "}
+                                — {summary.mvp.tricks} tricks, {summary.mvp.tens} 10s
+                              </span>
+                            </dd>
+                          </div>
+                        ) : null}
+                        <div className="flex gap-3">
+                          <dt className="w-14 shrink-0 text-[11px] uppercase tracking-[0.14em] text-amber-300">
+                            Cut
+                          </dt>
+                          <dd className="min-w-0 text-emerald-50">
+                            {summary.cut ? (
+                              <>
+                                <span className="font-semibold">{summary.cut.name}</span>
+                                <span className="text-emerald-100/60">
+                                  {" "}
+                                  played {summary.cut.card.slice(0, -1)}
+                                  {SUIT_SYMBOL[summary.cut.trumpSuit]} on trick{" "}
+                                  {summary.cut.trickNumber} and{" "}
+                                  {summary.cut.wonIt ? "took it" : "was over-trumped"}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-emerald-100/60">
+                                Nobody cut — the hand ran on suit
+                              </span>
+                            )}
+                          </dd>
+                        </div>
+                        {summary.biggestTrick ? (
+                          <div className="flex gap-3">
+                            <dt className="w-14 shrink-0 text-[11px] uppercase tracking-[0.14em] text-amber-300">
+                              Swing
+                            </dt>
+                            <dd className="min-w-0 text-emerald-50">
+                              <span className="font-semibold">{summary.biggestTrick.name}</span>
+                              <span className="text-emerald-100/60">
+                                {" "}
+                                took {summary.biggestTrick.tens} 10s in one trick
+                              </span>
+                            </dd>
+                          </div>
+                        ) : null}
+                      </dl>
+
+                      {/* Aligned columns rather than four little boxes, so the
+                          numbers line up and never wrap mid-value. */}
+                      <div className="p-3">
+                        <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 text-sm">
+                          <span className="text-[11px] uppercase tracking-[0.14em] text-emerald-300/60">
+                            Player
+                          </span>
+                          <span className="text-right text-[11px] uppercase tracking-[0.14em] text-emerald-300/60">
+                            Tricks
+                          </span>
+                          <span className="w-8 text-right text-[11px] uppercase tracking-[0.14em] text-emerald-300/60">
+                            10s
+                          </span>
+                          {summary.seats.map((line) => (
+                            <Fragment key={line.seat}>
+                              <span
+                                className={`mt-1 min-w-0 truncate ${
+                                  summary.mvp?.seat === line.seat
+                                    ? "font-semibold text-amber-200"
+                                    : "text-emerald-50"
+                                }`}
+                              >
+                                {line.name}
+                              </span>
+                              <span className="mt-1 text-right tabular-nums text-emerald-100/70">
+                                {line.tricks}
+                              </span>
+                              <span className="mt-1 w-8 text-right tabular-nums text-emerald-100/70">
+                                {line.tens}
+                              </span>
+                            </Fragment>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
                   {seat !== null && !roomPlayers[seat]?.isBot ? (
-                    <button
-                      type="button"
-                      onClick={restartGame}
-                      className="mt-3 rounded-lg bg-amber-400 px-4 py-2 font-medium text-amber-950"
-                    >
-                      Play again
-                    </button>
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        onClick={restartGame}
+                        className="rounded-lg bg-amber-400 px-4 py-2 font-medium text-amber-950"
+                      >
+                        Play again
+                      </button>
+                    </div>
                   ) : null}
                 </div>
               ) : null}

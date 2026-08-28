@@ -258,4 +258,57 @@ export function Avatar({ avatar, userKey, name, photo, className }: AvatarProps)
   );
 }
 
+/**
+ * An avatar wearing its owner's level: the ring around it fills with progress
+ * through the current level, and the number sits in the corner.
+ *
+ * The ring is the border rather than an extra element beside it, so a small
+ * avatar carries the information without taking any more room.
+ */
+export function LevelAvatar({
+  level,
+  into,
+  span,
+  className,
+  ...avatar
+}: AvatarProps & { level: number; into: number; span: number }) {
+  const fraction = span > 0 ? Math.min(1, Math.max(0, into / span)) : 0;
+  const radius = 46;
+  const circumference = 2 * Math.PI * radius;
+  const percent = Math.round(fraction * 100);
+
+  return (
+    <span
+      className={`relative inline-block shrink-0 ${className ?? 'h-14 w-14'}`}
+      title={`Level ${level} · ${percent}% of the way to ${level + 1}`}
+    >
+      <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90">
+        <circle cx="50" cy="50" r={radius} fill="none" stroke="#35234f" strokeWidth="7" />
+        {fraction > 0 ? (
+          <circle
+            cx="50"
+            cy="50"
+            r={radius}
+            fill="none"
+            stroke="#ffc233"
+            strokeWidth="7"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={circumference * (1 - fraction)}
+          />
+        ) : null}
+      </svg>
+
+      <Avatar {...avatar} className="absolute inset-[11%] h-[78%] w-[78%]" />
+
+      <span
+        className="absolute -bottom-0.5 -left-0.5 min-w-[1.35rem] rounded-full bg-slate-950 px-1 text-center text-[10px] font-bold leading-4 text-amber-300 ring-1 ring-amber-400/60"
+        aria-label={`Level ${level}`}
+      >
+        {level}
+      </span>
+    </span>
+  );
+}
+
 export { initialsOf };

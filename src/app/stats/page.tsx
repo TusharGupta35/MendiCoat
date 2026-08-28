@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
+import { LevelAvatar } from '@/components/Avatar';
 import { ProgressWatch } from '@/components/ProgressCelebration';
 import {
   ChallengeList,
@@ -26,7 +27,7 @@ export default async function StatsPage() {
 
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
-    select: { id: true, username: true, name: true },
+    select: { id: true, username: true, name: true, avatar: true, image: true },
   });
   if (!user) redirect('/login');
 
@@ -43,11 +44,23 @@ export default async function StatsPage() {
       <div className="mx-auto flex max-w-5xl flex-col gap-6 sm:gap-8">
         <header className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-sm uppercase tracking-[0.35em] text-amber-400">Your record</p>
-              <h1 className="text-3xl font-semibold text-white">
-                {user.username ?? user.name ?? 'player'}
-              </h1>
+            <div className="flex items-center gap-4">
+              <LevelAvatar
+                avatar={user.avatar}
+                userKey={user.id}
+                name={user.username ?? user.name ?? 'player'}
+                photo={user.image}
+                level={level.level}
+                into={level.into}
+                span={level.span}
+                className="h-16 w-16"
+              />
+              <div>
+                <p className="text-sm uppercase tracking-[0.35em] text-amber-400">Your record</p>
+                <h1 className="text-3xl font-semibold text-white">
+                  {user.username ?? user.name ?? 'player'}
+                </h1>
+              </div>
             </div>
             <Link
               href="/dashboard"
