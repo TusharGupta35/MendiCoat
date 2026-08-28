@@ -1,12 +1,23 @@
 import { Server } from 'socket.io';
 import { createInitialGameState, validateMove, applyMove } from '@/game-engine/mendi-coat';
-import type { Card, GameState, MatchResult, SeatIndex } from '@/types/game';
+import type { Card, GameState, MatchResult, SeatIndex, Suit } from '@/types/game';
+import { closeMatch, openMatch, trickEntry, type TrickLogEntry } from '@/socket/match-store';
 
 interface RoomState {
   roomCode: string;
   players: Array<RoomPlayer | undefined>;
   gameState?: GameState;
   matchHistory: MatchResult[];
+  /** Row id of the match in progress, once the database has accepted it. */
+  matchId?: string;
+  /** Completed tricks of the match in progress; the game state drops them. */
+  trickLog: TrickLogEntry[];
+  /**
+   * Trump as it stood when the current trick was led. Sampled per trick because
+   * the cut usually lands mid-trick, so comparing against the state before the
+   * final card would miss it.
+   */
+  trumpAtTrickStart?: Suit | null;
   /** Last status written to the database, so we only write on an actual change. */
   persistedStatus?: RoomStatus;
   /** Pending hand-back to the lobby for a room every human has left. */
@@ -109,6 +120,11 @@ function scheduleEmptyRoomReset(io: Server, room: RoomState) {
     if (rooms.get(room.roomCode) !== room || hasConnectedHuman(room)) return;
     room.players = Array.from<RoomPlayer | undefined>({ length: 4 });
     room.gameState = undefined;
+    // An abandoned match keeps its PENDING row on purpose — that is what makes
+    // completion rate answerable — but this process is done with it.
+    room.matchId = undefined;
+    room.trickLog = [];
+    room.trumpAtTrickStart = null;
     // Match history is the room's own record, so it survives the reset.
     io.to(room.roomCode).emit('room-reset');
     emitState(io, room);
@@ -130,17 +146,63 @@ function emitState(io: Server, room: RoomState) {
 // Applies a validated move and records the result the moment the match finishes,
 // so a room's match history survives every restart-game reset of the game state.
 function commitMove(room: RoomState, seat: SeatIndex, card: Card) {
-  const wasFinished = room.gameState!.status === 'FINISHED';
-  const nextState = applyMove(room.gameState!, seat, card);
+  const previous = room.gameState!;
+  const wasFinished = previous.status === 'FINISHED';
+  const previousTrickNumber = previous.trickNumber;
+  // This card leads a new trick, so remember what trump was before it.
+  if (previous.trickCards.length === 0) room.trumpAtTrickStart = previous.trumpSuit;
+  const trumpAtTrickStart = room.trumpAtTrickStart ?? null;
+  const nextState = applyMove(previous, seat, card);
   room.gameState = nextState;
+
+  // A finished trick only exists on the state that reports it, so record it now.
+  if (nextState.trickNumber > previousTrickNumber) {
+    const entry = trickEntry(nextState, previousTrickNumber, trumpAtTrickStart);
+    if (entry) room.trickLog.push(entry);
+  }
+
   if (!wasFinished && nextState.status === 'FINISHED' && nextState.winnerTeam) {
     room.matchHistory.push({
       winnerTeam: nextState.winnerTeam,
       capturedTens: { ...nextState.capturedTens },
       handsWon: { ...nextState.handsWon },
     });
+    // Durable copy of the result. Deliberately not awaited: a database problem
+    // must never stall or fail a move that has already been applied.
+    const { matchId, roomCode, players, trickLog } = room;
+    void closeMatch(matchId, roomCode, players, nextState, trickLog).catch((error: unknown) => {
+      console.error(`Could not persist the finished match in room ${roomCode}:`, error);
+    });
   }
   return nextState;
+}
+
+/**
+ * Deals a new match and opens its database row. Shared by the three ways a game
+ * can start — filling with bots, a normal start, and a rematch — so the match
+ * record and the trick log can never be set up in only some of them.
+ */
+function beginMatch(io: Server, room: RoomState, roomCode: string) {
+  room.gameState = createInitialGameState(roomCode, room.players.map((player) => player!.name));
+  room.trickLog = [];
+  room.matchId = undefined;
+  room.trumpAtTrickStart = null;
+  rooms.set(roomCode, room);
+
+  const state = room.gameState;
+  void openMatch(roomCode, room.players, state)
+    .then((matchId) => {
+      // Only adopt the id if this is still the same match; a rematch may have
+      // started while the write was in flight.
+      if (matchId && room.gameState === state) room.matchId = matchId;
+    })
+    .catch((error: unknown) => {
+      console.error(`Could not open a match row for room ${roomCode}:`, error);
+    });
+
+  io.to(roomCode).emit('game-started', room.gameState);
+  emitState(io, room);
+  advanceBots(io, roomCode);
 }
 
 function pickBotCard(gameState: GameState, seat: SeatIndex): Card | undefined {
@@ -216,7 +278,7 @@ export function createSocketServer(httpServer: import('node:http').Server) {
     });
 
     socket.on('join-room', ({ roomCode, playerId, playerName, team }: { roomCode: string; playerId: string; playerName: string; team: TeamId }) => {
-      const room = rooms.get(roomCode) ?? { roomCode, players: Array.from<RoomPlayer | undefined>({ length: 4 }), matchHistory: [] };
+      const room = rooms.get(roomCode) ?? { roomCode, players: Array.from<RoomPlayer | undefined>({ length: 4 }), matchHistory: [], trickLog: [] };
       const existingSeat = room.players.findIndex((player) => player?.id === playerId);
       const seat = existingSeat === -1 ? getAvailableSeat(room, team) : existingSeat as SeatIndex;
       if (seat === undefined) {
@@ -315,12 +377,8 @@ export function createSocketServer(httpServer: import('node:http').Server) {
         return;
       }
 
-      room.gameState = createInitialGameState(roomCode, room.players.map((player) => player!.name));
-      rooms.set(roomCode, room);
-      io.to(roomCode).emit('game-started', room.gameState);
-      emitState(io, room);
+      beginMatch(io, room, roomCode);
       callback?.({});
-      advanceBots(io, roomCode);
     });
 
     socket.on(
@@ -343,19 +401,8 @@ export function createSocketServer(httpServer: import('node:http').Server) {
           return;
         }
 
-        room.gameState = createInitialGameState(
-          roomCode,
-          room.players.map((player) => player!.name)
-        );
-
-        rooms.set(roomCode, room);
-
-        io.to(roomCode).emit("game-started", room.gameState);
-        emitState(io, room);
-
+        beginMatch(io, room, roomCode);
         callback?.({});
-
-        advanceBots(io, roomCode);
       }
     );
 
@@ -376,12 +423,8 @@ export function createSocketServer(httpServer: import('node:http').Server) {
         return;
       }
 
-      room.gameState = createInitialGameState(roomCode, room.players.map((player) => player!.name));
-      rooms.set(roomCode, room);
-      io.to(roomCode).emit('game-started', room.gameState);
-      emitState(io, room);
+      beginMatch(io, room, roomCode);
       callback?.({});
-      advanceBots(io, roomCode);
     });
 
     socket.on('send-thought', ({ roomCode, message }: { roomCode: string; message: string }, callback?: (result: { error?: string }) => void) => {

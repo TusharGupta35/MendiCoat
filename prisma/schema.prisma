@@ -47,6 +47,7 @@ model User {
   hostedRooms   Room[]    @relation("RoomHost")
   matches       Match[]   @relation("PlayerMatches")
   hostMatches   Match[]   @relation("MatchHost")
+  matchSeats    MatchPlayer[]
 }
 
 model VerificationToken {
@@ -72,13 +73,69 @@ model Room {
 
 model Match {
   id           String   @id @default(cuid())
-  roomId       String
+  // Nullable so a match outlives the room it was played in: rooms are hard
+  // deleted by their host, and cascading that would wipe the career stats this
+  // table exists to keep.
+  roomId       String?
   hostId       String
   status       String   @default("PENDING")
   winnerTeam   String?
+  // Final score of the match. The four 10s decide it; hands won is the
+  // tie-break, so both are needed to explain a result after the fact.
+  capturedTensA Int     @default(0)
+  capturedTensB Int     @default(0)
+  handsWonA     Int     @default(0)
+  handsWonB     Int     @default(0)
+  // Matches with bots in them should not feed leaderboards or rankings.
+  hadBots      Boolean  @default(false)
+  finishedAt   DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  room         Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  room         Room?    @relation(fields: [roomId], references: [id], onDelete: SetNull)
   host         User     @relation("MatchHost", fields: [hostId], references: [id])
   players      User[]   @relation("PlayerMatches")
+  seats        MatchPlayer[]
+  tricks       MatchTrick[]
+}
+
+/// One human seat in a finished match. Carries the seat and team that a
+/// many-to-many relation cannot, which is what per-player stats, partner
+/// chemistry and achievements all need. Bot seats get no row.
+model MatchPlayer {
+  id      String  @id @default(cuid())
+  matchId String
+  userId  String
+  seat    Int
+  team    String
+  won     Boolean
+  match   Match   @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, userId])
+  @@index([userId])
+}
+
+/// One completed trick. Kept because achievements are about how a hand was
+/// played, not just who won: cutting with a low card, winning without ever
+/// cutting, sweeping the 10s. The game state only ever holds the last trick,
+/// so this is the only record of the rest.
+model MatchTrick {
+  id          String   @id @default(cuid())
+  matchId     String
+  trickNumber Int
+  /// The seats in the order they played, and the card each one played, so the
+  /// lead, the cut and the winning card can all be reconstructed.
+  seats       Int[]
+  cards       String[]
+  leadSuit    String
+  winnerSeat  Int
+  winnerTeam  String
+  tensWon     Int      @default(0)
+  /// True on the trick where the first off-suit card fixed trump for the hand.
+  fixedTrump  Boolean  @default(false)
+  trumpSuit   String?
+  match       Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, trickNumber])
+  @@index([matchId])
 }

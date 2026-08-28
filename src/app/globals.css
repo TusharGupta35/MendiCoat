@@ -44,6 +44,12 @@
   --color-emerald-950: #06301f;
 }
 
+/* The tiled card-suit motif, as a token so the body and any .suit-field
+   surface share one definition instead of copying the data URI around. */
+:root {
+  --suit-tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Cg fill='%23ffd970' fill-opacity='0.06' font-family='serif' font-size='30'%3E%3Ctext x='12' y='46'%3E%E2%99%A0%3C/text%3E%3Ctext x='82' y='46'%3E%E2%99%A5%3C/text%3E%3Ctext x='12' y='116'%3E%E2%99%A6%3C/text%3E%3Ctext x='82' y='116'%3E%E2%99%A3%3C/text%3E%3C/g%3E%3C/svg%3E");
+}
+
 /* ── END THEME EXPERIMENT (tokens) ─────────────────────────────────────── */
 
 :root {
@@ -59,7 +65,7 @@ body {
   background-image:
     radial-gradient(120% 80% at 50% -20%, rgba(245, 166, 21, 0.12), transparent 60%),
     radial-gradient(90% 60% at 110% 110%, rgba(18, 112, 74, 0.18), transparent 60%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Cg fill='%23ffd970' fill-opacity='0.06' font-family='serif' font-size='30'%3E%3Ctext x='12' y='46'%3E%E2%99%A0%3C/text%3E%3Ctext x='82' y='46'%3E%E2%99%A5%3C/text%3E%3Ctext x='12' y='116'%3E%E2%99%A6%3C/text%3E%3Ctext x='82' y='116'%3E%E2%99%A3%3C/text%3E%3C/g%3E%3C/svg%3E");
+    var(--suit-tile);
   background-attachment: fixed;
 }
 
@@ -231,10 +237,49 @@ body {
 
 /* Every page shell paints an opaque bg-slate-950 over the body, which would
    hide the lit ground above. Let the body show through — the shells still keep
-   their layout utilities. (Not scoped to divs: the join-code input and the
-   loading screen legitimately want a solid fill.) */
+   their layout utilities. (Not scoped to divs: the join-code input wants a
+   solid fill, and the loading screen paints its own .suit-field instead.) */
 main.bg-slate-950 {
   background-color: transparent;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Suit motif surface. For any element that needs its own opaque ground but
+   should still carry the table's card-suit wallpaper — the loading screens
+   today. The suits are drawn larger here than on the body, because these are
+   wide empty surfaces where the body's scale reads as noise.
+   Add `suit-field-drift` to let the motif crawl, which suits a wait.
+   ────────────────────────────────────────────────────────────────────────── */
+.suit-field {
+  background-color: var(--color-slate-950);
+  background-image:
+    radial-gradient(120% 85% at 50% -15%, rgba(245, 166, 21, 0.13), transparent 62%),
+    radial-gradient(80% 60% at 105% 108%, rgba(18, 112, 74, 0.16), transparent 60%),
+    var(--suit-tile);
+  background-size:
+    auto,
+    auto,
+    190px 190px;
+}
+
+@keyframes suit-drift {
+  from {
+    background-position: 50% 0, 50% 100%, 0 0;
+  }
+  to {
+    /* One whole tile, so the loop is seamless. */
+    background-position: 50% 0, 50% 100%, 190px 190px;
+  }
+}
+
+.suit-field-drift {
+  animation: suit-drift 48s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .suit-field-drift {
+    animation: none;
+  }
 }
 
 /* Display face on every heading, app-wide. */
