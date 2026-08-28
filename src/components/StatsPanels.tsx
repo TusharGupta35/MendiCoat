@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Avatar } from '@/components/Avatar';
 import type { ChallengeState } from '@/lib/challenges';
 import type { FeatState } from '@/lib/feats';
 import { bandForLevel, type Level, type MilestoneState } from '@/lib/progression';
@@ -254,7 +255,15 @@ export function PartnerTable({ partners }: { partners: PartnerRecord[] }) {
               key={partner.userId}
               className="flex items-center justify-between gap-3 rounded-lg bg-slate-950/70 p-3"
             >
-              <span className="min-w-0 truncate font-medium text-white">{partner.name}</span>
+              <span className="flex min-w-0 items-center gap-2.5">
+                <Avatar
+                  avatar={partner.avatar}
+                  userKey={partner.userId}
+                  name={partner.name}
+                  className="h-8 w-8"
+                />
+                <span className="min-w-0 truncate font-medium text-white">{partner.name}</span>
+              </span>
               <span className="flex shrink-0 items-center gap-3 text-sm">
                 <span className="tabular-nums text-slate-400">
                   {partner.won}/{partner.played}
@@ -292,6 +301,7 @@ export function Leaderboard({ rows, meId }: { rows: LeaderboardRow[]; meId: stri
               <span className="w-6 shrink-0 text-center text-sm font-semibold tabular-nums text-slate-500">
                 {index + 1}
               </span>
+              <Avatar avatar={row.avatar} userKey={row.userId} name={row.name} className="h-8 w-8" />
               <span className="min-w-0 flex-1 truncate font-medium text-white">{row.name}</span>
               <span className="shrink-0 text-sm tabular-nums text-slate-400">
                 {row.won}/{row.played}
