@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { io as ioClient, type Socket } from 'socket.io-client';
 import type { Server } from 'socket.io';
 import { chooseBotCard } from '@/game-engine/bot';
-import type { GameState, SeatIndex } from '@/types/game';
+import type { GameState, MatchResult, SeatIndex } from '@/types/game';
 
 /**
  * The series as the database and the room see it, driven through real matches.
@@ -129,7 +129,7 @@ async function playOut(players: Socket[], roomCode: string, seen: Watched) {
     if (state.status === 'FINISHED') return state;
 
     const seat = state.currentTurn as SeatIndex;
-    const card = chooseBotCard(state, seat, 'easy');
+    const card = chooseBotCard(state, seat);
     if (!card) throw new Error(`seat ${seat} had no legal card`);
     // Queue the wait before the emit, so a fast reply cannot be missed.
     const landed = seen.next();
@@ -255,5 +255,85 @@ describe('the room names a best player of the series', () => {
 
     await ask(players[0], 'new-series', { roomCode });
     await vi.waitFor(() => expect(series.payload!.best).toBeNull(), { interval: 5 });
+  });
+});
+
+describe('a decided series has to be closed before more matches are played', () => {
+  /** The room's own record of finished matches, as it broadcasts it. */
+  function watchHistory(client: Socket) {
+    const seen = { results: [] as MatchResult[] };
+    client.on('match-history', (results: MatchResult[]) => {
+      seen.results = results;
+    });
+    return seen;
+  }
+
+  const decided = (results: MatchResult[], target: number) => {
+    const wins = { A: 0, B: 0 };
+    for (const result of results) if (result.winnerTeam !== 'DRAW') wins[result.winnerTeam] += 1;
+    return Math.max(wins.A, wins.B) >= target;
+  };
+
+  /**
+   * Plays a best-of-1 out until somebody actually takes it. One match usually
+   * settles it, but a drawn match decides nothing, so this keeps going.
+   */
+  async function playUntilDecided(players: Socket[], roomCode: string, seen: Watched, history: { results: MatchResult[] }) {
+    expect(await ask(players[0], 'set-series', { roomCode, target: 1 })).toEqual({});
+    for (let match = 0; match < 5; match += 1) {
+      await playMatch(players, roomCode, seen);
+      await vi.waitFor(() => expect(history.results).toHaveLength(match + 1), { interval: 5 });
+      if (decided(history.results, 1)) return;
+    }
+    throw new Error('series never decided');
+  }
+
+  it('refuses another match while the series sits won', async () => {
+    const roomCode = freshRoomCode();
+    const players = await seatFourPlayers(roomCode);
+    const seen = watchState(players[0]);
+    const history = watchHistory(players[0]);
+
+    await playUntilDecided(players, roomCode, seen, history);
+
+    // This is the bug from production: the table kept hitting play again, so
+    // match after match was played while the won series was never claimed.
+    const opens = opened.length;
+    const result = await ask(players[0], 'restart-game', { roomCode });
+    expect(result.error).toMatch(/finished/i);
+    expect(opened).toHaveLength(opens);
+  });
+
+  it('plays on again once a new series is started', async () => {
+    const roomCode = freshRoomCode();
+    const players = await seatFourPlayers(roomCode);
+    const seen = watchState(players[0]);
+    const history = watchHistory(players[0]);
+
+    await playUntilDecided(players, roomCode, seen, history);
+    expect(await ask(players[0], 'new-series', { roomCode })).toEqual({});
+
+    const opens = opened.length;
+    expect(await ask(players[0], 'restart-game', { roomCode })).toEqual({});
+    await vi.waitFor(() => expect(opened.length).toBe(opens + 1), { interval: 5 });
+    // The new matches belong to a series of their own.
+    expect(opened.at(-1)!.id).not.toBe(opened[0].id);
+  });
+
+  it('plays on again once the series is extended to a longer target', async () => {
+    const roomCode = freshRoomCode();
+    const players = await seatFourPlayers(roomCode);
+    const seen = watchState(players[0]);
+    const history = watchHistory(players[0]);
+
+    await playUntilDecided(players, roomCode, seen, history);
+    expect(await ask(players[0], 'set-series', { roomCode, target: 2 })).toEqual({});
+
+    const opens = opened.length;
+    expect(await ask(players[0], 'restart-game', { roomCode })).toEqual({});
+    await vi.waitFor(() => expect(opened.length).toBe(opens + 1), { interval: 5 });
+    // Extending carries the same contest on, so the id does not change.
+    expect(opened.at(-1)!.id).toBe(opened[0].id);
+    expect(opened.at(-1)!.target).toBe(2);
   });
 });
