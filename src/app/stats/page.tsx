@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { LevelAvatar } from '@/components/Avatar';
+import { BrandMark } from '@/components/Logo';
 import { TitlePicker } from '@/components/TitlePicker';
 import { ProgressWatch } from '@/components/ProgressCelebration';
 import {
@@ -49,7 +50,17 @@ export default async function StatsPage() {
     <main className="min-h-screen bg-slate-950 px-3 py-6 text-slate-100 sm:px-6 sm:py-12">
       <div className="mx-auto flex max-w-5xl flex-col gap-6 sm:gap-8">
         <header className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-center justify-between gap-4">
+            <BrandMark className="-my-3 -ml-2 h-20 w-auto" />
+            <Link
+              href="/dashboard"
+              className="rounded-lg border border-slate-700 px-4 py-2 font-medium transition hover:bg-slate-800"
+            >
+              Back to dashboard
+            </Link>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-center gap-4">
               <LevelAvatar
                 avatar={user.avatar}
@@ -71,12 +82,6 @@ export default async function StatsPage() {
                 ) : null}
               </div>
             </div>
-            <Link
-              href="/dashboard"
-              className="rounded-lg border border-slate-700 px-4 py-2 font-medium transition hover:bg-slate-800"
-            >
-              Back to dashboard
-            </Link>
           </div>
 
           <div className="mt-5">

@@ -1,24 +1,21 @@
 import Link from 'next/link';
+import { GameEmblem } from '@/components/GameEmblem';
 import { GAMES, type Game } from '@/lib/games';
 
 /**
- * The dashboard's game picker.
+ * The dashboard's game picker: the left-hand column, and the first thing the
+ * page is for.
  *
  * A promised game is shown the same size as a playable one, because the point
  * of the board is what this table will hold, not only what it holds today. What
  * separates them is the footer: one opens the game, the other says to wait.
+ *
+ * The tiles are a single stack rather than a grid — the column is narrow enough
+ * that two across would squeeze every blurb into a paragraph of its own. The
+ * whole tile lifts and glows under the cursor, which needs no javascript: with
+ * four of them stacked, "which one am I on" should read from the corner of the
+ * eye.
  */
-
-function Emblem({ game }: { game: Game }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-2xl ${game.accent}`}
-    >
-      {game.emblem}
-    </span>
-  );
-}
 
 function Meta({ game }: { game: Game }) {
   return (
@@ -31,12 +28,20 @@ function Meta({ game }: { game: Game }) {
 
 function LiveTile({ game }: { game: Game }) {
   return (
-    <div className="flex flex-col rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-5">
+    // The whole tile is the link, and the whole tile is what lights up: gold
+    // glow, gold border, a small lift. A button inside a card that is itself
+    // about one game gives two targets for one intent.
+    <Link
+      href={`/games/${game.slug}`}
+      className="group flex flex-col rounded-2xl border border-slate-800 bg-slate-900/80 p-4 transition duration-200 hover:-translate-y-0.5 hover:border-amber-400/60 hover:bg-amber-500/[0.06] hover:shadow-[0_0_34px_-6px_rgba(255,194,51,0.4)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 motion-reduce:transform-none sm:p-5"
+    >
       <div className="flex items-start gap-3">
-        <Emblem game={game} />
+        <GameEmblem game={game} className="group-hover:scale-110" />
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-lg font-semibold text-white">{game.name}</h3>
+            <h3 className="text-lg font-semibold text-white transition group-hover:text-amber-300">
+              {game.name}
+            </h3>
             <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-300">
               Playable
             </span>
@@ -48,25 +53,26 @@ function LiveTile({ game }: { game: Game }) {
       <p className="mt-3 text-sm text-slate-400">{game.blurb}</p>
       <Meta game={game} />
 
-      {/* The tile only opens the game. Its rules and its rooms live on the
-          game's own page, because both mean something different per game. */}
-      <div className="mt-4">
-        <Link
-          href={`/games/${game.slug}`}
-          className="inline-block rounded-lg bg-amber-500 px-4 py-2 font-medium text-slate-950 transition hover:bg-amber-400"
-        >
-          Play {game.name}
-        </Link>
-      </div>
-    </div>
+      {/* Says where the tile goes, without being the only thing that goes
+          there. Rules and rooms live on that page: both mean something
+          different per game. */}
+      <p className="mt-4 text-sm font-medium text-amber-300 transition group-hover:text-amber-200">
+        Play now — rules and rooms inside{' '}
+        <span className="inline-block transition-transform duration-200 group-hover:translate-x-1 motion-reduce:transform-none">
+          →
+        </span>
+      </p>
+    </Link>
   );
 }
 
 function SoonTile({ game }: { game: Game }) {
   return (
-    <div className="flex flex-col rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 p-4 sm:p-5">
+    // Lights too, so the board feels alive under the cursor — but in violet
+    // rather than gold, and without the lift, so it never promises a click.
+    <div className="group flex flex-col rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 p-4 transition duration-200 hover:border-slate-700 hover:bg-slate-900/70 hover:shadow-[0_0_28px_-10px_rgba(173,152,205,0.45)] sm:p-5">
       <div className="flex items-start gap-3">
-        <Emblem game={game} />
+        <GameEmblem game={game} className="group-hover:scale-110" />
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-lg font-semibold text-slate-200">{game.name}</h3>
@@ -87,14 +93,9 @@ function SoonTile({ game }: { game: Game }) {
 export function GameGrid() {
   return (
     <section>
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-xl font-semibold text-white">Games</h2>
-        <p className="text-sm text-slate-400">
-          One level across all of them — every game you play feeds the same record.
-        </p>
-      </div>
+      <h2 className="text-xl font-semibold text-white">Games</h2>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <div className="mt-4 space-y-4">
         {GAMES.map((game) =>
           game.status === 'live' ? (
             <LiveTile key={game.id} game={game} />

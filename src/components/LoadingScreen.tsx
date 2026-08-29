@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 const SUITS = [
   { symbol: "♠", className: "text-slate-200" },
   { symbol: "♥", className: "text-rose-500" },
@@ -24,6 +26,17 @@ export function LoadingScreen({
         fullScreen ? "min-h-screen" : "min-h-[280px] w-full rounded-2xl"
       }`}
     >
+      {fullScreen ? (
+        <Image
+          src="/logo.png"
+          alt=""
+          width={1312}
+          height={1199}
+          priority
+          className="h-40 w-auto object-contain sm:h-52"
+        />
+      ) : null}
+
       {fullScreen ? (
         <div className="flex items-center justify-center gap-2 select-none">
           <span className="text-3xl font-black uppercase tracking-[0.15em] text-white sm:text-4xl">

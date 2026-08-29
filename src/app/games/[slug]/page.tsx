@@ -3,7 +3,9 @@ import { getServerSession } from 'next-auth';
 import { notFound, redirect } from 'next/navigation';
 import { CreateRoomButton } from '@/components/CreateRoomButton';
 import { DeleteRoomButton } from '@/components/DeleteRoomButton';
+import { GameEmblem } from '@/components/GameEmblem';
 import { GameInstructions } from '@/components/GameInstructions';
+import { BrandMark } from '@/components/Logo';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { gameBySlug } from '@/lib/games';
@@ -46,14 +48,19 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
     <main className="min-h-screen bg-slate-950 px-3 py-6 text-slate-100 sm:px-6 sm:py-12">
       <div className="mx-auto flex max-w-5xl flex-col gap-6 sm:gap-8">
         <header className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-center justify-between gap-4">
+            <BrandMark className="-my-3 -ml-2 h-20 w-auto" />
+            <Link
+              href="/dashboard"
+              className="rounded-lg border border-slate-700 px-4 py-2 font-medium transition hover:bg-slate-800"
+            >
+              All games
+            </Link>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-start gap-4">
-              <span
-                aria-hidden="true"
-                className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-3xl ${game.accent}`}
-              >
-                {game.emblem}
-              </span>
+              <GameEmblem game={game} size="lg" />
               <div>
                 <h1 className="text-3xl font-semibold text-white">{game.name}</h1>
                 <p className="text-sm text-amber-300">{game.tagline}</p>
@@ -63,12 +70,6 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
                 </p>
               </div>
             </div>
-            <Link
-              href="/dashboard"
-              className="rounded-lg border border-slate-700 px-4 py-2 font-medium transition hover:bg-slate-800"
-            >
-              All games
-            </Link>
           </div>
 
           <p className="mt-4 max-w-2xl text-sm text-slate-400">{game.blurb}</p>

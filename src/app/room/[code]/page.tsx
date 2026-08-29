@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { LogoMark } from "@/components/Logo";
 import { SocketRoomClient } from "@/components/SocketRoomClient";
 import { titleLabelById } from "@/lib/titles";
 
@@ -64,15 +65,10 @@ export default async function RoomPage({
           {/* Center */}
           <Link
             href="/"
-            className="flex items-center justify-center gap-2 text-center select-none"
+            className="group flex items-center justify-center select-none"
+            aria-label="Dehel Pakad — home"
           >
-            <span className="text-3xl font-black uppercase tracking-[0.15em] text-white sm:text-4xl lg:text-5xl">
-              Dehel
-            </span>
-
-            <span className="text-4xl font-black tracking-normal text-amber-400 drop-shadow-[0_0_15px_rgba(251,191,36,0.5)] sm:text-5xl lg:text-6xl">
-              पकड़
-            </span>
+            <LogoMark className="-my-4 h-24 w-auto transition duration-200 group-hover:scale-105 sm:h-28 lg:h-32" />
           </Link>
 
           {/* Right */}

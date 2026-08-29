@@ -87,7 +87,7 @@ export function RecordCard({
         </p>
       ) : (
         <>
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="mt-4 grid grid-cols-2 gap-3">
             <Stat label="Played" value={stats.played} />
             <Stat label="Won" value={stats.won} hint={`${stats.winRate}% win rate`} />
             <Stat label="10s" value={stats.tensCaptured} />
