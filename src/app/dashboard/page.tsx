@@ -6,14 +6,14 @@ import { CreateRoomButton } from '@/components/CreateRoomButton';
 import { DeleteRoomButton } from '@/components/DeleteRoomButton';
 import { GameInstructions } from '@/components/GameInstructions';
 import { ProgressWatch } from '@/components/ProgressCelebration';
-import { RecordCard, WeeklyTopFive } from '@/components/StatsPanels';
+import { RecordCard, TopPlayers } from '@/components/StatsPanels';
 import { UsernameEditor } from '@/components/UsernameEditor';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { weekOf } from '@/lib/challenges';
 import { snapshotFrom } from '@/lib/progress-feed';
 import { earnedTitles, titleLabel } from '@/lib/titles';
-import { getPlayerStats, getWeeklyLeaderboard } from '@/lib/stats';
+import { getPlayerStats, getXpLeaderboard } from '@/lib/stats';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -40,9 +40,9 @@ export default async function DashboardPage() {
 //   const rooms = user?.rooms ?? [];
 const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
   const accountName = user?.name ?? session.user.name ?? 'player';
-  const [record, weekly] = await Promise.all([
+  const [record, top] = await Promise.all([
     user ? getPlayerStats(user.id) : null,
-    getWeeklyLeaderboard(5),
+    getXpLeaderboard(5),
   ]);
   // Built from the stats already loaded, so the celebration costs no extra query.
   const snapshot = record
@@ -100,7 +100,7 @@ const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
           </div>
 
           <div className="flex flex-col gap-6">
-            <WeeklyTopFive rows={weekly} meId={user?.id ?? ''} />
+            <TopPlayers rows={top} meId={user?.id ?? ''} />
 
             <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
               <h2 className="text-xl font-semibold text-white">Recent rooms</h2>

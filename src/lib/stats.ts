@@ -71,51 +71,87 @@ function progressFor(matches: PlayedMatch[]): PlayerStats {
   };
 }
 
-async function playedMatches(userId: string): Promise<PlayedMatch[]> {
-  const seats = await prisma.matchPlayer.findMany({
-    where: { userId, match: { status: 'FINISHED' } },
+/**
+ * Everything a stats calculation needs from one seat in one match. Shared, so
+ * the career query and the XP board can never end up reading a different match
+ * from each other.
+ */
+const MATCH_SELECT = {
+  seat: true,
+  team: true,
+  match: {
     select: {
-      seat: true,
-      team: true,
-      match: {
+      id: true,
+      finishedAt: true,
+      winnerTeam: true,
+      capturedTensA: true,
+      capturedTensB: true,
+      handsWonA: true,
+      handsWonB: true,
+      hadBots: true,
+      seriesId: true,
+      seriesTarget: true,
+      seats: {
         select: {
-          id: true,
-          finishedAt: true,
-          winnerTeam: true,
-          capturedTensA: true,
-          capturedTensB: true,
-          handsWonA: true,
-          handsWonB: true,
-          hadBots: true,
-          seriesId: true,
-          seriesTarget: true,
-          seats: {
-            select: {
-              userId: true,
-              seat: true,
-              team: true,
-              user: { select: { username: true, name: true, avatar: true } },
-            },
-          },
-          tricks: {
-            select: {
-              trickNumber: true,
-              seats: true,
-              cards: true,
-              leadSuit: true,
-              winnerSeat: true,
-              winnerTeam: true,
-              tensWon: true,
-              fixedTrump: true,
-            },
-            orderBy: { trickNumber: 'asc' },
-          },
+          userId: true,
+          seat: true,
+          team: true,
+          user: { select: { username: true, name: true, avatar: true } },
         },
       },
+      tricks: {
+        select: {
+          trickNumber: true,
+          seats: true,
+          cards: true,
+          leadSuit: true,
+          winnerSeat: true,
+          winnerTeam: true,
+          tensWon: true,
+          fixedTrump: true,
+        },
+        orderBy: { trickNumber: 'asc' },
+      },
     },
-  });
+  },
+} as const;
 
-  return seats.map(({ seat, team, match }) => ({
+/** One row of the match record, seen from the seat that played it. */
+type SeatRow = {
+  seat: number;
+  team: string;
+  match: {
+    id: string;
+    finishedAt: Date | null;
+    winnerTeam: string | null;
+    capturedTensA: number;
+    capturedTensB: number;
+    handsWonA: number;
+    handsWonB: number;
+    hadBots: boolean;
+    seriesId: string | null;
+    seriesTarget: number | null;
+    seats: Array<{
+      userId: string;
+      seat: number;
+      team: string;
+      user: { username: string | null; name: string | null; avatar: string | null } | null;
+    }>;
+    tricks: Array<{
+      trickNumber: number;
+      seats: number[];
+      cards: string[];
+      leadSuit: string;
+      winnerSeat: number;
+      winnerTeam: string;
+      tensWon: number;
+      fixedTrump: boolean;
+    }>;
+  };
+};
+
+function toPlayedMatch(userId: string, { seat, team, match }: SeatRow): PlayedMatch {
+  return {
     id: match.id,
     finishedAt: match.finishedAt,
     // A finished match always has a winner recorded; treat anything else as a draw.
@@ -139,7 +175,15 @@ async function playedMatches(userId: string): Promise<PlayedMatch[]> {
         team: other.team as TeamId,
       })),
     tricks: match.tricks,
-  }));
+  };
+}
+
+async function playedMatches(userId: string): Promise<PlayedMatch[]> {
+  const seats = await prisma.matchPlayer.findMany({
+    where: { userId, match: { status: 'FINISHED' } },
+    select: MATCH_SELECT,
+  });
+  return seats.map((row) => toPlayedMatch(userId, row));
 }
 
 export async function getPlayerStats(userId: string): Promise<PlayerStats> {
@@ -234,5 +278,65 @@ async function leaderboard(limit: number, since?: Date): Promise<LeaderboardRow[
 
   return [...byUser.values()]
     .sort((a, b) => b.won - a.won || b.winRate - a.winRate || b.played - a.played)
+    .slice(0, limit);
+}
+
+export interface XpRow {
+  userId: string;
+  name: string;
+  avatar: string | null;
+  level: number;
+  totalXp: number;
+  band: string;
+  played: number;
+}
+
+/**
+ * Who is furthest along, across everyone who has played here.
+ *
+ * Ranked on XP rather than wins, because XP is the one number every game will
+ * feed — a board built on wins would have to be rebuilt the moment a second
+ * game arrives. Matches against bots are included at the half rate they already
+ * pay, so a player's position agrees with the level on their own card.
+ */
+export async function getXpLeaderboard(limit = 5): Promise<XpRow[]> {
+  return safely('Reading the XP board', [], () => xpLeaderboard(limit));
+}
+
+async function xpLeaderboard(limit: number): Promise<XpRow[]> {
+  // Every finished seat in one read, then grouped in memory: a level counts
+  // feats and challenges off the trick log, so there is no aggregate that could
+  // answer this in SQL. Fine at this size, and the alternative is one full
+  // stats query per player.
+  const seats = await prisma.matchPlayer.findMany({
+    where: { match: { status: 'FINISHED' } },
+    select: { ...MATCH_SELECT, userId: true, user: { select: { username: true, name: true, avatar: true } } },
+  });
+
+  const byUser = new Map<string, { name: string; avatar: string | null; matches: PlayedMatch[] }>();
+  for (const seat of seats) {
+    const player = byUser.get(seat.userId) ?? {
+      name: displayName(seat.user),
+      avatar: seat.user?.avatar ?? null,
+      matches: [],
+    };
+    player.matches.push(toPlayedMatch(seat.userId, seat));
+    byUser.set(seat.userId, player);
+  }
+
+  return [...byUser.entries()]
+    .map(([userId, player]) => {
+      const level = levelFromXp(totalXpFor(player.matches));
+      return {
+        userId,
+        name: player.name,
+        avatar: player.avatar,
+        level: level.level,
+        totalXp: level.totalXp,
+        band: bandForLevel(level.level).name,
+        played: player.matches.length,
+      };
+    })
+    .sort((a, b) => b.totalXp - a.totalXp || b.played - a.played)
     .slice(0, limit);
 }
