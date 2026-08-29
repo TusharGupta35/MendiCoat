@@ -312,7 +312,12 @@ function LeaderRow({
 
 export function Leaderboard({ rows, meId }: { rows: LeaderboardRow[]; meId: string }) {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
+    // Named so the dashboard's weekly card can link straight at it; the margin
+    // stops the heading from landing flush against the top of the window.
+    <div
+      id="leaderboard"
+      className="scroll-mt-6 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6"
+    >
       <h2 className="text-xl font-semibold text-white">Leaderboard</h2>
       <p className="mt-1 text-sm text-slate-400">Matches against bots do not count.</p>
       {rows.length === 0 ? (
@@ -340,7 +345,10 @@ export function WeeklyTopFive({ rows, meId }: { rows: LeaderboardRow[]; meId: st
     <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-xl font-semibold text-white">This week</h2>
-        <Link href="/stats" className="text-sm font-medium text-amber-300 transition hover:text-amber-200">
+        <Link
+          href="/stats#leaderboard"
+          className="text-sm font-medium text-amber-300 transition hover:text-amber-200"
+        >
           All time →
         </Link>
       </div>
