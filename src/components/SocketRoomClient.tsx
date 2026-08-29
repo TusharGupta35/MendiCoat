@@ -49,6 +49,13 @@ type SeriesPayload = {
   best: { seat: number; name: string; tricks: number; tens: number } | null;
 };
 
+/**
+ * How long the finished table stays put before the page scrolls to the summary.
+ * The final trick's face-up hold and sweep run to about 1.8s, so this sits just
+ * past them: the trick lands, then the page moves.
+ */
+const END_OF_MATCH_PAUSE_MS = 2200;
+
 const SUIT_SYMBOL: Record<Suit, string> = {
   SPADES: "♠",
   HEARTS: "♥",
@@ -98,7 +105,6 @@ export function SocketRoomClient({
   const [isDealing, setIsDealing] = useState(false);
   // The reaction floating over each seat, if any, keyed by seat.
   const [emotes, setEmotes] = useState<Record<number, { emoji: string; at: number }>>({});
-  const [botLevel, setBotLevel] = useState<"easy" | "normal" | "hard">("normal");
   const [seat, setSeat] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
@@ -299,7 +305,6 @@ export function SocketRoomClient({
         thoughtTimeout.current = setTimeout(() => setVisibleThought(null), 4000);
       },
     );
-    client.on("bot-level", (payload: "easy" | "normal" | "hard") => setBotLevel(payload));
 
     return () => {
       client.disconnect();
@@ -455,6 +460,38 @@ export function SocketRoomClient({
     setSweepOffsets(offsets);
   }, [collectedBy, presentedTrick?.trickNumber]);
 
+  // Where the eye should be at each point in a match. On a phone the board and
+  // the result are far apart in one long column, and players were finishing a
+  // hand without ever seeing how it ended.
+  const boardRef = useRef<HTMLElement | null>(null);
+  const outcomeRef = useRef<HTMLDivElement | null>(null);
+  const matchStatus = gameState?.status ?? null;
+
+  useEffect(() => {
+    // A starting match hides the whole room behind "Dealing the cards…" for two
+    // seconds, so the table does not exist to scroll to yet. Waiting for that
+    // to clear is what makes the jump to the table land at all.
+    if (enteringGame) return;
+    const target =
+      matchStatus === "PLAYING"
+        ? boardRef.current
+        : matchStatus === "FINISHED"
+          ? outcomeRef.current
+          : null;
+    if (!target) return;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // A match ends on the last card of the last trick, which is still being
+    // held face up and swept to the winner. Scrolling immediately would pull
+    // the table away mid-sweep, so the end of a match gets a beat to be
+    // watched before the page moves on to what it meant. A match starting has
+    // nothing to watch yet, so that one jumps at once.
+    const pause = matchStatus === "FINISHED" ? END_OF_MATCH_PAUSE_MS : 0;
+    const timer = setTimeout(() => {
+      target.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
+    }, pause);
+    return () => clearTimeout(timer);
+  }, [matchStatus, enteringGame]);
+
   const openSeats = roomPlayers.filter((entry) => entry === null).length;
   const isTeamFull = (team: TeamId) =>
     (team === "A" ? [0, 2] : [1, 3]).every((teamSeat) => roomPlayers[teamSeat]);
@@ -485,13 +522,6 @@ export function SocketRoomClient({
 
   function sendEmote(emoji: string) {
     socket?.emit("send-thought", { roomCode, message: emoji }, () => {});
-  }
-
-  function setBots(level: "easy" | "normal" | "hard") {
-    setError(null);
-    socket?.emit("set-bot-level", { roomCode, level }, (result: { error?: string }) => {
-      if (result?.error) setError(result.error);
-    });
   }
 
   function startNewSeries() {
@@ -740,18 +770,23 @@ export function SocketRoomClient({
                       </p>
                     ) : null}
                   </div>
-                  <button
-                    type="button"
-                    onClick={startNewSeries}
-                    disabled={seat === null || matchInProgress}
-                    className="rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-semibold text-amber-950 transition disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    New series
-                  </button>
+                  {/* While the summary is on screen the same two choices sit
+                      with it, and one decision should not have two homes. */}
+                  {matchStatus === "FINISHED" ? null : (
+                    <button
+                      type="button"
+                      onClick={startNewSeries}
+                      disabled={seat === null || matchInProgress}
+                      className="rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-semibold text-amber-950 transition disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      New series
+                    </button>
+                  )}
                 </div>
                 {/* Extending keeps this score and plays on to a longer target,
                     so only targets the leader has not already passed appear. */}
-                {[1, 2, 3, 4].some((target) => target > seriesLeader) ? (
+                {matchStatus !== "FINISHED" &&
+                [1, 2, 3, 4].some((target) => target > seriesLeader) ? (
                   <div className="flex flex-wrap items-center gap-2 border-t border-amber-400/20 pt-2">
                     <span className="text-xs uppercase tracking-wide text-amber-200/70">
                       Or play on, best of
@@ -771,6 +806,11 @@ export function SocketRoomClient({
                         </button>
                       ))}
                   </div>
+                ) : null}
+                {matchStatus === "FINISHED" ? (
+                  <p className="border-t border-amber-400/20 pt-2 text-xs text-amber-200/70">
+                    New series or extend it — with the match summary below.
+                  </p>
                 ) : null}
               </div>
             ) : seriesUnderway ? (
@@ -808,27 +848,6 @@ export function SocketRoomClient({
               </div>
             )}
 
-            {roomPlayers.some((player) => player?.isBot) ? (
-              <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-slate-800 pt-2">
-                <span className="text-xs uppercase tracking-wide text-slate-500">Bots</span>
-                {(["easy", "normal", "hard"] as const).map((level) => (
-                  <button
-                    key={level}
-                    type="button"
-                    onClick={() => setBots(level)}
-                    disabled={seat === null}
-                    aria-pressed={botLevel === level}
-                    className={`rounded-full border px-2.5 py-1 text-xs font-semibold capitalize transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                      botLevel === level
-                        ? "border-amber-400 bg-amber-400/15 text-amber-300"
-                        : "border-slate-700 text-slate-400 hover:border-slate-500"
-                    }`}
-                  >
-                    {level}
-                  </button>
-                ))}
-              </div>
-            ) : null}
             {matchHistory.length > 0 ? (
               <ol className="mt-3 space-y-1.5">
                 {matchHistory
@@ -956,7 +975,10 @@ export function SocketRoomClient({
       </div>
 
       {gameState ? (
-        <section className="active-game-panel space-y-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+        <section
+          ref={boardRef}
+          className="active-game-panel space-y-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4"
+        >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm uppercase tracking-[0.3em] text-amber-400">
               Game started
@@ -1190,7 +1212,7 @@ export function SocketRoomClient({
                 ))}
               </div>
               {gameState.status === "FINISHED" ? (
-                <div className="space-y-3">
+                <div ref={outcomeRef} className="scroll-mt-4 space-y-3">
                   <p className="rounded-lg border border-amber-400/50 bg-amber-400/10 py-3 text-center text-xl font-semibold text-white">
                     {gameState.winnerTeam === "DRAW"
                       ? "The match is a draw."
@@ -1322,17 +1344,89 @@ export function SocketRoomClient({
                     </div>
                   ) : null}
 
-                  {seat !== null && !roomPlayers[seat]?.isBot ? (
-                    <div className="text-center">
-                      <button
-                        type="button"
-                        onClick={restartGame}
-                        className="rounded-lg bg-amber-400 px-4 py-2 font-medium text-amber-950"
-                      >
-                        Play again
-                      </button>
+                  {/* The series stands with the summary, not in a panel above
+                      the board: at the end of a match this is the one place
+                      anybody looks, and what happens next is decided here.
+
+                      Which is also why "Play again" disappears once a series is
+                      won. Restarting was the only button on offer, so tables
+                      kept playing match after match while the series sat
+                      finished and unclaimed behind them. */}
+                  <div className="rounded-lg border border-amber-400/40 bg-amber-500/10 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-amber-300">
+                        {seriesWinner ? "Series won" : "Series"} · first to {series.target}
+                      </p>
+                      <p className="text-sm font-semibold tabular-nums text-amber-100">
+                        Team A {seriesScore.A} – {seriesScore.B} Team B
+                        {seriesScore.DRAW > 0 ? (
+                          <span className="ml-2 text-xs font-normal text-amber-200/60">
+                            {seriesScore.DRAW} drawn
+                          </span>
+                        ) : null}
+                      </p>
                     </div>
-                  ) : null}
+
+                    {seriesWinner ? (
+                      <p className="mt-2 text-sm font-semibold text-amber-200">
+                        Team {seriesWinner} takes the series {seriesScore[seriesWinner]}–
+                        {seriesScore[seriesWinner === "A" ? "B" : "A"]}
+                      </p>
+                    ) : null}
+
+                    {seriesWinner && series.best ? (
+                      <p className="mt-0.5 text-xs text-amber-200/80">
+                        🏆 Best of the series:{" "}
+                        <span className="font-semibold text-amber-100">{series.best.name}</span> —{" "}
+                        {series.best.tricks} tricks and {series.best.tens} 10s
+                      </p>
+                    ) : null}
+
+                    {seat !== null && !roomPlayers[seat]?.isBot ? (
+                      seriesWinner ? (
+                        <div className="mt-3 space-y-2">
+                          <button
+                            type="button"
+                            onClick={startNewSeries}
+                            className="w-full rounded-lg bg-amber-400 px-4 py-2 font-medium text-amber-950 transition hover:bg-amber-300 sm:w-auto"
+                          >
+                            Start a new series
+                          </button>
+                          {/* Extending keeps this score and plays on to a longer
+                              target, so only targets the leader has not already
+                              passed are offered. */}
+                          {[1, 2, 3, 4].some((target) => target > seriesLeader) ? (
+                            <div className="flex flex-wrap items-center gap-2 border-t border-amber-400/20 pt-2">
+                              <span className="text-xs uppercase tracking-wide text-amber-200/70">
+                                Or extend it, best of
+                              </span>
+                              {[1, 2, 3, 4]
+                                .filter((target) => target > seriesLeader)
+                                .map((target) => (
+                                  <button
+                                    key={target}
+                                    type="button"
+                                    onClick={() => setSeriesTarget(target)}
+                                    title={`Keep this score and play on to ${target} wins`}
+                                    className="rounded-full border border-amber-400/50 px-2.5 py-1 text-xs font-semibold text-amber-200 transition hover:bg-amber-400/10"
+                                  >
+                                    {target * 2 - 1}
+                                  </button>
+                                ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={restartGame}
+                          className="mt-3 w-full rounded-lg bg-amber-400 px-4 py-2 font-medium text-amber-950 transition hover:bg-amber-300 sm:w-auto"
+                        >
+                          Play the next match
+                        </button>
+                      )
+                    ) : null}
+                  </div>
                 </div>
               ) : null}
             </div>

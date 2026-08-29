@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Server } from 'socket.io';
-import { chooseBotCard, isBotLevel, type BotLevel } from '@/game-engine/bot';
+import { chooseBotCard } from '@/game-engine/bot';
 import { createInitialGameState, validateMove, applyMove } from '@/game-engine/mendi-coat';
 import type { Card, GameState, MatchResult, SeatIndex, Suit } from '@/types/game';
 import { buildMatchSummary, type MatchSummary } from '@/lib/match-summary';
@@ -18,8 +18,6 @@ interface RoomState {
    * never rewritten.
    */
   series: SeriesState;
-  /** How hard the bots in this room play. */
-  botLevel: BotLevel;
   /**
    * Tricks and 10s each seat has taken since the series began, so the room can
    * name a best player of the series without re-reading every match.
@@ -223,7 +221,6 @@ function emitState(io: Server, room: RoomState) {
   });
   io.to(room.roomCode).emit('match-history', room.matchHistory);
   io.to(room.roomCode).emit('series', seriesPayload(room));
-  io.to(room.roomCode).emit('bot-level', room.botLevel);
   if (room.summary) io.to(room.roomCode).emit('match-summary', room.summary);
   if (room.gameState) io.to(room.roomCode).emit('game-state-update', room.gameState);
 }
@@ -313,7 +310,7 @@ function advanceBots(io: Server, roomCode: string, delayMs = 700) {
 
     const seat = room.gameState.currentTurn;
     if (!isBotSeat(room, seat)) return;
-    const card = chooseBotCard(room.gameState, seat, room.botLevel);
+    const card = chooseBotCard(room.gameState, seat);
     if (!card) return;
 
     const completedTrick = room.gameState.trickCards.length === 3;
@@ -348,7 +345,6 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       });
       socket.emit('match-history', room.matchHistory);
       socket.emit('series', seriesPayload(room));
-      socket.emit('bot-level', room.botLevel);
       if (room.summary) socket.emit('match-summary', room.summary);
       if (room.gameState) socket.emit('game-state-update', room.gameState);
     });
@@ -369,7 +365,7 @@ export function createSocketServer(httpServer: import('node:http').Server) {
     });
 
     socket.on('join-room', ({ roomCode, playerId, playerName, playerAvatar, playerTitle, team }: { roomCode: string; playerId: string; playerName: string; playerAvatar?: string | null; playerTitle?: string | null; team: TeamId }) => {
-      const room = rooms.get(roomCode) ?? { roomCode, players: Array.from<RoomPlayer | undefined>({ length: 4 }), matchHistory: [], trickLog: [], series: newSeries(), seriesTallies: emptyTallies(), botLevel: 'normal' };
+      const room = rooms.get(roomCode) ?? { roomCode, players: Array.from<RoomPlayer | undefined>({ length: 4 }), matchHistory: [], trickLog: [], series: newSeries(), seriesTallies: emptyTallies() };
       const existingSeat = room.players.findIndex((player) => player?.id === playerId);
       const seat = existingSeat === -1 ? getAvailableSeat(room, team) : existingSeat as SeatIndex;
       if (seat === undefined) {
@@ -521,6 +517,17 @@ export function createSocketServer(httpServer: import('node:http').Server) {
         return;
       }
 
+      // A decided series has to be closed off before more matches are played.
+      // Without this, a table that keeps hitting "play again" runs match after
+      // match while the series it already won sits there, never extended and
+      // never restarted — every result after the clinch counts for nothing.
+      if (seriesStanding(room).decided) {
+        callback?.({
+          error: 'This series is finished. Start a new one, or extend it to a longer target.',
+        });
+        return;
+      }
+
       beginMatch(io, room, roomCode);
       callback?.({});
     });
@@ -578,27 +585,6 @@ export function createSocketServer(httpServer: import('node:http').Server) {
 
       room.series = newSeries(room.series.target, room.matchHistory.length);
       room.seriesTallies = emptyTallies();
-      rooms.set(roomCode, room);
-      emitState(io, room);
-      callback?.({});
-    });
-
-    socket.on('set-bot-level', ({ roomCode, level }: { roomCode: string; level: string }, callback?: (result: { error?: string }) => void) => {
-      const room = rooms.get(roomCode);
-      const seat = socket.data.seat as SeatIndex | undefined;
-      if (!room || socket.data.roomCode !== roomCode || seat === undefined || isBotSeat(room, seat)) {
-        callback?.({ error: 'Take a seat before changing the bots.' });
-        return;
-      }
-      if (!isBotLevel(level)) {
-        callback?.({ error: 'Pick easy, normal or hard.' });
-        return;
-      }
-
-      // Allowed mid-match: it only changes how the next card is chosen, and
-      // waiting for the match to end would be a strange restriction on a
-      // practice game.
-      room.botLevel = level;
       rooms.set(roomCode, room);
       emitState(io, room);
       callback?.({});
