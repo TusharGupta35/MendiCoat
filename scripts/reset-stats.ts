@@ -68,3 +68,4 @@ console.log('After:', after);
 console.log('\nEvery player is back to level 1. Rooms and accounts are untouched.');
 
 await prisma.$disconnect();
+// RESET_STATS=yes-wipe-everything npx tsx scripts/reset-stats.ts

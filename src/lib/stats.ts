@@ -48,6 +48,10 @@ async function safely<T>(what: string, fallback: T, run: () => Promise<T>): Prom
 const displayName = (user: { username: string | null; name: string | null } | null) =>
   user?.username ?? user?.name ?? 'player';
 
+/** The later of two moments, either of which may be missing. */
+const newest = (a: Date | null, b: Date | null) =>
+  !a ? b : !b ? a : a.getTime() >= b.getTime() ? a : b;
+
 export interface PlayerStats {
   stats: CareerStats;
   level: Level;
@@ -219,6 +223,8 @@ export interface LeaderboardRow {
   played: number;
   won: number;
   winRate: number;
+  /** When they last finished a match — the only activity the app records. */
+  lastPlayed: Date | null;
 }
 
 /**
@@ -257,6 +263,7 @@ async function leaderboard(limit: number, since?: Date): Promise<LeaderboardRow[
       userId: true,
       won: true,
       user: { select: { username: true, name: true, avatar: true } },
+      match: { select: { finishedAt: true } },
     },
   });
 
@@ -269,10 +276,12 @@ async function leaderboard(limit: number, since?: Date): Promise<LeaderboardRow[
       played: 0,
       won: 0,
       winRate: 0,
+      lastPlayed: null as Date | null,
     };
     row.played += 1;
     if (seat.won) row.won += 1;
     row.winRate = Math.round((row.won / row.played) * 100);
+    row.lastPlayed = newest(row.lastPlayed, seat.match.finishedAt);
     byUser.set(seat.userId, row);
   }
 
@@ -289,6 +298,8 @@ export interface XpRow {
   totalXp: number;
   band: string;
   played: number;
+  /** When they last finished a match — the only activity the app records. */
+  lastPlayed: Date | null;
 }
 
 /**
@@ -335,6 +346,10 @@ async function xpLeaderboard(limit: number): Promise<XpRow[]> {
         totalXp: level.totalXp,
         band: bandForLevel(level.level).name,
         played: player.matches.length,
+        lastPlayed: player.matches.reduce<Date | null>(
+          (latest, match) => newest(latest, match.finishedAt),
+          null,
+        ),
       };
     })
     .sort((a, b) => b.totalXp - a.totalXp || b.played - a.played)
