@@ -72,6 +72,9 @@ const trick: TrickLogEntry = {
   trumpSuit: 'HEARTS',
 };
 
+/** Every match belongs to a series; best of 5 is a target of 3. */
+const series = { id: 'series-1', target: 3 };
+
 beforeEach(() => {
   calls.rooms.length = 0;
   calls.created.length = 0;
@@ -82,7 +85,7 @@ beforeEach(() => {
 
 describe('openMatch', () => {
   it('opens a pending match with a row for every human seat', async () => {
-    const matchId = await openMatch('AB12', allHuman, finishedState());
+    const matchId = await openMatch('AB12', allHuman, finishedState(), series);
 
     expect(matchId).toBe('match-1');
     expect(calls.created).toHaveLength(1);
@@ -91,6 +94,10 @@ describe('openMatch', () => {
       hostId: 'host-user',
       status: 'PENDING',
       hadBots: false,
+      // Stamped at the deal: the room's series is in memory only, so a match
+      // that does not carry it can never be put back into one.
+      seriesId: 'series-1',
+      seriesTarget: 3,
     });
     // Seats 1 and 3 are Team A; nobody has won anything yet.
     expect((calls.created[0].seats as { create: unknown[] }).create).toEqual([
@@ -102,7 +109,12 @@ describe('openMatch', () => {
   });
 
   it('skips bot seats, flags the match, and never connects a bot as a user', async () => {
-    await openMatch('AB12', [human('u1'), bot('bot-1'), bot('bot-2'), human('u4')], finishedState());
+    await openMatch(
+      'AB12',
+      [human('u1'), bot('bot-1'), bot('bot-2'), human('u4')],
+      finishedState(),
+      series,
+    );
 
     expect(calls.created[0].hadBots).toBe(true);
     expect((calls.created[0].seats as { create: Array<{ userId: string }> }).create).toEqual([
@@ -117,14 +129,14 @@ describe('openMatch', () => {
 
   it('returns nothing when the room is gone', async () => {
     state.roomExists = false;
-    expect(await openMatch('AB12', allHuman, finishedState())).toBeUndefined();
+    expect(await openMatch('AB12', allHuman, finishedState(), series)).toBeUndefined();
     expect(calls.created).toHaveLength(0);
   });
 });
 
 describe('closeMatch', () => {
   it('writes the final score and the trick log onto the open match', async () => {
-    await closeMatch('match-1', 'AB12', allHuman, finishedState(), [trick]);
+    await closeMatch('match-1', 'AB12', allHuman, finishedState(), [trick], series);
 
     expect(calls.created).toHaveLength(0);
     expect(calls.updated).toHaveLength(1);
@@ -153,7 +165,14 @@ describe('closeMatch', () => {
   });
 
   it('marks only the winning team as having won', async () => {
-    await closeMatch('match-1', 'AB12', allHuman, finishedState({ winnerTeam: 'B' as TeamId }), []);
+    await closeMatch(
+      'match-1',
+      'AB12',
+      allHuman,
+      finishedState({ winnerTeam: 'B' as TeamId }),
+      [],
+      series,
+    );
 
     expect(calls.seatUpdates).toEqual([
       { where: { matchId: 'match-1', team: 'B' }, data: { won: true } },
@@ -161,14 +180,21 @@ describe('closeMatch', () => {
   });
 
   it('marks nobody as having won a drawn match', async () => {
-    await closeMatch('match-1', 'AB12', allHuman, finishedState({ winnerTeam: 'DRAW' }), []);
+    await closeMatch(
+      'match-1',
+      'AB12',
+      allHuman,
+      finishedState({ winnerTeam: 'DRAW' }),
+      [],
+      series,
+    );
 
     expect(calls.updated[0].data.winnerTeam).toBe('DRAW');
     expect(calls.seatUpdates).toEqual([]);
   });
 
   it('creates the match outright when opening it had failed', async () => {
-    await closeMatch(undefined, 'AB12', allHuman, finishedState(), [trick]);
+    await closeMatch(undefined, 'AB12', allHuman, finishedState(), [trick], series);
 
     expect(calls.updated).toHaveLength(0);
     expect(calls.created).toHaveLength(1);
@@ -185,7 +211,7 @@ describe('closeMatch', () => {
 
   it('gives up quietly when there is no match and no room to attach one to', async () => {
     state.roomExists = false;
-    await closeMatch(undefined, 'AB12', allHuman, finishedState(), []);
+    await closeMatch(undefined, 'AB12', allHuman, finishedState(), [], series);
     expect(calls.created).toHaveLength(0);
   });
 });

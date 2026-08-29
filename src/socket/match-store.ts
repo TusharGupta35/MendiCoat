@@ -1,5 +1,12 @@
 import type { GameState, SeatIndex, Suit, TeamId } from '@/types/game';
 
+/** The running series a match belongs to, as the room knows it. */
+export interface MatchSeries {
+  id: string;
+  /** Wins needed to take it: best of 3 is a target of 2. */
+  target: number;
+}
+
 /** The minimum a seat needs to expose for a match to be recorded. */
 export interface MatchSeat {
   /** The player's User id. Bots carry a synthetic id that is not a user. */
@@ -87,6 +94,7 @@ export async function openMatch(
   roomCode: string,
   seats: Array<MatchSeat | undefined>,
   state: GameState,
+  series: MatchSeries,
 ): Promise<string | undefined> {
   const prisma = await db();
 
@@ -105,6 +113,8 @@ export async function openMatch(
       hostId: room.hostId,
       status: 'PENDING',
       hadBots: seats.some((seat) => seat?.isBot === true),
+      seriesId: series.id,
+      seriesTarget: series.target,
       // Won is settled when the match closes; nobody has won yet.
       seats: { create: players.map((player) => ({ ...player, won: false })) },
       // Kept in step in the same write so `user.matches` stays usable without
@@ -128,6 +138,7 @@ export async function closeMatch(
   seats: Array<MatchSeat | undefined>,
   state: GameState,
   tricks: TrickLogEntry[],
+  series: MatchSeries,
 ): Promise<void> {
   const prisma = await db();
   const winnerTeam = state.winnerTeam ?? 'DRAW';
@@ -166,6 +177,8 @@ export async function closeMatch(
         roomId: room.id,
         hostId: room.hostId,
         hadBots: seats.some((seat) => seat?.isBot === true),
+        seriesId: series.id,
+        seriesTarget: series.target,
         seats: {
           create: players.map((player) => ({ ...player, won: winnerTeam === player.team })),
         },
@@ -178,7 +191,9 @@ export async function closeMatch(
 
   await prisma.match.update({
     where: { id: matchId },
-    data: { ...score, tricks: { create: trickRows } },
+    // The series target is written again because it can be raised between the
+    // deal and the last card, and the row should hold the contest as settled.
+    data: { ...score, seriesTarget: series.target, tricks: { create: trickRows } },
   });
   if (winnerTeam !== 'DRAW') {
     await prisma.matchPlayer.updateMany({

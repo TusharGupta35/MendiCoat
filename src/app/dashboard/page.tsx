@@ -6,14 +6,14 @@ import { CreateRoomButton } from '@/components/CreateRoomButton';
 import { DeleteRoomButton } from '@/components/DeleteRoomButton';
 import { GameInstructions } from '@/components/GameInstructions';
 import { ProgressWatch } from '@/components/ProgressCelebration';
-import { RecordCard } from '@/components/StatsPanels';
+import { RecordCard, WeeklyTopFive } from '@/components/StatsPanels';
 import { UsernameEditor } from '@/components/UsernameEditor';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { weekOf } from '@/lib/challenges';
 import { snapshotFrom } from '@/lib/progress-feed';
 import { earnedTitles, titleLabel } from '@/lib/titles';
-import { getPlayerStats } from '@/lib/stats';
+import { getPlayerStats, getWeeklyLeaderboard } from '@/lib/stats';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -31,7 +31,7 @@ export default async function DashboardPage() {
       include: {
         rooms: {
           orderBy: { updatedAt: 'desc' },
-          take: 8,
+          take: 5,
           select: { id: true, name: true, code: true, status: true, hostId: true },
         },
       },
@@ -40,7 +40,10 @@ export default async function DashboardPage() {
 //   const rooms = user?.rooms ?? [];
 const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
   const accountName = user?.name ?? session.user.name ?? 'player';
-  const record = user ? await getPlayerStats(user.id) : null;
+  const [record, weekly] = await Promise.all([
+    user ? getPlayerStats(user.id) : null,
+    getWeeklyLeaderboard(5),
+  ]);
   // Built from the stats already loaded, so the celebration costs no extra query.
   const snapshot = record
     ? snapshotFrom(record.level, record.milestones, record.feats, record.challenges, weekOf(new Date()))
@@ -85,9 +88,8 @@ const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
             <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
               <h2 className="text-xl font-semibold text-white">Quick start</h2>
               <p className="mt-2 text-sm text-slate-400">
-                Create a game room to invite four players. The room code will be shared with everyone in the match.
+                Create a room to get a unique 4-character code, then share it with the other three players.
               </p>
-              <p className="mt-6 text-sm text-slate-400">Create a room to receive a unique 4-character code.</p>
             </div>
 
             {record ? (
@@ -97,30 +99,34 @@ const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
             <GameInstructions />
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
-            <h2 className="text-xl font-semibold text-white">Recent rooms</h2>
-            <div className="mt-4 space-y-3">
-              {rooms.length === 0 ? <p className="text-sm text-slate-400">You have not joined any rooms yet.</p> : null}
-              {rooms.map((room: {
-                            id: string;
-                            name: string;
-                            code: string;
-                            status: string;  
-                            hostId: string; 
-                          }) => (
-                <div key={room.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/70 p-3">
-                  <div>
-                    <Link href={`/room/${room.code}`} className="font-medium text-white hover:text-amber-300">{room.name}</Link>
-                    <p className="text-sm text-slate-400">{room.code}</p>
+          <div className="flex flex-col gap-6">
+            <WeeklyTopFive rows={weekly} meId={user?.id ?? ''} />
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
+              <h2 className="text-xl font-semibold text-white">Recent rooms</h2>
+              <div className="mt-4 space-y-3">
+                {rooms.length === 0 ? <p className="text-sm text-slate-400">You have not joined any rooms yet.</p> : null}
+                {rooms.map((room: {
+                              id: string;
+                              name: string;
+                              code: string;
+                              status: string;  
+                              hostId: string; 
+                            }) => (
+                  <div key={room.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/70 p-3">
+                    <div>
+                      <Link href={`/room/${room.code}`} className="font-medium text-white hover:text-amber-300">{room.name}</Link>
+                      <p className="text-sm text-slate-400">{room.code}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="rounded-full bg-slate-800 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-300">
+                        {room.status}
+                      </span>
+                      {room.hostId === user?.id ? <DeleteRoomButton roomCode={room.code} /> : null}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="rounded-full bg-slate-800 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-300">
-                      {room.status}
-                    </span>
-                    {room.hostId === user?.id ? <DeleteRoomButton roomCode={room.code} /> : null}
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         </section>
