@@ -4,15 +4,13 @@ import type { Card, GameState, SeatIndex } from '@/types/game';
 /**
  * How a bot picks its card.
  *
- * The old bot played a random legal card, which is why a solo game felt like
- * noise. These levels play the actual game: protect 10s, feed them to a partner
- * who is winning, and win tricks with the cheapest card that does the job.
+ * There is one bot and it plays as well as it knows how. Easy and normal
+ * settings existed, and picking between them was a decision nobody wanted to
+ * make before a game — a table wants opponents worth beating, not a difficulty
+ * screen. So the bot protects its 10s, feeds them to a partner who is winning,
+ * takes tricks with the cheapest card that does the job, and spends a 10 when
+ * the trick already carries one.
  */
-export type BotLevel = 'easy' | 'normal' | 'hard';
-
-export const BOT_LEVELS: BotLevel[] = ['easy', 'normal', 'hard'];
-export const isBotLevel = (value: unknown): value is BotLevel =>
-  typeof value === 'string' && (BOT_LEVELS as string[]).includes(value);
 
 const valueOf = (card: Card) => RANK_VALUE[card.rank] ?? 0;
 const isTen = (card: Card) => card.rank === '10';
@@ -46,11 +44,7 @@ export function wouldWin(state: GameState, seat: SeatIndex, card: Card): boolean
 
 const teamOf = (seat: number) => (seat === 0 || seat === 2 ? 'A' : 'B');
 
-export function chooseBotCard(
-  state: GameState,
-  seat: SeatIndex,
-  level: BotLevel = 'normal',
-): Card | undefined {
+export function chooseBotCard(state: GameState, seat: SeatIndex): Card | undefined {
   const player = state.players.find((entry) => entry.seat === seat);
   if (!player) return undefined;
 
@@ -58,20 +52,19 @@ export function chooseBotCard(
   if (legal.length === 0) return undefined;
   if (legal.length === 1) return legal[0];
 
-  // The original bot, kept as the easy setting. Hands are suit-sorted, so a
-  // random pick also stops a leading bot opening with a spade every time.
-  if (level === 'easy') return legal[Math.floor(Math.random() * legal.length)];
-
   // ── Leading ────────────────────────────────────────────────────────────────
   if (state.trickCards.length === 0) {
     const bySuit = new Map<string, Card[]>();
     for (const card of legal) bySuit.set(card.suit, [...(bySuit.get(card.suit) ?? []), card]);
 
-    // Lead from the longest suit: the more of it held, the likelier the high
-    // card survives. Trump is kept back rather than spent leading.
+    // Lead the suit that is both long and strong: length means the high card is
+    // likelier to survive, and a high card means it is worth leading at all. A
+    // suit of five rags is a worse lead than a short suit holding the ace.
+    // Trump is kept back rather than spent leading.
+    const strength = (cards: Card[]) => valueOf(highest(cards)) + cards.length * 3;
     const suits = [...bySuit.entries()]
       .filter(([suit]) => suit !== state.trumpSuit || bySuit.size === 1)
-      .sort((a, b) => b[1].length - a[1].length);
+      .sort((a, b) => strength(b[1]) - strength(a[1]));
     const fromSuit = suits[0]?.[1] ?? legal;
     return sparing(fromSuit, highest);
   }
@@ -91,11 +84,13 @@ export function chooseBotCard(
   const winners = legal.filter((card) => wouldWin(state, seat, card));
   if (winners.length > 0) {
     // Win with the cheapest card that does it, so the big ones stay in hand.
-    // On hard, a trick already carrying a 10 is worth spending a 10 to take.
+    // With nothing else that wins, a trick already carrying a 10 is worth
+    // spending a 10 on — the 10 is going somewhere either way, and this way it
+    // comes home. A trick with no 10 in it is not.
     const affordable = winners.filter((card) => !isTen(card));
     if (affordable.length > 0) return lowest(affordable);
-    if (level === 'hard' && trickHasTen) return lowest(winners);
-    return affordable.length > 0 ? lowest(affordable) : lowest(winners);
+    if (trickHasTen) return lowest(winners);
+    return sparing(legal, lowest);
   }
 
   // Cannot win it, so lose as cheaply as possible and never donate a 10.
