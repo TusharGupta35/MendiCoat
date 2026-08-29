@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { currentChallenges, weekOf, type ChallengeState } from '@/lib/challenges';
+import { currentChallenges, weekOf, weekStart, type ChallengeState } from '@/lib/challenges';
 import { evaluateFeats, type FeatState } from '@/lib/feats';
 import { snapshotFrom, type ProgressSnapshot } from '@/lib/progress-feed';
 import {
@@ -87,6 +87,8 @@ async function playedMatches(userId: string): Promise<PlayedMatch[]> {
           handsWonA: true,
           handsWonB: true,
           hadBots: true,
+          seriesId: true,
+          seriesTarget: true,
           seats: {
             select: {
               userId: true,
@@ -123,6 +125,8 @@ async function playedMatches(userId: string): Promise<PlayedMatch[]> {
     handsWonA: match.handsWonA,
     handsWonB: match.handsWonB,
     hadBots: match.hadBots,
+    seriesId: match.seriesId,
+    seriesTarget: match.seriesTarget,
     team: team as TeamId,
     seat,
     others: match.seats
@@ -185,9 +189,26 @@ export async function getLeaderboard(limit = 10): Promise<LeaderboardRow[]> {
   return safely('Reading the leaderboard', [], () => leaderboard(limit));
 }
 
-async function leaderboard(limit: number): Promise<LeaderboardRow[]> {
+/**
+ * The same ranking over this week's matches only. The week runs Monday to
+ * Monday in UTC, the boundary the weekly challenges already use, so a player
+ * who sees their challenges reset also sees the board reset.
+ */
+export async function getWeeklyLeaderboard(limit = 5, now = new Date()): Promise<LeaderboardRow[]> {
+  return safely('Reading the weekly leaderboard', [], () =>
+    leaderboard(limit, weekStart(weekOf(now))),
+  );
+}
+
+async function leaderboard(limit: number, since?: Date): Promise<LeaderboardRow[]> {
   const seats = await prisma.matchPlayer.findMany({
-    where: { match: { status: 'FINISHED', hadBots: false } },
+    where: {
+      match: {
+        status: 'FINISHED',
+        hadBots: false,
+        ...(since ? { finishedAt: { gte: since } } : {}),
+      },
+    },
     select: {
       userId: true,
       won: true,

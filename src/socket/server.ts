@@ -1,8 +1,10 @@
+import { randomUUID } from 'node:crypto';
 import { Server } from 'socket.io';
 import { chooseBotCard, isBotLevel, type BotLevel } from '@/game-engine/bot';
 import { createInitialGameState, validateMove, applyMove } from '@/game-engine/mendi-coat';
 import type { Card, GameState, MatchResult, SeatIndex, Suit } from '@/types/game';
 import { buildMatchSummary, type MatchSummary } from '@/lib/match-summary';
+import { mvpOf, type SeatTally } from '@/lib/stats-core';
 import { closeMatch, openMatch, trickEntry, type TrickLogEntry } from '@/socket/match-store';
 
 interface RoomState {
@@ -18,6 +20,11 @@ interface RoomState {
   series: SeriesState;
   /** How hard the bots in this room play. */
   botLevel: BotLevel;
+  /**
+   * Tricks and 10s each seat has taken since the series began, so the room can
+   * name a best player of the series without re-reading every match.
+   */
+  seriesTallies: SeatTally[];
   /** Row id of the match in progress, once the database has accepted it. */
   matchId?: string;
   /** Completed tricks of the match in progress; the game state drops them. */
@@ -42,6 +49,13 @@ interface RoomState {
 type RoomStatus = 'LOBBY' | 'PLAYING';
 
 interface SeriesState {
+  /**
+   * Identity of this series, written onto every match row it contains. It is
+   * the only durable trace of a series — the standing below dies with the
+   * process — and it is what lets a best player of the series be worked out
+   * later from match history alone.
+   */
+  id: string;
   /** Wins needed to take the series: best of 3 is a target of 2. */
   target: number;
   from: number;
@@ -49,7 +63,30 @@ interface SeriesState {
 
 /** Best of 1, 3, 5 or 7 — the wins needed to clinch each. */
 const SERIES_TARGETS = [1, 2, 3, 4];
-const DEFAULT_SERIES: SeriesState = { target: 3, from: 0 };
+const newSeries = (target = 3, from = 0): SeriesState => ({ id: randomUUID(), target, from });
+
+const emptyTallies = (): SeatTally[] => [0, 1, 2, 3].map((seat) => ({ seat, tricks: 0, tens: 0 }));
+
+/**
+ * The best seat of the running series, by the same rule that names a match's
+ * MVP. Sent to the room so the recognition is visible where the series is won;
+ * the XP for it is worked out separately from the match rows.
+ */
+function seriesBest(room: RoomState) {
+  const best = mvpOf(room.seriesTallies);
+  if (!best) return null;
+  return {
+    seat: best.seat,
+    name: room.players[best.seat]?.name ?? `Seat ${best.seat + 1}`,
+    tricks: best.tricks,
+    tens: best.tens,
+  };
+}
+
+/** What the room is told about its series. The id is the server's business. */
+function seriesPayload(room: RoomState) {
+  return { target: room.series.target, from: room.series.from, best: seriesBest(room) };
+}
 
 /** Wins in the running series, and whether it has already been taken. */
 function seriesStanding(room: RoomState) {
@@ -168,7 +205,8 @@ function scheduleEmptyRoomReset(io: Server, room: RoomState) {
     room.trickLog = [];
     room.trumpAtTrickStart = null;
     room.summary = undefined;
-    room.series = { ...DEFAULT_SERIES };
+    room.series = newSeries();
+    room.seriesTallies = emptyTallies();
     // Match history is the room's own record, so it survives the reset.
     io.to(room.roomCode).emit('room-reset');
     emitState(io, room);
@@ -184,7 +222,7 @@ function emitState(io: Server, room: RoomState) {
     players: roomPlayersPayload(room),
   });
   io.to(room.roomCode).emit('match-history', room.matchHistory);
-  io.to(room.roomCode).emit('series', room.series);
+  io.to(room.roomCode).emit('series', seriesPayload(room));
   io.to(room.roomCode).emit('bot-level', room.botLevel);
   if (room.summary) io.to(room.roomCode).emit('match-summary', room.summary);
   if (room.gameState) io.to(room.roomCode).emit('game-state-update', room.gameState);
@@ -219,11 +257,18 @@ function commitMove(room: RoomState, seat: SeatIndex, card: Card) {
       room.trickLog,
       room.players.map((player) => player?.name),
     );
+    for (const line of room.summary.seats) {
+      const running = room.seriesTallies[line.seat];
+      if (!running) continue;
+      running.tricks += line.tricks;
+      running.tens += line.tens;
+    }
 
     // Durable copy of the result. Deliberately not awaited: a database problem
     // must never stall or fail a move that has already been applied.
     const { matchId, roomCode, players, trickLog } = room;
-    void closeMatch(matchId, roomCode, players, nextState, trickLog).catch((error: unknown) => {
+    const series = { id: room.series.id, target: room.series.target };
+    void closeMatch(matchId, roomCode, players, nextState, trickLog, series).catch((error: unknown) => {
       console.error(`Could not persist the finished match in room ${roomCode}:`, error);
     });
   }
@@ -244,7 +289,7 @@ function beginMatch(io: Server, room: RoomState, roomCode: string) {
   rooms.set(roomCode, room);
 
   const state = room.gameState;
-  void openMatch(roomCode, room.players, state)
+  void openMatch(roomCode, room.players, state, { id: room.series.id, target: room.series.target })
     .then((matchId) => {
       // Only adopt the id if this is still the same match; a rematch may have
       // started while the write was in flight.
@@ -302,7 +347,7 @@ export function createSocketServer(httpServer: import('node:http').Server) {
         players: roomPlayersPayload(room),
       });
       socket.emit('match-history', room.matchHistory);
-      socket.emit('series', room.series);
+      socket.emit('series', seriesPayload(room));
       socket.emit('bot-level', room.botLevel);
       if (room.summary) socket.emit('match-summary', room.summary);
       if (room.gameState) socket.emit('game-state-update', room.gameState);
@@ -324,7 +369,7 @@ export function createSocketServer(httpServer: import('node:http').Server) {
     });
 
     socket.on('join-room', ({ roomCode, playerId, playerName, playerAvatar, playerTitle, team }: { roomCode: string; playerId: string; playerName: string; playerAvatar?: string | null; playerTitle?: string | null; team: TeamId }) => {
-      const room = rooms.get(roomCode) ?? { roomCode, players: Array.from<RoomPlayer | undefined>({ length: 4 }), matchHistory: [], trickLog: [], series: { ...DEFAULT_SERIES }, botLevel: 'normal' };
+      const room = rooms.get(roomCode) ?? { roomCode, players: Array.from<RoomPlayer | undefined>({ length: 4 }), matchHistory: [], trickLog: [], series: newSeries(), seriesTallies: emptyTallies(), botLevel: 'normal' };
       const existingSeat = room.players.findIndex((player) => player?.id === playerId);
       const seat = existingSeat === -1 ? getAvailableSeat(room, team) : existingSeat as SeatIndex;
       if (seat === undefined) {
@@ -512,7 +557,8 @@ export function createSocketServer(httpServer: import('node:http').Server) {
         return;
       }
 
-      room.series = { target, from: room.series.from };
+      // The same contest carried on at a new length, so it keeps its id.
+      room.series = { ...room.series, target };
       rooms.set(roomCode, room);
       emitState(io, room);
       callback?.({});
@@ -530,7 +576,8 @@ export function createSocketServer(httpServer: import('node:http').Server) {
         return;
       }
 
-      room.series = { target: room.series.target, from: room.matchHistory.length };
+      room.series = newSeries(room.series.target, room.matchHistory.length);
+      room.seriesTallies = emptyTallies();
       rooms.set(roomCode, room);
       emitState(io, room);
       callback?.({});

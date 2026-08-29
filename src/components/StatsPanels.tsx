@@ -280,6 +280,36 @@ export function PartnerTable({ partners }: { partners: PartnerRecord[] }) {
   );
 }
 
+function LeaderRow({
+  row,
+  place,
+  meId,
+}: {
+  row: LeaderboardRow;
+  place: number;
+  meId: string;
+}) {
+  return (
+    <li
+      className={`flex items-center gap-3 rounded-lg p-3 ${
+        row.userId === meId ? 'bg-amber-500/10 ring-1 ring-amber-400/40' : 'bg-slate-950/70'
+      }`}
+    >
+      <span className="w-6 shrink-0 text-center text-sm font-semibold tabular-nums text-slate-500">
+        {place}
+      </span>
+      <Avatar avatar={row.avatar} userKey={row.userId} name={row.name} className="h-8 w-8" />
+      <span className="min-w-0 flex-1 truncate font-medium text-white">{row.name}</span>
+      <span className="shrink-0 text-sm tabular-nums text-slate-400">
+        {row.won}/{row.played}
+      </span>
+      <span className="w-12 shrink-0 text-right text-sm font-semibold tabular-nums text-amber-300">
+        {row.winRate}%
+      </span>
+    </li>
+  );
+}
+
 export function Leaderboard({ rows, meId }: { rows: LeaderboardRow[]; meId: string }) {
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
@@ -292,24 +322,39 @@ export function Leaderboard({ rows, meId }: { rows: LeaderboardRow[]; meId: stri
       ) : (
         <ol className="mt-4 space-y-2">
           {rows.map((row, index) => (
-            <li
-              key={row.userId}
-              className={`flex items-center gap-3 rounded-lg p-3 ${
-                row.userId === meId ? 'bg-amber-500/10 ring-1 ring-amber-400/40' : 'bg-slate-950/70'
-              }`}
-            >
-              <span className="w-6 shrink-0 text-center text-sm font-semibold tabular-nums text-slate-500">
-                {index + 1}
-              </span>
-              <Avatar avatar={row.avatar} userKey={row.userId} name={row.name} className="h-8 w-8" />
-              <span className="min-w-0 flex-1 truncate font-medium text-white">{row.name}</span>
-              <span className="shrink-0 text-sm tabular-nums text-slate-400">
-                {row.won}/{row.played}
-              </span>
-              <span className="w-12 shrink-0 text-right text-sm font-semibold tabular-nums text-amber-300">
-                {row.winRate}%
-              </span>
-            </li>
+            <LeaderRow key={row.userId} row={row} place={index + 1} meId={meId} />
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The dashboard cut of the same board: this week only, five names. Short on
+ * purpose — it shares a column with the room list, and a board nobody is on
+ * yet should still fit above the fold.
+ */
+export function WeeklyTopFive({ rows, meId }: { rows: LeaderboardRow[]; meId: string }) {
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-xl font-semibold text-white">This week</h2>
+        <Link href="/stats" className="text-sm font-medium text-amber-300 transition hover:text-amber-200">
+          All time →
+        </Link>
+      </div>
+      <p className="mt-1 text-sm text-slate-400">
+        Top 5 since Monday. Matches against bots do not count.
+      </p>
+      {rows.length === 0 ? (
+        <p className="mt-4 text-sm text-slate-400">
+          No all-human match has finished this week — win one and the top spot is yours.
+        </p>
+      ) : (
+        <ol className="mt-4 space-y-2">
+          {rows.map((row, index) => (
+            <LeaderRow key={row.userId} row={row} place={index + 1} meId={meId} />
           ))}
         </ol>
       )}

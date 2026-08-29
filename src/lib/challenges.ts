@@ -123,6 +123,15 @@ export function weekOf(date: Date): number {
 }
 
 /**
+ * The Monday a week number starts, in UTC — the inverse of weekOf. Anything
+ * counted "this week" has to agree with the challenges, so both sides read the
+ * same boundary rather than each rolling their own.
+ */
+export function weekStart(week: number): Date {
+  return new Date((week * 7 + 4) * 24 * 60 * 60 * 1000);
+}
+
+/**
  * The three challenges for a week. Deterministic from the week number, so
  * everyone gets the same set and any past week can be recomputed.
  */

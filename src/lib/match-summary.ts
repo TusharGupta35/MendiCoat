@@ -1,3 +1,4 @@
+import { mvpOf } from '@/lib/stats-core';
 import type { GameState, Suit, TeamId } from '@/types/game';
 
 /**
@@ -131,12 +132,9 @@ export function buildMatchSummary(
     }
   }
 
-  // A 10 is worth far more than a trick, so it dominates the ranking; tricks
-  // only separate players who took the same number of them.
-  const ranked = [...seats].sort(
-    (a, b) => b.tens * 3 + b.tricks - (a.tens * 3 + a.tricks) || b.tens - a.tens,
-  );
-  const mvp = ranked[0] && ranked[0].tricks + ranked[0].tens > 0 ? ranked[0] : null;
+  // Ranked by the one rule in stats-core, because the same seat has to be
+  // named here and paid the MVP XP there.
+  const mvp = mvpOf(seats);
 
   return {
     winnerTeam: state.winnerTeam ?? 'DRAW',

@@ -38,6 +38,17 @@ type RoomPlayer = {
   team: TeamId;
 } | null;
 
+/**
+ * The running series as the server reports it. `best` is the seat leading it on
+ * tricks and 10s — the room's own count, so it survives nobody having opened
+ * the stats page.
+ */
+type SeriesPayload = {
+  target: number;
+  from: number;
+  best: { seat: number; name: string; tricks: number; tens: number } | null;
+};
+
 const SUIT_SYMBOL: Record<Suit, string> = {
   SPADES: "♠",
   HEARTS: "♥",
@@ -80,7 +91,7 @@ export function SocketRoomClient({
   const [matchHistory, setMatchHistory] = useState<MatchResult[]>([]);
   // Which slice of the history counts toward the running series, and how many
   // wins take it.
-  const [series, setSeries] = useState<{ target: number; from: number }>({ target: 3, from: 0 });
+  const [series, setSeries] = useState<SeriesPayload>({ target: 3, from: 0, best: null });
   const [summary, setSummary] = useState<MatchSummary | null>(null);
   // True for the moment right after the table appears, while cards are being
   // dealt out to the seats.
@@ -236,7 +247,7 @@ export function SocketRoomClient({
     client.on("match-history", (payload: MatchResult[]) =>
       setMatchHistory(payload),
     );
-    client.on("series", (payload: { target: number; from: number }) =>
+    client.on("series", (payload: SeriesPayload) =>
       setSeries(payload),
     );
     client.on("match-summary", (payload: MatchSummary) => setSummary(payload));
@@ -714,10 +725,21 @@ export function SocketRoomClient({
             {seriesWinner ? (
               <div className="mt-3 space-y-2 rounded-lg border border-amber-400/40 bg-amber-500/10 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-amber-200">
-                    Team {seriesWinner} takes it {seriesScore[seriesWinner]}–
-                    {seriesScore[seriesWinner === "A" ? "B" : "A"]}
-                  </p>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-amber-200">
+                      Team {seriesWinner} takes it {seriesScore[seriesWinner]}–
+                      {seriesScore[seriesWinner === "A" ? "B" : "A"]}
+                    </p>
+                    {/* Named here rather than per match: this is the one moment
+                        the whole series is being looked back on. */}
+                    {series.best ? (
+                      <p className="mt-0.5 text-xs text-amber-200/80">
+                        🏆 Best of the series:{" "}
+                        <span className="font-semibold text-amber-100">{series.best.name}</span> —{" "}
+                        {series.best.tricks} tricks and {series.best.tens} 10s
+                      </p>
+                    ) : null}
+                  </div>
                   <button
                     type="button"
                     onClick={startNewSeries}

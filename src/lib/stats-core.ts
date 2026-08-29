@@ -22,6 +22,13 @@ export interface PlayedMatch {
   /** Every other human seat in the match. */
   others: Array<{ userId: string; name: string; avatar: string | null; seat: number; team: TeamId }>;
   tricks: PlayedTrick[];
+  /**
+   * The series this match belonged to and the wins that took it. Optional
+   * because matches recorded before series were persisted have neither, and
+   * those simply never pay a series bonus.
+   */
+  seriesId?: string | null;
+  seriesTarget?: number | null;
 }
 
 export interface PlayedTrick {
@@ -149,6 +156,46 @@ export function partnerRecords(matches: PlayedMatch[]): PartnerRecord[] {
 /** Card codes are rank + suit initial, e.g. "10H", "AS", "2C". */
 export function rankOfCard(code: string) {
   return code.slice(0, -1);
+}
+
+/** What one seat took over a match, or over a run of them. */
+export interface SeatTally {
+  seat: number;
+  tricks: number;
+  tens: number;
+}
+
+/**
+ * Read back out of the trick log, which records who won each trick and the
+ * cards that were in it. The 10s in a trick go to whoever took it, wherever
+ * they came from — that is what capturing one means.
+ */
+export function seatTallies(tricks: Array<Pick<PlayedTrick, 'winnerSeat' | 'cards'>>): SeatTally[] {
+  const tallies: SeatTally[] = [0, 1, 2, 3].map((seat) => ({ seat, tricks: 0, tens: 0 }));
+  for (const trick of tricks) {
+    const winner = tallies[trick.winnerSeat];
+    if (!winner) continue;
+    winner.tricks += 1;
+    winner.tens += trick.cards.filter((card) => rankOfCard(card) === '10').length;
+  }
+  return tallies;
+}
+
+/**
+ * The best individual performance in a tally. A 10 is worth far more than a
+ * trick, so it dominates the ranking; tricks only separate players who took the
+ * same number of them. Ties go to the earlier seat, which is what makes the
+ * name in the post-match summary and the XP for it agree.
+ *
+ * Nobody is named when the whole tally is empty — a match nobody took a trick
+ * in has no best player.
+ */
+export function mvpOf<T extends SeatTally>(tallies: T[]): T | null {
+  const ranked = [...tallies].sort(
+    (a, b) => b.tens * 3 + b.tricks - (a.tens * 3 + a.tricks) || b.tens - a.tens,
+  );
+  const top = ranked[0];
+  return top && top.tricks + top.tens > 0 ? top : null;
 }
 
 /** The seat that fixed trump on a cutting trick: first to play off-suit. */

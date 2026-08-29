@@ -94,6 +94,13 @@ model Match {
   handsWonB     Int     @default(0)
   // Matches with bots in them should not feed leaderboards or rankings.
   hadBots      Boolean  @default(false)
+  // The series this match belonged to, and the wins that took it. A series
+  // lives in the socket server's memory and dies with the process, so these
+  // two columns are its only durable trace — without them "best player of the
+  // series" cannot be worked out after the fact. Null for a match played
+  // before series were recorded.
+  seriesId     String?
+  seriesTarget Int?
   finishedAt   DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -102,6 +109,8 @@ model Match {
   players      User[]   @relation("PlayerMatches")
   seats        MatchPlayer[]
   tricks       MatchTrick[]
+
+  @@index([seriesId])
 }
 
 /// One human seat in a finished match. Carries the seat and team that a

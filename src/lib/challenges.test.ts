@@ -4,6 +4,7 @@ import {
   challengesForWeek,
   currentChallenges,
   weekOf,
+  weekStart,
 } from '@/lib/challenges';
 import type { PlayedMatch } from '@/lib/stats-core';
 
@@ -131,5 +132,25 @@ describe('weekOf', () => {
   it('advances by one every seven days', () => {
     const base = new Date('2026-08-25T00:00:00Z');
     expect(weekOf(new Date(base.getTime() + WEEK))).toBe(weekOf(base) + 1);
+  });
+});
+
+describe('weekStart', () => {
+  it('is the Monday midnight that opens the week', () => {
+    // 24 August 2026 is a Monday.
+    const start = weekStart(weekOf(new Date('2026-08-28T12:00:00Z')));
+    expect(start.toISOString()).toBe('2026-08-24T00:00:00.000Z');
+  });
+
+  it('round-trips with weekOf, including weeks before the epoch Monday', () => {
+    for (let week = -10; week < 60; week += 1) {
+      expect(weekOf(weekStart(week))).toBe(week);
+    }
+  });
+
+  it('leaves no gap between one week and the next', () => {
+    const start = weekStart(12);
+    const justBefore = new Date(start.getTime() - 1);
+    expect(weekOf(justBefore)).toBe(11);
   });
 });
