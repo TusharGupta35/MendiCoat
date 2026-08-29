@@ -2,18 +2,16 @@ import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { AvatarPicker } from '@/components/AvatarPicker';
-import { CreateRoomButton } from '@/components/CreateRoomButton';
-import { DeleteRoomButton } from '@/components/DeleteRoomButton';
-import { GameInstructions } from '@/components/GameInstructions';
+import { GameGrid } from '@/components/GameGrid';
 import { ProgressWatch } from '@/components/ProgressCelebration';
-import { RecordCard, WeeklyTopFive } from '@/components/StatsPanels';
+import { RecordCard, TopPlayers } from '@/components/StatsPanels';
 import { UsernameEditor } from '@/components/UsernameEditor';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { weekOf } from '@/lib/challenges';
 import { snapshotFrom } from '@/lib/progress-feed';
 import { earnedTitles, titleLabel } from '@/lib/titles';
-import { getPlayerStats, getWeeklyLeaderboard } from '@/lib/stats';
+import { getPlayerStats, getXpLeaderboard } from '@/lib/stats';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -28,21 +26,12 @@ export default async function DashboardPage() {
     new Promise((resolve) => setTimeout(resolve, 2000)),
     prisma.user.findUnique({
       where: { email: session.user.email },
-      include: {
-        rooms: {
-          orderBy: { updatedAt: 'desc' },
-          take: 5,
-          select: { id: true, name: true, code: true, status: true, hostId: true },
-        },
-      },
     }),
   ]);
-//   const rooms = user?.rooms ?? [];
-const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
   const accountName = user?.name ?? session.user.name ?? 'player';
-  const [record, weekly] = await Promise.all([
+  const [record, top] = await Promise.all([
     user ? getPlayerStats(user.id) : null,
-    getWeeklyLeaderboard(5),
+    getXpLeaderboard(5),
   ]);
   // Built from the stats already loaded, so the celebration costs no extra query.
   const snapshot = record
@@ -75,60 +64,16 @@ const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
               ) : null}
             </div>
           </div>
-          <div className="flex gap-3">
-            <CreateRoomButton />
-            <Link href="/room/join" className="rounded-lg border border-slate-700 px-4 py-2 font-medium transition hover:bg-slate-800">
-              Join room
-            </Link>
-          </div>
         </header>
 
+        <GameGrid />
+
         <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="flex flex-col gap-6">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
-              <h2 className="text-xl font-semibold text-white">Quick start</h2>
-              <p className="mt-2 text-sm text-slate-400">
-                Create a room to get a unique 4-character code, then share it with the other three players.
-              </p>
-            </div>
+          {record ? (
+            <RecordCard stats={record.stats} level={record.level} band={record.band} />
+          ) : null}
 
-            {record ? (
-              <RecordCard stats={record.stats} level={record.level} band={record.band} />
-            ) : null}
-
-            <GameInstructions />
-          </div>
-
-          <div className="flex flex-col gap-6">
-            <WeeklyTopFive rows={weekly} meId={user?.id ?? ''} />
-
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
-              <h2 className="text-xl font-semibold text-white">Recent rooms</h2>
-              <div className="mt-4 space-y-3">
-                {rooms.length === 0 ? <p className="text-sm text-slate-400">You have not joined any rooms yet.</p> : null}
-                {rooms.map((room: {
-                              id: string;
-                              name: string;
-                              code: string;
-                              status: string;  
-                              hostId: string; 
-                            }) => (
-                  <div key={room.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/70 p-3">
-                    <div>
-                      <Link href={`/room/${room.code}`} className="font-medium text-white hover:text-amber-300">{room.name}</Link>
-                      <p className="text-sm text-slate-400">{room.code}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="rounded-full bg-slate-800 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-300">
-                        {room.status}
-                      </span>
-                      {room.hostId === user?.id ? <DeleteRoomButton roomCode={room.code} /> : null}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <TopPlayers rows={top} meId={user?.id ?? ''} />
         </section>
       </div>
 

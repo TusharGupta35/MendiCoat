@@ -4,7 +4,7 @@ import type { ChallengeState } from '@/lib/challenges';
 import type { FeatState } from '@/lib/feats';
 import { bandForLevel, type Level, type MilestoneState } from '@/lib/progression';
 import type { CareerStats, PartnerRecord } from '@/lib/stats-core';
-import type { LeaderboardRow } from '@/lib/stats';
+import type { LeaderboardRow, XpRow } from '@/lib/stats';
 
 /** Presentational only — every panel takes plain data so it can be rendered anywhere. */
 
@@ -312,12 +312,7 @@ function LeaderRow({
 
 export function Leaderboard({ rows, meId }: { rows: LeaderboardRow[]; meId: string }) {
   return (
-    // Named so the dashboard's weekly card can link straight at it; the margin
-    // stops the heading from landing flush against the top of the window.
-    <div
-      id="leaderboard"
-      className="scroll-mt-6 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6"
-    >
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
       <h2 className="text-xl font-semibold text-white">Leaderboard</h2>
       <p className="mt-1 text-sm text-slate-400">Matches against bots do not count.</p>
       {rows.length === 0 ? (
@@ -336,24 +331,70 @@ export function Leaderboard({ rows, meId }: { rows: LeaderboardRow[]; meId: stri
 }
 
 /**
- * The dashboard cut of the same board: this week only, five names. Short on
- * purpose — it shares a column with the room list, and a board nobody is on
- * yet should still fit above the fold.
+ * Who is furthest along, on the level everyone shares.
+ *
+ * This is the dashboard's headline board, so it is ranked on XP rather than on
+ * wins in a window: XP is what every game on the board will pay into, and it is
+ * the only number that still means the same thing once there is more than one
+ * game to be good at.
+ */
+export function TopPlayers({ rows, meId }: { rows: XpRow[]; meId: string }) {
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
+      <h2 className="text-xl font-semibold text-white">Top players</h2>
+      <p className="mt-1 text-sm text-slate-400">
+        The five furthest along, by XP earned across every game.
+      </p>
+      {rows.length === 0 ? (
+        <p className="mt-4 text-sm text-slate-400">
+          Nobody has finished a match yet. Play one and this is your board to lead.
+        </p>
+      ) : (
+        <ol className="mt-4 space-y-2">
+          {rows.map((row, index) => (
+            <li
+              key={row.userId}
+              className={`flex items-center gap-3 rounded-lg p-3 ${
+                row.userId === meId ? 'bg-amber-500/10 ring-1 ring-amber-400/40' : 'bg-slate-950/70'
+              }`}
+            >
+              <span className="w-6 shrink-0 text-center text-sm font-semibold tabular-nums text-slate-500">
+                {index + 1}
+              </span>
+              <Avatar avatar={row.avatar} userKey={row.userId} name={row.name} className="h-8 w-8" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium text-white">{row.name}</span>
+                {/* The band is what a level is called, so it says more than the
+                    number does on its own. */}
+                <span className="block truncate text-xs text-slate-500">{row.band}</span>
+              </span>
+              <span className="shrink-0 text-right">
+                <span className="block text-sm font-semibold tabular-nums text-amber-300">
+                  Level {row.level}
+                </span>
+                <span className="block text-xs tabular-nums text-slate-500">
+                  {row.totalXp.toLocaleString()} XP
+                </span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The same ranking over one week of matches, on wins rather than XP. It lives
+ * beside the all-time board on the stats page, where a board that can be empty
+ * for a week is a detail rather than the headline.
  */
 export function WeeklyTopFive({ rows, meId }: { rows: LeaderboardRow[]; meId: string }) {
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-xl font-semibold text-white">This week</h2>
-        <Link
-          href="/stats#leaderboard"
-          className="text-sm font-medium text-amber-300 transition hover:text-amber-200"
-        >
-          All time →
-        </Link>
-      </div>
+      <h2 className="text-xl font-semibold text-white">This week</h2>
       <p className="mt-1 text-sm text-slate-400">
-        Top 5 since Monday. Matches against bots do not count.
+        Top 5 by wins since Monday. Matches against bots do not count.
       </p>
       {rows.length === 0 ? (
         <p className="mt-4 text-sm text-slate-400">

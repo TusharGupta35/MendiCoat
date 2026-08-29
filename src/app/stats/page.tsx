@@ -12,12 +12,13 @@ import {
   MilestoneGrid,
   PartnerTable,
   StreakStrip,
+  WeeklyTopFive,
 } from '@/components/StatsPanels';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { weekOf } from '@/lib/challenges';
 import { snapshotFrom } from '@/lib/progress-feed';
-import { getLeaderboard, getPlayerStats } from '@/lib/stats';
+import { getLeaderboard, getPlayerStats, getWeeklyLeaderboard } from '@/lib/stats';
 import { earnedTitles, titleLabel } from '@/lib/titles';
 
 export const dynamic = 'force-dynamic';
@@ -33,10 +34,11 @@ export default async function StatsPage() {
   });
   if (!user) redirect('/login');
 
-  const [{ stats, level, band, partners, milestones, feats, challenges }, leaderboard] =
+  const [{ stats, level, band, partners, milestones, feats, challenges }, leaderboard, weekly] =
     await Promise.all([
       getPlayerStats(user.id),
       getLeaderboard(),
+      getWeeklyLeaderboard(5),
     ]);
 
   const snapshot = snapshotFrom(level, milestones, feats, challenges, weekOf(new Date()));
@@ -129,6 +131,7 @@ export default async function StatsPage() {
         <section className="grid gap-6 lg:grid-cols-2">
           <PartnerTable partners={partners} />
           <Leaderboard rows={leaderboard} meId={user.id} />
+          <WeeklyTopFive rows={weekly} meId={user.id} />
         </section>
       </div>
 
