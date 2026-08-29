@@ -26,7 +26,7 @@ const POOL: Challenge[] = [
     name: 'On a Run',
     description: 'Win three matches this week.',
     target: 3,
-    xp: 120,
+    xp: 35,
     count: (matches) => matches.filter(didWin).length,
   },
   {
@@ -34,7 +34,7 @@ const POOL: Challenge[] = [
     name: 'Show Up',
     description: 'Play five matches this week.',
     target: 5,
-    xp: 80,
+    xp: 25,
     count: (matches) => matches.length,
   },
   {
@@ -42,7 +42,7 @@ const POOL: Challenge[] = [
     name: 'Ten Collector',
     description: 'Capture twelve 10s this week.',
     target: 12,
-    xp: 120,
+    xp: 35,
     count: (matches) => matches.reduce((total, match) => total + myTens(match), 0),
   },
   {
@@ -50,7 +50,7 @@ const POOL: Challenge[] = [
     name: 'Tailor',
     description: 'Deal a coat — all four 10s in one match.',
     target: 1,
-    xp: 200,
+    xp: 60,
     count: (matches) => matches.filter((match) => myTens(match) === 4).length,
   },
   {
@@ -58,7 +58,7 @@ const POOL: Challenge[] = [
     name: 'Understanding',
     description: 'Win two matches with the same partner.',
     target: 2,
-    xp: 100,
+    xp: 30,
     count: (matches) => {
       const byPartner = new Map<string, number>();
       for (const match of matches) {
@@ -75,7 +75,7 @@ const POOL: Challenge[] = [
     name: 'Straight Bat',
     description: 'Win a match without ever cutting.',
     target: 1,
-    xp: 150,
+    xp: 45,
     count: (matches) =>
       matches.filter(
         (match) =>
@@ -88,7 +88,7 @@ const POOL: Challenge[] = [
     name: 'Cheap Trick',
     description: 'Fix trump with a card below a 5 and win that trick.',
     target: 1,
-    xp: 150,
+    xp: 45,
     count: (matches) =>
       matches.filter((match) =>
         match.tricks.some((trick) => {
@@ -104,7 +104,7 @@ const POOL: Challenge[] = [
     name: 'One-Sided',
     description: 'Win a match taking at least ten of the thirteen tricks.',
     target: 1,
-    xp: 150,
+    xp: 45,
     count: (matches) => matches.filter((match) => didWin(match) && myHands(match) >= 10).length,
   },
 ];
