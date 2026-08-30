@@ -6,6 +6,7 @@ import { Avatar } from '@/components/Avatar';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { exactly, timeSince } from '@/lib/relative-time';
+import { podiumFor } from '@/lib/podium';
 import { getXpLeaderboard } from '@/lib/stats';
 
 export const dynamic = 'force-dynamic';
@@ -18,28 +19,6 @@ export const revalidate = 0;
  * "how am I doing against everyone" — this is that list, and every row opens
  * the player behind it.
  */
-/**
- * The top three get a medal rather than a number.
- *
- * Gold, silver and bronze read instantly and mean the same thing everywhere, so
- * the eye finds the podium without reading a single row. Everyone below keeps a
- * plain number, which is what makes the three above it look like something.
- */
-const PODIUM = [
-  {
-    badge: 'bg-gradient-to-br from-amber-200 to-amber-500 text-amber-950 shadow-[0_0_12px_rgba(255,194,51,0.45)]',
-    row: 'bg-amber-500/[0.07] ring-1 ring-amber-400/40',
-  },
-  {
-    badge: 'bg-gradient-to-br from-slate-100 to-slate-400 text-slate-900',
-    row: 'bg-slate-800/40 ring-1 ring-slate-400/30',
-  },
-  {
-    badge: 'bg-gradient-to-br from-[#e0a06a] to-[#8b5a2b] text-[#2a1608]',
-    row: 'bg-[#8b5a2b]/10 ring-1 ring-[#c8874a]/30',
-  },
-];
-
 export default async function PlayersPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) redirect('/login');
@@ -83,7 +62,7 @@ export default async function PlayersPage() {
           ) : (
             <ol className="space-y-2">
               {players.map((player, index) => {
-                const podium = PODIUM[index];
+                const podium = podiumFor(index);
                 const isMe = player.userId === me?.id;
                 return (
                 <li key={player.userId}>
