@@ -85,7 +85,9 @@ export function UsernameEditor({ username, fallbackName }: UsernameEditorProps) 
           "Welcome back, TYPHOON" on one line either truncates or shoves the
           avatar off the row; split in two, the name gets the size and is never
           the thing that gets cut. */}
-      <div className="flex items-center gap-2">
+      {/* The pencil sits to the left of the name, the same side it is on
+          everywhere else, so the control does not move about between screens. */}
+      <div className="flex flex-row-reverse items-center justify-end gap-2">
         <div className="min-w-0">
           {/* Small and on one line: it is a label, not a headline, and its wide
               tracking wraps it in two the moment it is given any size. */}
