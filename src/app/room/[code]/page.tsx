@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AppHeader } from "@/components/AppHeader";
+import { ROOM_GAME } from "@/lib/games";
 import { RoomCode } from "@/components/RoomCode";
 import { SocketRoomClient } from "@/components/SocketRoomClient";
 import { titleLabelById } from "@/lib/titles";
@@ -59,11 +60,15 @@ export default async function RoomPage({
             <p className="text-xs uppercase tracking-[0.35em] text-amber-400 sm:text-sm">
               Waiting room
             </p>
+            {/* Back to the game, not to the whole board: leaving a table means
+                going where the other tables for this game are, and that page
+                carries the rules and the room list. The mark in the bar above
+                is the way out to everything else. */}
             <Link
-              href="/dashboard"
+              href={`/games/${ROOM_GAME.slug}`}
               className="rounded-lg border border-slate-700 px-4 py-2 font-medium text-slate-100 transition hover:bg-slate-800"
             >
-              Go to Dashboard
+              Back to {ROOM_GAME.name}
             </Link>
           </div>
 

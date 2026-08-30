@@ -87,3 +87,12 @@ export const GAMES: Game[] = [
 export const liveGames = () => GAMES.filter((game) => game.status === 'live');
 export const comingSoon = () => GAMES.filter((game) => game.status === 'soon');
 export const gameBySlug = (slug: string) => GAMES.find((game) => game.slug === slug);
+
+/**
+ * The game a room is playing.
+ *
+ * Rooms carry no game of their own yet — there is one playable game, so every
+ * room is a table for it. When a second game ships, a room will name its own
+ * and this constant is what the callers should stop using.
+ */
+export const ROOM_GAME = GAMES.find((game) => game.id === 'MENDI_COAT')!;
