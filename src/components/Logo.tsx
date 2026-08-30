@@ -19,7 +19,10 @@ import Link from 'next/link';
 export function LogoMark({ className = 'h-10 w-auto' }: { className?: string }) {
   return (
     <Image
-      src="/logo.png"
+      // Versioned in the filename. The optimiser caches by URL on disk and so
+      // does every browser, so replacing the bytes behind /logo.png left people
+      // looking at the old mark after a deploy. A new name is a new cache key.
+      src="/logo-v2.png"
       alt=""
       // The artwork is 1239x1269, a shade taller than it is wide. Declaring its
       // real proportions and sizing by height only keeps it from being squashed

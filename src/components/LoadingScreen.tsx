@@ -28,7 +28,7 @@ export function LoadingScreen({
     >
       {fullScreen ? (
         <Image
-          src="/logo.png"
+          src="/logo-v2.png"
           alt=""
           width={1312}
           height={1199}
