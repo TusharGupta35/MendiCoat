@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 import { AvatarPicker } from '@/components/AvatarPicker';
 import { BrandMark, Wordmark } from '@/components/Logo';
-import { UsernameEditor } from '@/components/UsernameEditor';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getPlayerStats } from '@/lib/stats';
@@ -67,7 +66,14 @@ export async function AppHeader({
           face. On a phone it is the same bar, only smaller. */}
       <div className="flex min-w-0 flex-1 items-center justify-end gap-3 sm:flex-none sm:gap-4">
         <div className="min-w-0 text-right">
-          <UsernameEditor username={user.username} fallbackName={accountName} />
+          {/* Plain text now: changing your name lives behind your own face,
+              with the rest of how you appear at the table. */}
+          <p className="whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.2em] text-slate-400">
+            Welcome back
+          </p>
+          <h1 className="truncate text-2xl font-semibold leading-tight text-white sm:text-3xl">
+            {user.username ?? accountName}
+          </h1>
           {worn ? <p className="text-sm font-medium text-amber-300">{worn}</p> : null}
         </div>
         <AvatarPicker
@@ -76,6 +82,7 @@ export async function AppHeader({
           name={accountName}
           photo={user.image}
           level={level ?? record?.level}
+          username={user.username}
         />
       </div>
     </header>
