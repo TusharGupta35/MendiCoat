@@ -5,7 +5,7 @@ import { CreateRoomButton } from '@/components/CreateRoomButton';
 import { DeleteRoomButton } from '@/components/DeleteRoomButton';
 import { GameEmblem } from '@/components/GameEmblem';
 import { GameInstructions } from '@/components/GameInstructions';
-import { BrandMark } from '@/components/Logo';
+import { AppHeader } from '@/components/AppHeader';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { gameBySlug } from '@/lib/games';
@@ -45,20 +45,12 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
   const rooms = user?.rooms ?? [];
 
   return (
-    <main className="min-h-screen bg-slate-950 px-3 py-6 text-slate-100 sm:px-6 sm:py-12">
+    <main className="min-h-screen bg-slate-950 px-3 pb-8 pt-4 text-slate-100 sm:px-6 sm:pb-12 sm:pt-6">
       <div className="mx-auto flex max-w-5xl flex-col gap-6 sm:gap-8">
-        <header className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
-          <div className="flex items-center justify-between gap-4">
-            <BrandMark className="-my-3 -ml-2 h-20 w-auto" />
-            <Link
-              href="/dashboard"
-              className="rounded-lg border border-slate-700 px-4 py-2 font-medium transition hover:bg-slate-800"
-            >
-              All games
-            </Link>
-          </div>
+        <AppHeader />
 
-          <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
+        <header className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-start gap-4">
               <GameEmblem game={game} size="lg" />
               <div>
@@ -70,6 +62,12 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
                 </p>
               </div>
             </div>
+            <Link
+              href="/dashboard"
+              className="rounded-lg border border-slate-700 px-4 py-2 font-medium transition hover:bg-slate-800"
+            >
+              All games
+            </Link>
           </div>
 
           <p className="mt-4 max-w-2xl text-sm text-slate-400">{game.blurb}</p>

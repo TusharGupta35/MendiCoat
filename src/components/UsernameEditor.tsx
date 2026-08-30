@@ -86,15 +86,14 @@ export function UsernameEditor({ username, fallbackName }: UsernameEditorProps) 
           avatar off the row; split in two, the name is never the thing that
           gets cut.
 
-          The pencil follows the text's edge: after the name on a phone, where
-          the block is left-aligned, and before it on a wide screen, where the
-          block is right-aligned and the name should keep the edge. */}
-      <div className="flex items-center justify-start gap-2 sm:flex-row-reverse">
+          The block is right-aligned, reading in from the edge of the bar, so
+          the pencil sits inside the name rather than beyond it. */}
+      <div className="flex flex-row-reverse items-center justify-start gap-2">
         <div className="min-w-0">
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-slate-400">
             Welcome back
           </p>
-          <h1 className="truncate text-2xl font-semibold leading-tight text-white sm:text-3xl">
+          <h1 className="truncate text-xl font-semibold leading-tight text-white sm:text-3xl">
             {displayName}
           </h1>
         </div>

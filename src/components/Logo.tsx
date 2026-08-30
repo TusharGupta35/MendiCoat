@@ -12,6 +12,8 @@ import Link from 'next/link';
  *
  * The wordmark keeps the split the loading screen already used — "Dehel" plain
  * and "पकड़" lit — so the logo and the splash are recognisably the same brand.
+ * Where the two sit relative to each other is the header's business: on a wide
+ * screen the name takes the middle of the bar while the mark holds the left.
  */
 
 export function LogoMark({ className = 'h-10 w-auto' }: { className?: string }) {
@@ -33,32 +35,13 @@ export function LogoMark({ className = 'h-10 w-auto' }: { className?: string }) 
 export function Wordmark({ className = '' }: { className?: string }) {
   return (
     <span className={`flex select-none items-baseline gap-1.5 ${className}`}>
-      <span className="text-xl font-black uppercase tracking-[0.12em] text-white sm:text-3xl sm:tracking-[0.15em]">
+      <span className="text-2xl font-black uppercase tracking-[0.12em] text-white sm:text-5xl sm:tracking-[0.15em]">
         Dehel
       </span>
-      <span className="text-2xl font-black text-amber-400 drop-shadow-[0_0_12px_rgba(255,194,51,0.45)] sm:text-4xl">
+      <span className="text-2xl font-black text-amber-400 drop-shadow-[0_0_12px_rgba(255,194,51,0.45)] sm:text-5xl">
         पकड़
       </span>
     </span>
-  );
-}
-
-/**
- * Mark and wordmark on one line, linking home.
- *
- * It belongs inside the page's own header bar rather than floating above it: a
- * lockup of its own, stacked over a card that already carries a name and a
- * face, reads as two headers rather than one.
- */
-export function Brand() {
-  return (
-    <Link href="/dashboard" className="group flex w-fit items-center gap-1 sm:gap-2">
-      {/* Big on purpose: the artwork carries a wide glow margin, so a mark
-          measured like a tight vector icon renders half the size it looks. The
-          negative margin keeps the header bar from growing to match. */}
-      <LogoMark className="-my-3 -ml-2 h-20 w-auto shrink-0 drop-shadow-[0_0_18px_rgba(255,194,51,0.25)] transition duration-200 group-hover:scale-105 sm:-ml-3 sm:h-24" />
-      <Wordmark />
-    </Link>
   );
 }
 
