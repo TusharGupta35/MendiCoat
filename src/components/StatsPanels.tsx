@@ -4,6 +4,7 @@ import type { ChallengeState } from '@/lib/challenges';
 import type { FeatState } from '@/lib/feats';
 import { bandForLevel, type Level, type MilestoneState } from '@/lib/progression';
 import type { CareerStats, PartnerRecord } from '@/lib/stats-core';
+import { podiumFor } from '@/lib/podium';
 import { exactly, timeSince } from '@/lib/relative-time';
 import type { LeaderboardRow, XpRow } from '@/lib/stats';
 
@@ -88,7 +89,7 @@ export function RecordCard({
         </p>
       ) : (
         <>
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="mt-4 grid grid-cols-2 gap-3">
             <Stat label="Played" value={stats.played} />
             <Stat label="Won" value={stats.won} hint={`${stats.winRate}% win rate`} />
             <Stat label="10s" value={stats.tensCaptured} />
@@ -378,19 +379,33 @@ export function TopPlayers({ rows, meId }: { rows: XpRow[]; meId: string }) {
         </p>
       ) : (
         <ol className="mt-4 space-y-2">
-          {rows.map((row, index) => (
+          {rows.map((row, index) => {
+            const podium = podiumFor(index);
+            const isMe = row.userId === meId;
+            return (
             <li key={row.userId}>
               <Link
                 href={`/players/${row.userId}`}
                 className={`flex items-center gap-3 rounded-lg p-3 transition hover:bg-slate-800 ${
-                  row.userId === meId
-                    ? 'bg-amber-500/10 ring-1 ring-amber-400/40'
-                    : 'bg-slate-950/70'
+                  podium?.row ?? 'bg-slate-950/70'
+                } ${
+                  // On the podium the medal already colours the row, so your own
+                  // place takes a dashed edge rather than a second ring.
+                  isMe ? (podium ? 'ring-dashed' : 'bg-amber-500/10 ring-1 ring-amber-400/40') : ''
                 }`}
               >
-                <span className="w-6 shrink-0 text-center text-sm font-semibold tabular-nums text-slate-500">
-                  {index + 1}
-                </span>
+                {podium ? (
+                  <span
+                    aria-hidden="true"
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold tabular-nums ${podium.badge}`}
+                  >
+                    {index + 1}
+                  </span>
+                ) : (
+                  <span className="w-7 shrink-0 text-center text-sm font-semibold tabular-nums text-slate-500">
+                    {index + 1}
+                  </span>
+                )}
                 <Avatar
                   avatar={row.avatar}
                   userKey={row.userId}
@@ -416,7 +431,8 @@ export function TopPlayers({ rows, meId }: { rows: XpRow[]; meId: string }) {
                 </span>
               </Link>
             </li>
-          ))}
+            );
+          })}
         </ol>
       )}
     </div>

@@ -1,13 +1,10 @@
 import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
-import { AvatarPicker } from '@/components/AvatarPicker';
-import { CreateRoomButton } from '@/components/CreateRoomButton';
-import { DeleteRoomButton } from '@/components/DeleteRoomButton';
-import { GameInstructions } from '@/components/GameInstructions';
+import { AppHeader } from '@/components/AppHeader';
+import { GameGrid } from '@/components/GameGrid';
 import { ProgressWatch } from '@/components/ProgressCelebration';
 import { RecordCard, TopPlayers } from '@/components/StatsPanels';
-import { UsernameEditor } from '@/components/UsernameEditor';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { weekOf } from '@/lib/challenges';
@@ -28,17 +25,8 @@ export default async function DashboardPage() {
     new Promise((resolve) => setTimeout(resolve, 2000)),
     prisma.user.findUnique({
       where: { email: session.user.email },
-      include: {
-        rooms: {
-          orderBy: { updatedAt: 'desc' },
-          take: 5,
-          select: { id: true, name: true, code: true, status: true, hostId: true },
-        },
-      },
     }),
   ]);
-//   const rooms = user?.rooms ?? [];
-const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
   const accountName = user?.name ?? session.user.name ?? 'player';
   const [record, top] = await Promise.all([
     user ? getPlayerStats(user.id) : null,
@@ -54,80 +42,22 @@ const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
       : null;
 
   return (
-    <main className="min-h-screen bg-slate-950 px-3 py-6 text-slate-100 sm:px-6 sm:py-12">
+    <main className="min-h-screen bg-slate-950 px-3 pb-8 pt-4 text-slate-100 sm:px-6 sm:pb-12 sm:pt-6">
       <div className="mx-auto flex max-w-5xl flex-col gap-6 sm:gap-8">
-        <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
-          <div className="flex items-center gap-4">
-            {user ? (
-              <AvatarPicker
-                avatar={user.avatar}
-                userKey={user.id}
-                name={user.username ?? accountName}
-                photo={user.image}
-                level={record?.level}
-              />
-            ) : null}
-            <div>
-              <p className="text-sm uppercase tracking-[0.35em] text-amber-400">Dashboard</p>
-              <UsernameEditor username={user?.username ?? null} fallbackName={accountName} />
-              {wearing ? (
-                <p className="text-sm font-medium text-amber-300">{wearing}</p>
-              ) : null}
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <CreateRoomButton />
-            <Link href="/room/join" className="rounded-lg border border-slate-700 px-4 py-2 font-medium transition hover:bg-slate-800">
-              Join room
-            </Link>
-          </div>
-        </header>
+        <AppHeader level={record?.level} wearing={wearing} />
 
-        <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+        {/* Games on the left because picking one is what this page is for; the
+            record and the board on the right, where they read as standings
+            rather than as something to act on. */}
+        <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
+          <GameGrid />
+
           <div className="flex flex-col gap-6">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
-              <h2 className="text-xl font-semibold text-white">Quick start</h2>
-              <p className="mt-2 text-sm text-slate-400">
-                Create a room to get a unique 4-character code, then share it with the other three players.
-              </p>
-            </div>
-
             {record ? (
               <RecordCard stats={record.stats} level={record.level} band={record.band} />
             ) : null}
 
-            <GameInstructions />
-          </div>
-
-          <div className="flex flex-col gap-6">
             <TopPlayers rows={top} meId={user?.id ?? ''} />
-
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
-              <h2 className="text-xl font-semibold text-white">Recent rooms</h2>
-              <div className="mt-4 space-y-3">
-                {rooms.length === 0 ? <p className="text-sm text-slate-400">You have not joined any rooms yet.</p> : null}
-                {rooms.map((room: {
-                              id: string;
-                              name: string;
-                              code: string;
-                              status: string;  
-                              hostId: string; 
-                            }) => (
-                  <div key={room.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/70 p-3">
-                    <div>
-                      <Link href={`/room/${room.code}`} className="font-medium text-white hover:text-amber-300">{room.name}</Link>
-                      <p className="text-sm text-slate-400">{room.code}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="rounded-full bg-slate-800 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-300">
-                        {room.status}
-                      </span>
-                      {room.hostId === user?.id ? <DeleteRoomButton roomCode={room.code} /> : null}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </section>
       </div>

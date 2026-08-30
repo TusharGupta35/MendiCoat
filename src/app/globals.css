@@ -47,6 +47,10 @@
 /* The tiled card-suit motif, as a token so the body and any .suit-field
    surface share one definition instead of copying the data URI around. */
 :root {
+  /* The ground the whole app sits on: a shade up from slate-950, so the table
+     feels lit rather than switched off — but still below slate-900, which is
+     what every panel is painted in and needs to stay separated from. */
+  --page-ground: #190f2c;
   --suit-tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Cg fill='%23ffd970' fill-opacity='0.06' font-family='serif' font-size='30'%3E%3Ctext x='12' y='46'%3E%E2%99%A0%3C/text%3E%3Ctext x='82' y='46'%3E%E2%99%A5%3C/text%3E%3Ctext x='12' y='116'%3E%E2%99%A6%3C/text%3E%3Ctext x='82' y='116'%3E%E2%99%A3%3C/text%3E%3C/g%3E%3C/svg%3E");
 }
 
@@ -59,12 +63,12 @@
 body {
   @apply min-h-screen text-slate-100 antialiased;
   font-family: var(--font-sans);
-  background-color: var(--color-slate-950);
+  background-color: var(--page-ground);
   /* Warm spotlight from above, cool felt bounce from below, suits tiled faintly
      over both. background-attachment keeps it still while panels scroll. */
   background-image:
-    radial-gradient(120% 80% at 50% -20%, rgba(245, 166, 21, 0.12), transparent 60%),
-    radial-gradient(90% 60% at 110% 110%, rgba(18, 112, 74, 0.18), transparent 60%),
+    radial-gradient(120% 80% at 50% -20%, rgba(245, 166, 21, 0.15), transparent 62%),
+    radial-gradient(90% 60% at 110% 110%, rgba(18, 112, 74, 0.2), transparent 60%),
     var(--suit-tile);
   background-attachment: fixed;
 }
@@ -244,6 +248,24 @@ main.bg-slate-950 {
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
+   The app header's ground. A warm rise behind the mark on the left, a cool
+   violet settle on the right, and the table's own suit motif tiled faintly
+   across both — the same three ingredients as the body, at a fraction of the
+   strength, so the bar reads as part of the felt rather than a panel laid on
+   top of it.
+   ────────────────────────────────────────────────────────────────────────── */
+.app-header-field {
+  background-image:
+    radial-gradient(120% 180% at 0% 0%, rgba(245, 166, 21, 0.10), transparent 55%),
+    radial-gradient(100% 160% at 100% 100%, rgba(124, 58, 237, 0.12), transparent 60%),
+    var(--suit-tile);
+  background-size:
+    auto,
+    auto,
+    110px 110px;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
    Suit motif surface. For any element that needs its own opaque ground but
    should still carry the table's card-suit wallpaper — the loading screens
    today. The suits are drawn larger here than on the body, because these are
@@ -251,7 +273,7 @@ main.bg-slate-950 {
    Add `suit-field-drift` to let the motif crawl, which suits a wait.
    ────────────────────────────────────────────────────────────────────────── */
 .suit-field {
-  background-color: var(--color-slate-950);
+  background-color: var(--page-ground);
   background-image:
     radial-gradient(120% 85% at 50% -15%, rgba(245, 166, 21, 0.13), transparent 62%),
     radial-gradient(80% 60% at 105% 108%, rgba(18, 112, 74, 0.16), transparent 60%),

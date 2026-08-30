@@ -2,7 +2,7 @@
 
 import { Fragment, type CSSProperties, type FormEvent, useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
-import { Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { ChevronDown, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import type { Card, GameState, MatchResult, SeatIndex, Suit, TrickPlay } from "@/types/game";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { Avatar } from "@/components/Avatar";
@@ -460,12 +460,27 @@ export function SocketRoomClient({
     setSweepOffsets(offsets);
   }, [collectedBy, presentedTrick?.trickNumber]);
 
+  // The seats and the match log are for between matches. Once cards are out
+  // they are just height above the table, so they fold themselves away — and
+  // open again when the room goes back to the lobby. A player can always open
+  // one to check who is where.
+  const [seatsOpen, setSeatsOpen] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(false);
+
   // Where the eye should be at each point in a match. On a phone the board and
   // the result are far apart in one long column, and players were finishing a
   // hand without ever seeing how it ended.
   const boardRef = useRef<HTMLElement | null>(null);
   const outcomeRef = useRef<HTMLDivElement | null>(null);
   const matchStatus = gameState?.status ?? null;
+
+  useEffect(() => {
+    if (matchStatus === "PLAYING") {
+      setSeatsOpen(false);
+      setHistoryOpen(false);
+    }
+    if (matchStatus === null) setSeatsOpen(true);
+  }, [matchStatus]);
 
   useEffect(() => {
     // A starting match hides the whole room behind "Dealing the cards…" for two
@@ -612,15 +627,26 @@ export function SocketRoomClient({
       ) : null}
       <div className="room-sidebar flex flex-col gap-4">
         <section className="live-room-panel rounded-xl border border-slate-800 bg-slate-950/70 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-white">Live room</h2>
-            </div>
+          <button
+            type="button"
+            onClick={() => setSeatsOpen((open) => !open)}
+            aria-expanded={seatsOpen}
+            className="flex w-full items-center justify-between gap-3 text-left"
+          >
+            <span className="flex items-center gap-2">
+              <ChevronDown
+                className={`h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200 ${
+                  seatsOpen ? "" : "-rotate-90"
+                }`}
+                aria-hidden="true"
+              />
+              <span className="text-lg font-semibold text-white">Live room</span>
+            </span>
             <span className="shrink-0 whitespace-nowrap rounded-full bg-amber-500/10 px-3 py-1 text-sm text-amber-400">
               {4 - openSeats}/4
             </span>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          </button>
+          <div className={`mt-4 grid gap-3 sm:grid-cols-2 ${seatsOpen ? "" : "hidden"}`}>
             {(["A", "B"] as const).map((team) => (
               <div
                 key={team}
@@ -692,25 +718,6 @@ export function SocketRoomClient({
               </div>
             ))}
           </div>
-          {seat !== null && !gameState ? (
-            openSeats === 0 ? (
-              <button
-                type="button"
-                onClick={startGame}
-                className="mt-4 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400"
-              >
-                Start Game
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={fillWithBots}
-                className="mt-4 rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-amber-950 transition hover:bg-amber-300"
-              >
-                Add {openSeats} bot{openSeats === 1 ? "" : "s"} and Start
-              </button>
-            )
-          ) : null}
         </section>
         <section className="match-history-panel rounded-xl border border-slate-800 bg-slate-950/70 p-4">
             <div className="flex items-center justify-between gap-3">
@@ -848,8 +855,49 @@ export function SocketRoomClient({
               </div>
             )}
 
+            {seat !== null && !gameState ? (
+              openSeats === 0 ? (
+                <button
+                  type="button"
+                  onClick={startGame}
+                  className="mt-3 w-full rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400"
+                >
+                  Start Game
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={fillWithBots}
+                  className="mt-3 w-full rounded-lg bg-amber-400 px-4 py-2.5 text-sm font-semibold text-amber-950 transition hover:bg-amber-300"
+                >
+                  Add {openSeats} bot{openSeats === 1 ? "" : "s"} and Start
+                </button>
+              )
+            ) : null}
+
+            {/* The score above stays put; only the log of past matches folds,
+                since that is the part that grows and the part nobody needs
+                while a hand is being played. */}
             {matchHistory.length > 0 ? (
-              <ol className="mt-3 space-y-1.5">
+              <button
+                type="button"
+                onClick={() => setHistoryOpen((open) => !open)}
+                aria-expanded={historyOpen}
+                className="mt-3 flex w-full items-center gap-2 border-t border-slate-800 pt-3 text-left text-xs uppercase tracking-wide text-slate-500 transition hover:text-slate-300"
+              >
+                <ChevronDown
+                  className={`h-4 w-4 shrink-0 transition-transform duration-200 ${
+                    historyOpen ? "" : "-rotate-90"
+                  }`}
+                  aria-hidden="true"
+                />
+                Match history
+                <span className="ml-auto tabular-nums">{matchHistory.length}</span>
+              </button>
+            ) : null}
+
+            {matchHistory.length > 0 && historyOpen ? (
+              <ol className="mt-2 space-y-1.5">
                 {matchHistory
                   .map((result, index) => ({ result, index }))
                   .reverse()
@@ -873,11 +921,13 @@ export function SocketRoomClient({
                     </li>
                   ))}
               </ol>
-            ) : (
+            ) : null}
+
+            {matchHistory.length === 0 ? (
               <p className="mt-3 text-sm text-slate-400">
                 No matches played yet — results will appear here.
               </p>
-            )}
+            ) : null}
           </section>
         {gameState ? (
           <section className="table-chat-panel rounded-xl border border-slate-800 bg-slate-950/70 p-3">
