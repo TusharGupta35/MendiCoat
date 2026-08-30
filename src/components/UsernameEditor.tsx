@@ -87,7 +87,9 @@ export function UsernameEditor({ username, fallbackName }: UsernameEditorProps) 
           the thing that gets cut. */}
       <div className="flex items-center gap-2">
         <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+          {/* Small and on one line: it is a label, not a headline, and its wide
+              tracking wraps it in two the moment it is given any size. */}
+          <p className="whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.2em] text-slate-400">
             Welcome back
           </p>
           <h1 className="truncate text-2xl font-semibold leading-tight text-white sm:text-3xl">
