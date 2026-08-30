@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getServerSession } from 'next-auth';
+import { AppHeader } from '@/components/AppHeader';
 import { notFound, redirect } from 'next/navigation';
 import { LevelAvatar } from '@/components/Avatar';
 import {
@@ -56,6 +57,8 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
   return (
     <main className="min-h-screen bg-slate-950 px-3 py-6 text-slate-100 sm:px-6 sm:py-12">
       <div className="mx-auto flex max-w-5xl flex-col gap-6 sm:gap-8">
+        <AppHeader />
+
         <header className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-center gap-4">
