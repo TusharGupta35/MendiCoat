@@ -4,11 +4,11 @@ import Link from 'next/link';
 /**
  * The site's mark and wordmark.
  *
- * The mark is the five friends this was built for, sat around a table with a
- * hand of cards in the middle — T, N, P, P and H, one chip each. It is the
- * origin story drawn: the table they lost when they moved apart. Cards because
- * that is what is on the board today; the seats are what still make sense once
- * the board holds games that use none.
+ * The mark is the five friends this was built for — T, N, P, P and H — each on
+ * a different piece: a playing card, a chess knight, a pawn, a card again, a
+ * die, around a chip in the middle. It is the origin story drawn, and it holds
+ * up as the board grows: the pieces already reach past cards, which is where
+ * the games are going.
  *
  * The wordmark keeps the split the loading screen already used — "Dehel" plain
  * and "पकड़" lit — so the logo and the splash are recognisably the same brand.
@@ -21,11 +21,12 @@ export function LogoMark({ className = 'h-10 w-auto' }: { className?: string }) 
     <Image
       src="/logo.png"
       alt=""
-      // The artwork is 1312x1199, not square. Declaring its real proportions and
-      // sizing by height only keeps it from being squashed into a square box;
-      // next/image still serves a resized file rather than the megabyte on disk.
-      width={1312}
-      height={1199}
+      // The artwork is 1239x1269, a shade taller than it is wide. Declaring its
+      // real proportions and sizing by height only keeps it from being squashed
+      // into a square box; next/image still serves a resized file rather than
+      // the megabyte on disk.
+      width={1239}
+      height={1269}
       priority
       className={`object-contain ${className}`}
     />
