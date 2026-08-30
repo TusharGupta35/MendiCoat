@@ -55,8 +55,14 @@ export async function AppHeader({
     // however wide the player's own name runs; two on a phone, where the
     // wordmark is not shown at all and the mark and the player take an edge
     // each.
-    <header className="app-header-field flex items-center justify-between gap-2 rounded-2xl border border-slate-800 bg-slate-900/80 px-4 py-3 sm:grid sm:grid-cols-[auto_1fr_auto] sm:gap-4 sm:px-6 sm:py-3">
-      <BrandMark className="-my-4 -ml-3 h-24 w-auto translate-y-1 drop-shadow-[0_0_18px_rgba(255,194,51,0.25)] sm:h-28 sm:translate-y-1.5" />
+    <header className="app-header-field flex items-center justify-between gap-2 rounded-2xl border border-slate-800 bg-slate-900/80 p-3 sm:grid sm:grid-cols-[auto_1fr_auto] sm:gap-4 sm:p-4">
+      {/* No pulling it out of the bar any more. The old artwork carried a wide
+          transparent glow, so it needed negative margins to look its size; this
+          one is 1.3% margin on the sides and 1.5% on top, so the header's own
+          padding is the spacing, equal on the left, the top and the bottom. The
+          2px nudge answers the 6% of empty space along the artwork's bottom
+          edge, which otherwise leaves it sitting high. */}
+      <BrandMark className="h-24 w-auto translate-y-[2px] drop-shadow-[0_0_18px_rgba(255,194,51,0.25)] sm:h-28" />
 
       <Link href="/dashboard" className="hidden sm:flex sm:justify-center">
         <Wordmark className="flex" />
