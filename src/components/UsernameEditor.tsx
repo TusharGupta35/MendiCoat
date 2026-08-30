@@ -81,14 +81,25 @@ export function UsernameEditor({ username, fallbackName }: UsernameEditorProps) 
 
   return (
     <>
+      {/* The greeting is its own small line above the name. On a phone
+          "Welcome back, TYPHOON" on one line either truncates or shoves the
+          avatar off the row; split in two, the name gets the size and is never
+          the thing that gets cut. */}
       <div className="flex items-center gap-2">
-        <h1 className="text-3xl font-semibold text-white">Welcome back, {displayName}</h1>
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+            Welcome back
+          </p>
+          <h1 className="truncate text-2xl font-semibold leading-tight text-white sm:text-3xl">
+            {displayName}
+          </h1>
+        </div>
         <button
           type="button"
           onClick={openModal}
           aria-label="Edit your username"
           title="Edit your username"
-          className="rounded-lg border border-slate-700 p-1.5 text-slate-400 transition hover:border-amber-400/60 hover:bg-slate-800 hover:text-amber-300"
+          className="shrink-0 rounded-lg border border-slate-700 p-1.5 text-slate-400 transition hover:border-amber-400/60 hover:bg-slate-800 hover:text-amber-300"
         >
           <Pencil className="h-4 w-4" aria-hidden="true" />
         </button>
