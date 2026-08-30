@@ -74,6 +74,23 @@ export default async function StatsPage() {
                 ) : null}
               </div>
             </div>
+
+            {/* The mark in the bar above goes home too, but a page you came to
+                on purpose should say how to leave it in words. */}
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="/players"
+                className="rounded-lg border border-slate-700 px-4 py-2 font-medium transition hover:bg-slate-800"
+              >
+                All players
+              </Link>
+              <Link
+                href="/dashboard"
+                className="rounded-lg border border-slate-700 px-4 py-2 font-medium transition hover:bg-slate-800"
+              >
+                Back to dashboard
+              </Link>
+            </div>
           </div>
 
           <div className="mt-5">
