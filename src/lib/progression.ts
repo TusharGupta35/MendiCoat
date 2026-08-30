@@ -19,9 +19,36 @@ import {
  * history, so nothing extra is stored.
  */
 
-/** Recognition for carrying a match, and for carrying a whole series. */
-export const MVP_XP = 15;
-export const SERIES_MVP_XP_PER_MATCH = 30;
+/**
+ * What a match is worth.
+ *
+ * Small numbers on purpose. An earlier scale paid 25 for a win and 300 for a
+ * one-off feat, which put a level almost entirely in the gift of unlocks that
+ * run out — seven matches were worth 90 XP against 300 for two feats. Playing
+ * is what should move a level, so the awards below are close together and the
+ * one-off ones no longer dwarf them.
+ */
+export const XP = {
+  played: 4,
+  won: 12,
+  drawn: 5,
+  /** Every 10 the team took, and again for each one this player took. */
+  teamTen: 2,
+  ownTen: 2,
+  coat: 10,
+  mvp: 5,
+  /** Per match of a series, to whoever won and led it. */
+  seriesMatch: 8,
+} as const;
+
+/**
+ * Bots pay a fraction rather than nothing. They play the full strategy now, so
+ * beating three of them is a real result — but a table of people is the thing
+ * being encouraged, and the leaderboards stay human-only regardless.
+ */
+export const BOT_RATE = 0.5;
+
+const forBots = (xp: number, hadBots: boolean) => (hadBots ? Math.round(xp * BOT_RATE) : xp);
 
 /** Whether this player was the best seat in the match, by the summary's rule. */
 export function wasMvp(match: PlayedMatch): boolean {
@@ -29,19 +56,26 @@ export function wasMvp(match: PlayedMatch): boolean {
   return mvp !== null && mvp.seat === match.seat;
 }
 
-/** XP for one finished match. Matches against bots pay half, to stop farming. */
+/** How many 10s this player took themselves, read off the trick log. */
+function ownTens(match: PlayedMatch): number {
+  return seatTallies(match.tricks)[match.seat]?.tens ?? 0;
+}
+
+/** XP for one finished match. Nothing is paid for a match that never finished. */
 export function matchXp(match: PlayedMatch): number {
-  let xp = 10; // Turning up.
-  if (didWin(match)) xp += 25;
-  else if (wasDrawn(match)) xp += 10;
-  xp += myTens(match) * 5;
-  if (myTens(match) === 4) xp += 40; // Coat.
+  let xp = XP.played; // Turning up.
+  if (didWin(match)) xp += XP.won;
+  else if (wasDrawn(match)) xp += XP.drawn;
+  // The team's 10s pay both partners, and the ones this player took pay again:
+  // a passenger and the player who did the work should not score the same.
+  xp += myTens(match) * XP.teamTen;
+  xp += ownTens(match) * XP.ownTen;
+  if (myTens(match) === 4) xp += XP.coat;
   // Being coated costs nothing; losing badly is punishment enough.
   if (theirTens(match) === 4) xp += 0;
-  // MVP pays only on a win, and only at a table of humans: three bots playing
-  // to their own level would hand out the award, not lose it.
-  if (didWin(match) && !match.hadBots && wasMvp(match)) xp += MVP_XP;
-  return match.hadBots ? Math.round(xp / 2) : xp;
+  // MVP pays only on a win — carrying a losing side is its own consolation.
+  if (didWin(match) && wasMvp(match)) xp += XP.mvp;
+  return forBots(xp, match.hadBots);
 }
 
 /**
@@ -100,9 +134,13 @@ export interface Milestone {
 /** Roman numerals go far enough for any tier list this size. */
 const NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI'];
 
-/** XP for clearing tier n, index 0 upward. Later tiers are worth the grind. */
+/**
+ * XP for clearing tier n, index 0 upward. Later tiers are worth the grind, but
+ * no tier is worth more than a run of good matches: clearing the top tier of
+ * Sharpshooter is 150 wins, and 150 wins have already paid far more than 800.
+ */
 export function tierXp(tierIndex: number): number {
-  return [60, 150, 400, 800, 1400, 2200][tierIndex] ?? 3000;
+  return [25, 60, 150, 300, 500, 800][tierIndex] ?? 1000;
 }
 
 export const MILESTONES: Milestone[] = [
@@ -270,7 +308,7 @@ function ledSeries(counted: PlayedMatch[]): boolean {
 /**
  * XP for every series this player both won and led. Winning it is the bar the
  * user set: the award is for taking a contest, not for scoring well in one that
- * was lost. Bot matches are barred, as they are everywhere competitive.
+ * was lost.
  */
 export function seriesXpEarned(matches: PlayedMatch[]): number {
   let total = 0;
@@ -279,9 +317,11 @@ export function seriesXpEarned(matches: PlayedMatch[]): number {
     const target = Math.max(...group.map((match) => match.seriesTarget ?? 1));
     const { counted, mine, decided } = contested(group, target);
     if (!decided || mine < target) continue;
-    if (counted.some((match) => match.hadBots)) continue;
     if (!ledSeries(counted)) continue;
-    total += SERIES_MVP_XP_PER_MATCH * counted.length;
+    // A series with bots in it pays the bot rate rather than nothing: taking a
+    // best-of-seven off the bots is still a week of evenings.
+    const hadBots = counted.some((match) => match.hadBots);
+    total += forBots(XP.seriesMatch * counted.length, hadBots);
   }
   return total;
 }

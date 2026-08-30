@@ -4,6 +4,7 @@ import type { ChallengeState } from '@/lib/challenges';
 import type { FeatState } from '@/lib/feats';
 import { bandForLevel, type Level, type MilestoneState } from '@/lib/progression';
 import type { CareerStats, PartnerRecord } from '@/lib/stats-core';
+import { exactly, timeSince } from '@/lib/relative-time';
 import type { LeaderboardRow, XpRow } from '@/lib/stats';
 
 /** Presentational only — every panel takes plain data so it can be rendered anywhere. */
@@ -280,6 +281,20 @@ export function PartnerTable({ partners }: { partners: PartnerRecord[] }) {
   );
 }
 
+/**
+ * When this player was last at a table. Only finished matches are recorded, so
+ * that is what "active" can honestly mean here — somebody who signed in and
+ * watched is not counted.
+ */
+function LastPlayed({ at, className = '' }: { at: Date | null; className?: string }) {
+  const label = timeSince(at);
+  return (
+    <span className={`text-xs text-slate-500 ${className}`} title={exactly(at)}>
+      {label ? `Last played ${label}` : 'No matches yet'}
+    </span>
+  );
+}
+
 function LeaderRow({
   row,
   place,
@@ -299,7 +314,10 @@ function LeaderRow({
         {place}
       </span>
       <Avatar avatar={row.avatar} userKey={row.userId} name={row.name} className="h-8 w-8" />
-      <span className="min-w-0 flex-1 truncate font-medium text-white">{row.name}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-medium text-white">{row.name}</span>
+        <LastPlayed at={row.lastPlayed} className="block truncate" />
+      </span>
       <span className="shrink-0 text-sm tabular-nums text-slate-400">
         {row.won}/{row.played}
       </span>
@@ -365,8 +383,11 @@ export function TopPlayers({ rows, meId }: { rows: XpRow[]; meId: string }) {
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium text-white">{row.name}</span>
                 {/* The band is what a level is called, so it says more than the
-                    number does on its own. */}
-                <span className="block truncate text-xs text-slate-500">{row.band}</span>
+                    number does on its own; when they were last here says
+                    whether the name above is still playing. */}
+                <span className="block truncate text-xs text-slate-500">
+                  {row.band} · {timeSince(row.lastPlayed) ?? 'no matches yet'}
+                </span>
               </span>
               <span className="shrink-0 text-right">
                 <span className="block text-sm font-semibold tabular-nums text-amber-300">

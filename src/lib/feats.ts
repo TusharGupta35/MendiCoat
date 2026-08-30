@@ -27,7 +27,7 @@ export const FEATS: Feat[] = [
     name: 'Clean Sheet',
     description: 'Win a match without losing a single trick.',
     badge: '🧹',
-    xp: 300,
+    xp: 80,
     achieved: (matches) => matches.some((match) => didWin(match) && myHands(match) === 13),
   },
   {
@@ -35,7 +35,7 @@ export const FEATS: Feat[] = [
     name: 'Low Blow',
     description: 'Fix trump with a 2 and take the trick with it.',
     badge: '🔪',
-    xp: 200,
+    xp: 60,
     achieved: (matches) =>
       matches.some((match) =>
         match.tricks.some((trick) => {
@@ -53,7 +53,7 @@ export const FEATS: Feat[] = [
     name: 'Straight Bat',
     description: 'Win a match without ever cutting.',
     badge: '🎩',
-    xp: 150,
+    xp: 45,
     achieved: (matches) => matches.some((match) => didWin(match) && cutsByPlayer(match).length === 0),
   },
   {
@@ -61,7 +61,7 @@ export const FEATS: Feat[] = [
     name: 'On the Tie-break',
     description: 'Win a match level on 10s, taking it on tricks.',
     badge: '⚖️',
-    xp: 150,
+    xp: 45,
     achieved: (matches) => matches.some((match) => didWin(match) && myTens(match) === theirTens(match)),
   },
   {
@@ -69,7 +69,7 @@ export const FEATS: Feat[] = [
     name: 'Survivor',
     description: 'Win the match straight after being coated.',
     badge: '🔥',
-    xp: 200,
+    xp: 60,
     achieved: (matches) => {
       const ordered = [...matches].sort(
         (a, b) => (a.finishedAt?.getTime() ?? 0) - (b.finishedAt?.getTime() ?? 0),

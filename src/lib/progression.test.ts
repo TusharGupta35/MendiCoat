@@ -36,24 +36,34 @@ function match(overrides: Partial<PlayedMatch> = {}): PlayedMatch {
 
 describe('matchXp', () => {
   it('pays for turning up, winning, and each ten taken', () => {
-    // 10 played + 25 won + 2 tens x 5
-    expect(matchXp(match({ winnerTeam: 'A', capturedTensA: 2 }))).toBe(45);
+    // 4 played + 12 won + 2 team tens x 2. No trick log, so no 10 is credited
+    // to this seat personally and no MVP is named.
+    expect(matchXp(match({ winnerTeam: 'A', capturedTensA: 2 }))).toBe(20);
+  });
+
+  it('pays again for the 10s this player took, not just the team', () => {
+    const tricks = [...taken(0, 3, 2), ...taken(1, 4)];
+    const worker = matchXp(match({ winnerTeam: 'A', capturedTensA: 2, seat: 0, tricks }));
+    const passenger = matchXp(match({ winnerTeam: 'A', capturedTensA: 2, seat: 2, tricks }));
+    // Both are on the winning team and both bank the team's 10s; only one of
+    // them actually took them, and is MVP for it.
+    expect(worker).toBeGreaterThan(passenger);
   });
 
   it('pays less for a loss than a win', () => {
     const lost = matchXp(match({ winnerTeam: 'B', capturedTensA: 2 }));
     const won = matchXp(match({ winnerTeam: 'A', capturedTensA: 2 }));
     expect(lost).toBeLessThan(won);
-    expect(lost).toBe(20);
+    expect(lost).toBe(8);
   });
 
   it('adds a coat bonus on top of the tens', () => {
-    // 10 + 25 + 4 tens x 5 + 40 coat
-    expect(matchXp(match({ winnerTeam: 'A', capturedTensA: 4, capturedTensB: 0 }))).toBe(95);
+    // 4 + 12 + 4 team tens x 2 + 10 coat
+    expect(matchXp(match({ winnerTeam: 'A', capturedTensA: 4, capturedTensB: 0 }))).toBe(34);
   });
 
   it('costs nothing to be coated beyond the lost tens', () => {
-    expect(matchXp(match({ winnerTeam: 'B', capturedTensA: 0, capturedTensB: 4 }))).toBe(10);
+    expect(matchXp(match({ winnerTeam: 'B', capturedTensA: 0, capturedTensB: 4 }))).toBe(4);
   });
 
   it('halves everything in a match against bots, so they cannot be farmed', () => {
@@ -211,18 +221,25 @@ describe('matchXp, MVP', () => {
 
   it('pays the MVP of a won match on top of the rest', () => {
     const mvp = matchXp(match({ winnerTeam: 'A', ...carried }));
+    // The same match with no trick log at all: no MVP, and no 10s credited.
     const plain = matchXp(match({ winnerTeam: 'A' }));
-    expect(mvp - plain).toBe(15);
+    expect(mvp - plain).toBe(5 + 3 * 2);
   });
 
-  it('pays nothing for playing best on the losing side', () => {
-    const lost = matchXp(match({ winnerTeam: 'B', ...carried }));
-    expect(lost).toBe(matchXp(match({ winnerTeam: 'B' })));
+  it('pays no MVP bonus for playing best on the losing side', () => {
+    // 4 played, nothing for the loss, 2 team tens x 2, 3 tens taken x 2 — and
+    // no MVP bonus on top, though this seat was the best at the table.
+    expect(matchXp(match({ winnerTeam: 'B', ...carried }))).toBe(4 + 4 + 6);
+    // The same match won pays the win and the bonus as well.
+    expect(matchXp(match({ winnerTeam: 'A', ...carried }))).toBe(4 + 4 + 6 + 12 + 5);
   });
 
-  it('pays nothing for being MVP of a table with bots at it', () => {
+  it('pays the bot rate for the same match against bots', () => {
+    const humans = matchXp(match({ winnerTeam: 'A', ...carried }));
     const withBots = matchXp(match({ winnerTeam: 'A', hadBots: true, ...carried }));
-    expect(withBots).toBe(matchXp(match({ winnerTeam: 'A', hadBots: true })));
+    expect(withBots).toBe(Math.round(humans / 2));
+    // Halved, but never nothing: the bots play the full strategy now.
+    expect(withBots).toBeGreaterThan(0);
   });
 });
 
@@ -242,7 +259,7 @@ describe('seriesXpEarned', () => {
     // Best of 7 swept 4-0 pays for the four that were played, not the seven it
     // could have run to — otherwise the long targets would be free XP.
     const sweep = Array.from({ length: 4 }, () => led({ seriesTarget: 4 }));
-    expect(seriesXpEarned(sweep)).toBe(120);
+    expect(seriesXpEarned(sweep)).toBe(32);
   });
 
   it('pays a longer series more than a short one', () => {
@@ -267,11 +284,13 @@ describe('seriesXpEarned', () => {
 
   it('ignores matches played on after the series was already decided', () => {
     const decided = [led(), led(), led(), led()];
-    expect(seriesXpEarned(decided)).toBe(60);
+    expect(seriesXpEarned(decided)).toBe(16);
   });
 
-  it('pays nothing for a series with bots in it', () => {
-    expect(seriesXpEarned([led({ hadBots: true }), led()])).toBe(0);
+  it('pays the bot rate for a series with bots in it', () => {
+    const withBots = seriesXpEarned([led({ hadBots: true }), led()]);
+    expect(withBots).toBe(Math.round(seriesXpEarned([led(), led()]) / 2));
+    expect(withBots).toBeGreaterThan(0);
   });
 
   it('ignores matches that belong to no series', () => {
