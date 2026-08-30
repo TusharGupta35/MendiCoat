@@ -17,6 +17,28 @@ export const revalidate = 0;
  * "how am I doing against everyone" — this is that list, and every row opens
  * the player behind it.
  */
+/**
+ * The top three get a medal rather than a number.
+ *
+ * Gold, silver and bronze read instantly and mean the same thing everywhere, so
+ * the eye finds the podium without reading a single row. Everyone below keeps a
+ * plain number, which is what makes the three above it look like something.
+ */
+const PODIUM = [
+  {
+    badge: 'bg-gradient-to-br from-amber-200 to-amber-500 text-amber-950 shadow-[0_0_12px_rgba(255,194,51,0.45)]',
+    row: 'bg-amber-500/[0.07] ring-1 ring-amber-400/40',
+  },
+  {
+    badge: 'bg-gradient-to-br from-slate-100 to-slate-400 text-slate-900',
+    row: 'bg-slate-800/40 ring-1 ring-slate-400/30',
+  },
+  {
+    badge: 'bg-gradient-to-br from-[#e0a06a] to-[#8b5a2b] text-[#2a1608]',
+    row: 'bg-[#8b5a2b]/10 ring-1 ring-[#c8874a]/30',
+  },
+];
+
 export default async function PlayersPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) redirect('/login');
@@ -57,19 +79,34 @@ export default async function PlayersPage() {
             </p>
           ) : (
             <ol className="space-y-2">
-              {players.map((player, index) => (
+              {players.map((player, index) => {
+                const podium = PODIUM[index];
+                const isMe = player.userId === me?.id;
+                return (
                 <li key={player.userId}>
                   <Link
                     href={`/players/${player.userId}`}
                     className={`flex items-center gap-3 rounded-lg p-3 transition hover:bg-slate-800 ${
-                      player.userId === me?.id
-                        ? 'bg-amber-500/10 ring-1 ring-amber-400/40'
-                        : 'bg-slate-950/70'
+                      podium?.row ?? 'bg-slate-950/70'
+                    } ${
+                      // Your own row is marked wherever it lands, and on the
+                      // podium the medal already colours it, so it takes a
+                      // dashed edge instead of a second ring fighting the first.
+                      isMe ? (podium ? 'ring-dashed' : 'bg-amber-500/10 ring-1 ring-amber-400/40') : ''
                     }`}
                   >
-                    <span className="w-6 shrink-0 text-center text-sm font-semibold tabular-nums text-slate-500">
-                      {index + 1}
-                    </span>
+                    {podium ? (
+                      <span
+                        aria-hidden="true"
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold tabular-nums ${podium.badge}`}
+                      >
+                        {index + 1}
+                      </span>
+                    ) : (
+                      <span className="w-7 shrink-0 text-center text-sm font-semibold tabular-nums text-slate-500">
+                        {index + 1}
+                      </span>
+                    )}
                     <Avatar
                       avatar={player.avatar}
                       userKey={player.userId}
@@ -97,7 +134,8 @@ export default async function PlayersPage() {
                     </span>
                   </Link>
                 </li>
-              ))}
+                );
+              })}
             </ol>
           )}
         </section>
