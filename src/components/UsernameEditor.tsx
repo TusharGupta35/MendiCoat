@@ -83,17 +83,17 @@ export function UsernameEditor({ username, fallbackName }: UsernameEditorProps) 
     <>
       {/* The greeting is its own small line above the name. On a phone
           "Welcome back, TYPHOON" on one line either truncates or shoves the
-          avatar off the row; split in two, the name is never the thing that
-          gets cut.
+          avatar off the row; split in two, the name gets the size and is
+          never the thing that gets cut.
 
           The block is right-aligned, reading in from the edge of the bar, so
           the pencil sits inside the name rather than beyond it. */}
       <div className="flex flex-row-reverse items-center justify-start gap-2">
         <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-slate-400">
+          <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
             Welcome back
           </p>
-          <h1 className="truncate text-xl font-semibold leading-tight text-white sm:text-3xl">
+          <h1 className="truncate text-2xl font-semibold leading-tight text-white sm:text-3xl">
             {displayName}
           </h1>
         </div>
