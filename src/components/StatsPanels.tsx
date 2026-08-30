@@ -359,7 +359,16 @@ export function Leaderboard({ rows, meId }: { rows: LeaderboardRow[]; meId: stri
 export function TopPlayers({ rows, meId }: { rows: XpRow[]; meId: string }) {
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
-      <h2 className="text-xl font-semibold text-white">Top players</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-xl font-semibold text-white">Top players</h2>
+        {/* Five is the board; everybody is a page. */}
+        <Link
+          href="/players"
+          className="text-sm font-medium text-amber-300 transition hover:text-amber-200"
+        >
+          See all →
+        </Link>
+      </div>
       <p className="mt-1 text-sm text-slate-400">
         The five furthest along, by XP earned across every game.
       </p>
@@ -370,33 +379,42 @@ export function TopPlayers({ rows, meId }: { rows: XpRow[]; meId: string }) {
       ) : (
         <ol className="mt-4 space-y-2">
           {rows.map((row, index) => (
-            <li
-              key={row.userId}
-              className={`flex items-center gap-3 rounded-lg p-3 ${
-                row.userId === meId ? 'bg-amber-500/10 ring-1 ring-amber-400/40' : 'bg-slate-950/70'
-              }`}
-            >
-              <span className="w-6 shrink-0 text-center text-sm font-semibold tabular-nums text-slate-500">
-                {index + 1}
-              </span>
-              <Avatar avatar={row.avatar} userKey={row.userId} name={row.name} className="h-8 w-8" />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium text-white">{row.name}</span>
-                {/* The band is what a level is called, so it says more than the
-                    number does on its own; when they were last here says
-                    whether the name above is still playing. */}
-                <span className="block truncate text-xs text-slate-500">
-                  {row.band} · {timeSince(row.lastPlayed) ?? 'no matches yet'}
+            <li key={row.userId}>
+              <Link
+                href={`/players/${row.userId}`}
+                className={`flex items-center gap-3 rounded-lg p-3 transition hover:bg-slate-800 ${
+                  row.userId === meId
+                    ? 'bg-amber-500/10 ring-1 ring-amber-400/40'
+                    : 'bg-slate-950/70'
+                }`}
+              >
+                <span className="w-6 shrink-0 text-center text-sm font-semibold tabular-nums text-slate-500">
+                  {index + 1}
                 </span>
-              </span>
-              <span className="shrink-0 text-right">
-                <span className="block text-sm font-semibold tabular-nums text-amber-300">
-                  Level {row.level}
+                <Avatar
+                  avatar={row.avatar}
+                  userKey={row.userId}
+                  name={row.name}
+                  className="h-8 w-8"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium text-white">{row.name}</span>
+                  {/* The band is what a level is called, so it says more than the
+                      number does on its own; when they were last here says
+                      whether the name above is still playing. */}
+                  <span className="block truncate text-xs text-slate-500">
+                    {row.band} · {timeSince(row.lastPlayed) ?? 'no matches yet'}
+                  </span>
                 </span>
-                <span className="block text-xs tabular-nums text-slate-500">
-                  {row.totalXp.toLocaleString()} XP
+                <span className="shrink-0 text-right">
+                  <span className="block text-sm font-semibold tabular-nums text-amber-300">
+                    Level {row.level}
+                  </span>
+                  <span className="block text-xs tabular-nums text-slate-500">
+                    {row.totalXp.toLocaleString()} XP
+                  </span>
                 </span>
-              </span>
+              </Link>
             </li>
           ))}
         </ol>
