@@ -7,7 +7,6 @@ import { DeleteRoomButton } from '@/components/DeleteRoomButton';
 import { GameInstructions } from '@/components/GameInstructions';
 import { ProgressWatch } from '@/components/ProgressCelebration';
 import { RecordCard, TopPlayers } from '@/components/StatsPanels';
-import { UsernameEditor } from '@/components/UsernameEditor';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { weekOf } from '@/lib/challenges';
@@ -65,11 +64,17 @@ const rooms: NonNullable<typeof user>['rooms'] = user?.rooms ?? [];
                 name={user.username ?? accountName}
                 photo={user.image}
                 level={record?.level}
+                username={user?.username ?? null}
               />
             ) : null}
             <div>
               <p className="text-sm uppercase tracking-[0.35em] text-amber-400">Dashboard</p>
-              <UsernameEditor username={user?.username ?? null} fallbackName={accountName} />
+              <p className="whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.2em] text-slate-400">
+                Welcome back
+              </p>
+              <h1 className="truncate text-2xl font-semibold leading-tight text-white sm:text-3xl">
+                {user?.username ?? accountName}
+              </h1>
               {wearing ? (
                 <p className="text-sm font-medium text-amber-300">{wearing}</p>
               ) : null}

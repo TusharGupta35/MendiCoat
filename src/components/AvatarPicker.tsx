@@ -4,6 +4,7 @@ import { Check, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Avatar, LevelAvatar } from '@/components/Avatar';
+import { UsernameField } from '@/components/UsernameField';
 import { AVATARS } from '@/lib/avatars';
 
 interface AvatarPickerProps {
@@ -15,13 +16,19 @@ interface AvatarPickerProps {
   photo?: string | null;
   /** When given, the avatar wears the level ring. */
   level?: { level: number; into: number; span: number };
+  /** The saved username, or null while the player still uses their Google name. */
+  username?: string | null;
 }
 
 /**
- * The avatar beside the player's name, and the modal for changing it. Mirrors
- * the username editor so the two controls behave the same way.
+ * The player's face, and the modal behind it for changing how they appear at
+ * the table — both the face and the name.
+ *
+ * The name used to have a pencil and a modal of its own, which meant two ways
+ * into one idea. Tapping your own picture is the thing people try first, so
+ * that is where both live now.
  */
-export function AvatarPicker({ avatar, userKey, name, photo, level }: AvatarPickerProps) {
+export function AvatarPicker({ avatar, userKey, name, photo, level, username }: AvatarPickerProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [choice, setChoice] = useState(avatar);
@@ -125,10 +132,10 @@ export function AvatarPicker({ avatar, userKey, name, photo, level }: AvatarPick
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 id="avatar-modal-title" className="text-xl font-semibold text-white">
-                  Pick your player
+                  Your player
                 </h2>
                 <p className="mt-1 text-sm text-slate-400">
-                  This is the face the other three see at the table.
+                  The name and the face the other three see at the table.
                 </p>
               </div>
               <button
@@ -142,7 +149,12 @@ export function AvatarPicker({ avatar, userKey, name, photo, level }: AvatarPick
               </button>
             </div>
 
-            <div className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-4">
+            <div className="mt-5">
+              <UsernameField username={username ?? null} fallbackName={name} disabled={isSaving} />
+            </div>
+
+            <p className="mt-5 text-xs uppercase tracking-[0.16em] text-slate-400">Your face</p>
+            <div className="mt-2 grid grid-cols-3 gap-3 sm:grid-cols-4">
               {AVATARS.map((option) => {
                 const selected = choice === option.id;
                 return (
