@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ChevronLeft } from 'lucide-react';
 import { getServerSession } from 'next-auth';
 import { notFound, redirect } from 'next/navigation';
 import { CreateRoomButton } from '@/components/CreateRoomButton';
@@ -50,24 +51,27 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
         <AppHeader />
 
         <header className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="flex items-start gap-4">
-              <GameEmblem game={game} size="lg" />
-              <div>
-                <h1 className="text-3xl font-semibold text-white">{game.name}</h1>
-                <p className="text-sm text-amber-300">{game.tagline}</p>
-                <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
-                  {game.players}
-                  {game.bots ? ' · bots available' : ' · needs a full table'}
-                </p>
-              </div>
+          {/* A step back up, read as a breadcrumb above the game rather than a
+              button beside it. As a button it competed with "Create room" for
+              the same job, and on a phone it wrapped onto a line of its own. */}
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-1 text-sm font-medium text-slate-400 transition hover:text-amber-300"
+          >
+            <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
+            All games
+          </Link>
+
+          <div className="mt-3 flex items-start gap-4">
+            <GameEmblem game={game} size="lg" />
+            <div>
+              <h1 className="text-3xl font-semibold text-white">{game.name}</h1>
+              <p className="text-sm text-amber-300">{game.tagline}</p>
+              <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+                {game.players}
+                {game.bots ? ' · bots available' : ' · needs a full table'}
+              </p>
             </div>
-            <Link
-              href="/dashboard"
-              className="rounded-lg border border-slate-700 px-4 py-2 font-medium transition hover:bg-slate-800"
-            >
-              All games
-            </Link>
           </div>
 
           <p className="mt-4 max-w-2xl text-sm text-slate-400">{game.blurb}</p>
