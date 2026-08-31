@@ -39,10 +39,12 @@ export function LogoMark({ className = 'h-10 w-auto' }: { className?: string }) 
 export function Wordmark({ className = '' }: { className?: string }) {
   return (
     <span className={`flex select-none items-baseline gap-1.5 ${className}`}>
-      <span className="text-2xl font-black uppercase tracking-[0.12em] text-white sm:text-5xl sm:tracking-[0.15em]">
+      {/* The phone size only shows up on the front door — the header hides the
+          wordmark below sm — so it can be set for a page that has the width. */}
+      <span className="text-4xl font-black uppercase tracking-[0.12em] text-white sm:text-5xl sm:tracking-[0.15em]">
         Dehel
       </span>
-      <span className="text-2xl font-black text-amber-400 drop-shadow-[0_0_12px_rgba(255,194,51,0.45)] sm:text-5xl">
+      <span className="text-4xl font-black text-amber-400 drop-shadow-[0_0_12px_rgba(255,194,51,0.45)] sm:text-5xl">
         पकड़
       </span>
     </span>
