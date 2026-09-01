@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, X } from 'lucide-react';
+import { Check, Pencil, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Avatar, LevelAvatar } from '@/components/Avatar';
@@ -94,7 +94,7 @@ export function AvatarPicker({ avatar, userKey, name, photo, level, username }: 
         onClick={openModal}
         title="Change your avatar"
         aria-label="Change your avatar"
-        className="rounded-full transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
+        className="relative rounded-full transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
       >
         {level ? (
           <LevelAvatar
@@ -116,6 +116,12 @@ export function AvatarPicker({ avatar, userKey, name, photo, level, username }: 
             className="h-14 w-14 sm:h-16 sm:w-16"
           />
         )}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-1 -top-1 rounded-full bg-amber-400 p-1 text-slate-950 shadow-md ring-2 ring-slate-900"
+        >
+          <Pencil className="h-3 w-3" strokeWidth={2.5} />
+        </span>
       </button>
 
       {isOpen ? (
