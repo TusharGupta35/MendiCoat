@@ -1,4 +1,4 @@
-import { avatarFor, initialsOf, type Avatar as AvatarData } from '@/lib/avatars';
+import { avatarById, initialsOf, type Avatar as AvatarData } from '@/lib/avatars';
 
 /**
  * Draws a character from the shared set of shapes. No hooks, so it works in
@@ -221,7 +221,7 @@ export function AvatarFace({ avatar }: { avatar: AvatarData }) {
 interface AvatarProps {
   /** The chosen avatar id, if the player has picked one. */
   avatar?: string | null;
-  /** Used for the fallback face and the initials, so it must be stable. */
+  /** Stable identity retained for callers and level-avatar composition. */
   userKey: string;
   name: string;
   /** A photo from the sign-in provider, used only when nothing is picked. */
@@ -229,11 +229,12 @@ interface AvatarProps {
   className?: string;
 }
 
-export function Avatar({ avatar, userKey, name, photo, className }: AvatarProps) {
+export function Avatar({ avatar, name, photo, className }: AvatarProps) {
   const size = className ?? 'h-10 w-10';
+  const face = avatarById(avatar);
 
-  // A provider photo is only worth showing when the player has not chosen.
-  if (!avatar && photo) {
+  // A provider photo is shown when the player has not chosen a built-in avatar.
+  if (!face && photo) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
@@ -245,7 +246,20 @@ export function Avatar({ avatar, userKey, name, photo, className }: AvatarProps)
     );
   }
 
-  const face = avatarFor(avatar, userKey);
+  // Do not invent a character for players who have not chosen one and have no
+  // provider photo. Initials make the absence of an avatar explicit.
+  if (!face) {
+    return (
+      <span
+        className={`${size} flex shrink-0 items-center justify-center rounded-full bg-slate-800 text-xs font-semibold text-slate-200 ring-1 ring-slate-700`}
+        role="img"
+        aria-label={`${name}'s avatar`}
+      >
+        {initialsOf(name)}
+      </span>
+    );
+  }
+
   return (
     <svg
       viewBox="0 0 100 100"

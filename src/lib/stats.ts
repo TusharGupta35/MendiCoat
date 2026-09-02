@@ -100,7 +100,7 @@ const MATCH_SELECT = {
           userId: true,
           seat: true,
           team: true,
-          user: { select: { username: true, name: true, avatar: true } },
+          user: { select: { username: true, name: true, avatar: true, image: true } },
         },
       },
       tricks: {
@@ -139,7 +139,12 @@ type SeatRow = {
       userId: string;
       seat: number;
       team: string;
-      user: { username: string | null; name: string | null; avatar: string | null } | null;
+      user: {
+        username: string | null;
+        name: string | null;
+        avatar: string | null;
+        image: string | null;
+      } | null;
     }>;
     tricks: Array<{
       trickNumber: number;
@@ -175,6 +180,7 @@ function toPlayedMatch(userId: string, { seat, team, match }: SeatRow): PlayedMa
         userId: other.userId,
         name: displayName(other.user),
         avatar: other.user?.avatar ?? null,
+        image: other.user?.image ?? null,
         seat: other.seat,
         team: other.team as TeamId,
       })),
@@ -220,6 +226,7 @@ export interface LeaderboardRow {
   userId: string;
   name: string;
   avatar: string | null;
+  image?: string | null;
   played: number;
   won: number;
   winRate: number;
@@ -262,7 +269,7 @@ async function leaderboard(limit: number, since?: Date): Promise<LeaderboardRow[
     select: {
       userId: true,
       won: true,
-      user: { select: { username: true, name: true, avatar: true } },
+      user: { select: { username: true, name: true, avatar: true, image: true } },
       match: { select: { finishedAt: true } },
     },
   });
@@ -273,6 +280,7 @@ async function leaderboard(limit: number, since?: Date): Promise<LeaderboardRow[
       userId: seat.userId,
       name: displayName(seat.user),
       avatar: seat.user?.avatar ?? null,
+      image: seat.user?.image ?? null,
       played: 0,
       won: 0,
       winRate: 0,
@@ -294,6 +302,7 @@ export interface XpRow {
   userId: string;
   name: string;
   avatar: string | null;
+  image?: string | null;
   level: number;
   totalXp: number;
   band: string;
@@ -321,14 +330,22 @@ async function xpLeaderboard(limit: number): Promise<XpRow[]> {
   // stats query per player.
   const seats = await prisma.matchPlayer.findMany({
     where: { match: { status: 'FINISHED' } },
-    select: { ...MATCH_SELECT, userId: true, user: { select: { username: true, name: true, avatar: true } } },
+    select: {
+      ...MATCH_SELECT,
+      userId: true,
+      user: { select: { username: true, name: true, avatar: true, image: true } },
+    },
   });
 
-  const byUser = new Map<string, { name: string; avatar: string | null; matches: PlayedMatch[] }>();
+  const byUser = new Map<
+    string,
+    { name: string; avatar: string | null; image: string | null; matches: PlayedMatch[] }
+  >();
   for (const seat of seats) {
     const player = byUser.get(seat.userId) ?? {
       name: displayName(seat.user),
       avatar: seat.user?.avatar ?? null,
+      image: seat.user?.image ?? null,
       matches: [],
     };
     player.matches.push(toPlayedMatch(seat.userId, seat));
@@ -342,6 +359,7 @@ async function xpLeaderboard(limit: number): Promise<XpRow[]> {
         userId,
         name: player.name,
         avatar: player.avatar,
+        image: player.image,
         level: level.level,
         totalXp: level.totalXp,
         band: bandForLevel(level.level).name,

@@ -262,6 +262,7 @@ export function PartnerTable({ partners }: { partners: PartnerRecord[] }) {
                   avatar={partner.avatar}
                   userKey={partner.userId}
                   name={partner.name}
+                  photo={partner.image}
                   className="h-8 w-8"
                 />
                 <span className="min-w-0 truncate font-medium text-white">{partner.name}</span>
@@ -314,7 +315,13 @@ function LeaderRow({
       <span className="w-6 shrink-0 text-center text-sm font-semibold tabular-nums text-slate-500">
         {place}
       </span>
-      <Avatar avatar={row.avatar} userKey={row.userId} name={row.name} className="h-8 w-8" />
+      <Avatar
+        avatar={row.avatar}
+        userKey={row.userId}
+        name={row.name}
+        photo={row.image}
+        className="h-8 w-8"
+      />
       <span className="min-w-0 flex-1">
         <span className="block truncate font-medium text-white">{row.name}</span>
         <LastPlayed at={row.lastPlayed} className="block truncate" />
@@ -410,6 +417,7 @@ export function TopPlayers({ rows, meId }: { rows: XpRow[]; meId: string }) {
                   avatar={row.avatar}
                   userKey={row.userId}
                   name={row.name}
+                  photo={row.image}
                   className="h-8 w-8"
                 />
                 <span className="min-w-0 flex-1">
