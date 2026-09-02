@@ -20,7 +20,14 @@ export interface PlayedMatch {
   team: TeamId;
   seat: number;
   /** Every other human seat in the match. */
-  others: Array<{ userId: string; name: string; avatar: string | null; seat: number; team: TeamId }>;
+  others: Array<{
+    userId: string;
+    name: string;
+    avatar: string | null;
+    image?: string | null;
+    seat: number;
+    team: TeamId;
+  }>;
   tricks: PlayedTrick[];
   /**
    * The series this match belonged to and the wins that took it. Optional
@@ -119,6 +126,7 @@ export interface PartnerRecord {
   userId: string;
   name: string;
   avatar: string | null;
+  image?: string | null;
   played: number;
   won: number;
   winRate: number;
@@ -138,6 +146,7 @@ export function partnerRecords(matches: PlayedMatch[]): PartnerRecord[] {
       userId: partner.userId,
       name: partner.name,
       avatar: partner.avatar,
+      ...(partner.image ? { image: partner.image } : {}),
       played: 0,
       won: 0,
       winRate: 0,

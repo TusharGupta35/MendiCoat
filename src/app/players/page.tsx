@@ -93,6 +93,7 @@ export default async function PlayersPage() {
                       avatar={player.avatar}
                       userKey={player.userId}
                       name={player.name}
+                      photo={player.image}
                       className="h-9 w-9"
                     />
                     <span className="min-w-0 flex-1">
