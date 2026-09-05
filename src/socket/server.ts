@@ -6,6 +6,7 @@ import type { Card, GameState, MatchResult, SeatIndex, Suit } from '@/types/game
 import { buildMatchSummary, type MatchSummary } from '@/lib/match-summary';
 import { mvpOf, type SeatTally } from '@/lib/stats-core';
 import { closeMatch, openMatch, trickEntry, type TrickLogEntry } from '@/socket/match-store';
+import { registerCloseRoom } from '@/lib/room-registry';
 
 interface RoomState {
   roomCode: string;
@@ -48,8 +49,6 @@ interface RoomState {
   hostId?: string | null;
   /** The in-flight host lookup, so four players joining at once cause one read. */
   hostLookup?: Promise<string | null>;
-  /** Pending hand-back to the lobby for a room every human has left. */
-  resetTimer?: ReturnType<typeof setTimeout>;
 }
 
 type RoomStatus = 'LOBBY' | 'PLAYING';
@@ -117,6 +116,16 @@ interface RoomPlayer {
 
 type TeamId = 'A' | 'B';
 
+/**
+ * Every live room, by code. A room stays here for the life of the process: it
+ * keeps its seats, its match and its series when the last person walks away, so
+ * a table can be picked up exactly where it was left. Only the host deleting
+ * the room takes it out — see closeRoom.
+ *
+ * This is memory, not storage. A restart empties it, which is why the boot
+ * sweep below puts every room the database still calls PLAYING back in the
+ * lobby.
+ */
 const rooms = new Map<string, RoomState>();
 
 const TEAM_SEATS: Record<TeamId, SeatIndex[]> = {
@@ -223,9 +232,6 @@ function markPlayerConnected(room: RoomState, playerId: string, socketId: string
   room.players.find((player) => player?.id === playerId)?.socketIds.add(socketId);
 }
 
-/** How long an emptied-out room keeps its seats and match before resetting. */
-const EMPTY_ROOM_RESET_MS = 60_000;
-
 function hasConnectedHuman(room: RoomState) {
   return room.players.some((player) => player && !player.isBot && player.socketIds.size > 0);
 }
@@ -252,48 +258,10 @@ function syncRoomStatus(room: RoomState) {
     });
 }
 
-/** True while the room still holds something a reset would clear. */
-function roomNeedsReset(room: RoomState) {
-  return room.gameState !== undefined || room.players.some(Boolean);
-}
-
-// Everyone disconnecting at once is usually a blip — a reload, a dropped
-// network — so an emptied room keeps its seats and its match for a grace
-// period. Only once that passes with nobody back does it return to a fresh
-// lobby, which also frees the seats ghosts were holding.
-function scheduleEmptyRoomReset(io: Server, room: RoomState) {
-  if (hasConnectedHuman(room) || !roomNeedsReset(room)) {
-    if (room.resetTimer) clearTimeout(room.resetTimer);
-    room.resetTimer = undefined;
-    return;
-  }
-  if (room.resetTimer) return;
-
-  room.resetTimer = setTimeout(() => {
-    room.resetTimer = undefined;
-    // The room may have been recreated, or refilled, while the timer ran.
-    if (rooms.get(room.roomCode) !== room || hasConnectedHuman(room)) return;
-    room.players = Array.from<RoomPlayer | undefined>({ length: 4 });
-    room.gameState = undefined;
-    // An abandoned match keeps its PENDING row on purpose — that is what makes
-    // completion rate answerable — but this process is done with it.
-    room.matchId = undefined;
-    room.trickLog = [];
-    room.trumpAtTrickStart = null;
-    room.summary = undefined;
-    room.series = newSeries();
-    room.seriesTallies = emptyTallies();
-    // Match history is the room's own record, so it survives the reset.
-    io.to(room.roomCode).emit('room-reset');
-    emitState(io, room);
-  }, EMPTY_ROOM_RESET_MS);
-}
-
 function emitState(io: Server, room: RoomState) {
   // Every mutation funnels through here, so deriving the room's status at this
   // one point keeps the database honest without every handler remembering to.
   syncRoomStatus(room);
-  scheduleEmptyRoomReset(io, room);
   io.to(room.roomCode).emit('room-update', {
     players: roomPlayersPayload(room),
     admin: adminPayload(room),
@@ -405,6 +373,21 @@ export function createSocketServer(httpServer: import('node:http').Server) {
   const io = new Server(httpServer, {
     cors: { origin: '*', methods: ['GET', 'POST'] },
   });
+
+  /**
+   * The host has deleted the room. Rooms are otherwise permanent, so this is
+   * the one path that forgets one — and it has to, or a code handed out again
+   * later would inherit these seats and this half-played match.
+   */
+  function closeRoom(code: string) {
+    const room = rooms.get(code);
+    if (!room) return;
+    rooms.delete(code);
+    io.to(code).emit('room-closed');
+    // Nobody is left to update, and the room must not linger in a channel.
+    io.socketsLeave(code);
+  }
+  registerCloseRoom(closeRoom);
 
   // No room is live in memory at boot, so anything the database still calls
   // PLAYING is a leftover from a previous process — including every room the

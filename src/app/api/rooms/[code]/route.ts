@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { closeSocketRoom } from '@/lib/room-registry';
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   const session = await getServerSession(authOptions);
@@ -21,5 +22,9 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   }
 
   await prisma.room.delete({ where: { id: room.id } });
+  // A room keeps its seats and its match until it is deleted, so the live state
+  // has to go with the row. Otherwise anyone still at the table plays on in a
+  // room that no longer exists, and a code issued again later would inherit it.
+  closeSocketRoom(room.code);
   return NextResponse.json({ ok: true });
 }
