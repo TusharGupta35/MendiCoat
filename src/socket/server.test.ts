@@ -20,6 +20,8 @@ vi.mock('@/lib/prisma', () => ({
       updateMany: vi.fn(async () => {
         staleResets.count += 1;
       }),
+      // Every room in these tests is hosted by the player who takes seat 0.
+      findUnique: vi.fn(async () => ({ hostId: 'player-0' })),
     },
   },
 }));
@@ -176,5 +178,57 @@ describe('room status tracks whether a live match has anyone in it', () => {
     // Four joins and a start produce many emitState passes; the room should
     // still have moved through exactly two states.
     expect(statusWrites.map((write) => write.status)).toEqual(['LOBBY', 'PLAYING']);
+  });
+});
+
+describe('only the host runs the table', () => {
+  const ask = (client: Socket, event: string, payload: object) =>
+    new Promise<{ error?: string }>((resolve) => client.emit(event, payload, resolve));
+
+  it('refuses a start from anyone but the host', async () => {
+    const roomCode = freshRoomCode();
+    const players = await seatFourPlayers(roomCode);
+
+    // player-1 is at the table, but player-0 made the room.
+    const refused = await startGame(players[1], roomCode);
+    expect(refused.error).toMatch(/player-0/);
+    expect(await startGame(players[0], roomCode)).toEqual({});
+  });
+
+  it('refuses a series change from anyone but the host', async () => {
+    const roomCode = freshRoomCode();
+    const players = await seatFourPlayers(roomCode);
+
+    expect((await ask(players[2], 'set-series', { roomCode, target: 1 })).error).toMatch(/player-0/);
+    expect((await ask(players[2], 'new-series', { roomCode })).error).toMatch(/player-0/);
+    expect(await ask(players[0], 'set-series', { roomCode, target: 1 })).toEqual({});
+    expect(await ask(players[0], 'new-series', { roomCode })).toEqual({});
+  });
+
+  it('names the host in the room payload', async () => {
+    const roomCode = freshRoomCode();
+    const players = await seatFourPlayers(roomCode);
+
+    const admin = await new Promise<{ id: string; name: string; isHost: boolean } | null>(
+      (resolve) => {
+        players[1].once('room-update', (payload: { admin: { id: string; name: string; isHost: boolean } | null }) =>
+          resolve(payload.admin),
+        );
+        players[1].emit('watch-room', { roomCode });
+      },
+    );
+    expect(admin).toMatchObject({ id: 'player-0', isHost: true });
+  });
+
+  it('hands the table to the next seat when the host is away, so it cannot freeze', async () => {
+    const roomCode = freshRoomCode();
+    const players = await seatFourPlayers(roomCode);
+
+    players[0].disconnect();
+    // The room still has three humans in it; seat 1 is the lowest one left.
+    await vi.waitFor(async () => {
+      expect(await ask(players[1], 'set-series', { roomCode, target: 2 })).toEqual({});
+    });
+    expect((await ask(players[2], 'set-series', { roomCode, target: 3 })).error).toMatch(/player-1/);
   });
 });

@@ -24,7 +24,12 @@ const { opened, closed } = vi.hoisted(() => ({
 
 vi.mock('@/lib/prisma', () => ({
   prisma: {
-    room: { update: vi.fn(async () => {}), updateMany: vi.fn(async () => {}) },
+    room: {
+      update: vi.fn(async () => {}),
+      updateMany: vi.fn(async () => {}),
+      // Every room in these tests is hosted by the player who takes seat 0.
+      findUnique: vi.fn(async () => ({ hostId: 'p0' })),
+    },
   },
 }));
 
@@ -335,5 +340,23 @@ describe('a decided series has to be closed before more matches are played', () 
     // Extending carries the same contest on, so the id does not change.
     expect(opened.at(-1)!.id).toBe(opened[0].id);
     expect(opened.at(-1)!.target).toBe(2);
+  });
+});
+
+describe('one click, one hand', () => {
+  it('deals a single match when the host double-clicks start', async () => {
+    const roomCode = freshRoomCode();
+    const players = await seatFourPlayers(roomCode);
+
+    // The host check waits on the database, so the two clicks are in flight
+    // together. Only one of them may reach the deck.
+    const results = await Promise.all([
+      ask(players[0], 'start-game', { roomCode }),
+      ask(players[0], 'start-game', { roomCode }),
+    ]);
+
+    await vi.waitFor(() => expect(opened.length).toBeGreaterThan(0), { interval: 5 });
+    expect(opened).toHaveLength(1);
+    expect(results.filter((result) => !result.error)).toHaveLength(1);
   });
 });
