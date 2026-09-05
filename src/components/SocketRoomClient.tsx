@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, type CSSProperties, type FormEvent, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import { ChevronDown, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import type { Card, GameState, MatchResult, SeatIndex, Suit, TrickPlay } from "@/types/game";
@@ -8,6 +9,7 @@ import { LoadingScreen } from "@/components/LoadingScreen";
 import { Avatar } from "@/components/Avatar";
 import { CardBack } from "@/components/PlayingCard";
 import { EMOTES, isEmote } from "@/lib/emotes";
+import { ROOM_GAME } from "@/lib/games";
 import type { MatchSummary } from "@/lib/match-summary";
 import { PlayingCard } from "@/components/PlayingCard";
 import { ProgressToast } from "@/components/ProgressCelebration";
@@ -91,6 +93,7 @@ export function SocketRoomClient({
   playerAvatar,
   playerTitle,
 }: SocketRoomClientProps) {
+  const router = useRouter();
   const [socket, setSocket] = useState<Socket | null>(null);
   const voice = useVoiceChat(socket, roomCode);
   const [isConnected, setIsConnected] = useState(false);
@@ -274,13 +277,15 @@ export function SocketRoomClient({
       if (moveErrorTimeout.current) clearTimeout(moveErrorTimeout.current);
       moveErrorTimeout.current = setTimeout(() => setMoveError(null), 2600);
     });
-    // The server hands an abandoned room back to the lobby. Anyone still
-    // watching it should land there too rather than on a dead board.
-    client.on("room-reset", () => {
+    // A room now lasts until its host deletes it. That is the one way it can
+    // vanish under the people sitting in it, so they are sent back to the game
+    // rather than left on a board that answers to nothing.
+    client.on("room-closed", () => {
       setGameState(null);
       setSeat(null);
-      setError(null);
       setMoveError(null);
+      setError("The host closed this room.");
+      router.replace(`/games/${ROOM_GAME.slug}`);
     });
     client.on("room-full", () => setError("This room is full."));
     client.on("game-already-started", () => setError("This game has already started."));

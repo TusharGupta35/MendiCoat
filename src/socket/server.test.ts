@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { io as ioClient, type Socket } from 'socket.io-client';
 import type { Server } from 'socket.io';
+import type { GameState } from '@/types/game';
 
 // Every Room.status write the socket server makes, in order.
 const { statusWrites } = vi.hoisted(() => ({
@@ -27,6 +28,7 @@ vi.mock('@/lib/prisma', () => ({
 }));
 
 const { createSocketServer } = await import('./server');
+const { closeSocketRoom } = await import('@/lib/room-registry');
 
 let httpServer: HttpServer;
 let ioServer: Server;
@@ -146,28 +148,40 @@ describe('room status tracks whether a live match has anyone in it', () => {
     await waitForStatus('PLAYING');
   });
 
-  it('hands an abandoned room back to a fresh lobby after the grace period', async () => {
+  it('keeps an abandoned room exactly as it was, so the table can be picked up again', async () => {
     const roomCode = freshRoomCode();
     const players = await seatFourPlayers(roomCode);
     await startGame(players[0], roomCode);
     await waitForStatus('PLAYING');
 
-    const watcher = await connect();
-    const resetSeen = new Promise<void>((resolve) => watcher.once('room-reset', resolve));
-    watcher.emit('watch-room', { roomCode });
-
-    // The fakes must be installed before the disconnects that schedule the
-    // reset; shouldAdvanceTime keeps socket.io's own timers ticking meanwhile.
     vi.useFakeTimers({ shouldAdvanceTime: true });
     for (const player of players) player.disconnect();
     await waitForStatus('LOBBY');
+    // Past the 60s after which an emptied room used to be wiped back to a
+    // fresh lobby. Nothing should be waiting on that clock any more.
     vi.advanceTimersByTime(61_000);
-    await resetSeen;
     vi.useRealTimers();
 
-    // The seats are free again, so a brand new player can take one.
+    // The seats are still spoken for, so a stranger cannot take one.
     const newcomer = await connect();
-    await expect(joinTeam(newcomer, roomCode, 'newcomer', 'A')).resolves.toBe(0);
+    const refusal = new Promise<string>((resolve) => {
+      newcomer.once('team-full', () => resolve('refused'));
+      newcomer.once('room-full', () => resolve('refused'));
+      newcomer.once('game-already-started', () => resolve('refused'));
+      newcomer.once('seat-assigned', (seat: number) => resolve(`seated at ${seat}`));
+    });
+    newcomer.emit('join-room', { roomCode, playerId: 'newcomer', playerName: 'newcomer', team: 'A' });
+    expect(await refusal).toBe('refused');
+
+    // And the friend who left gets their own seat, and their match, back.
+    const returning = await connect();
+    const restored = new Promise<number>((resolve) => returning.once('seat-assigned', resolve));
+    const stateSeen = new Promise<GameState>((resolve) =>
+      returning.once('game-state-update', resolve),
+    );
+    returning.emit('restore-seat', { roomCode, playerId: 'player-2' });
+    expect(await restored).toBe(2);
+    expect((await stateSeen).status).toBe('PLAYING');
   });
 
   it('writes a status only when it actually changes', async () => {
@@ -230,5 +244,90 @@ describe('only the host runs the table', () => {
       expect(await ask(players[1], 'set-series', { roomCode, target: 2 })).toEqual({});
     });
     expect((await ask(players[2], 'set-series', { roomCode, target: 3 })).error).toMatch(/player-1/);
+  });
+});
+
+describe('a seat cannot be traded for a better one by leaving', () => {
+  const ask = (client: Socket, event: string, payload: object) =>
+    new Promise<{ error?: string }>((resolve) => client.emit(event, payload, resolve));
+
+  /**
+   * Time enough away that the room would once have been wiped back to a fresh
+   * lobby — which is exactly what let a losing player come back on a new team.
+   */
+  async function leaveForAWhile(client: Socket) {
+    // The fakes go in before the disconnect: the timer that used to wipe the
+    // room was armed by the disconnect itself, so installing them afterwards
+    // would leave it running on the real clock and never fire it.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    client.disconnect();
+    await waitForStatus('LOBBY');
+    vi.advanceTimersByTime(61_000);
+    vi.useRealTimers();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+
+  /** The solo-with-bots table, which is where the escape hatch was widest. */
+  async function soloTableWithBots(roomCode: string) {
+    const host = await connect();
+    await joinTeam(host, roomCode, 'player-0', 'A');
+    expect(await ask(host, 'fill-bots', { roomCode })).toEqual({});
+    return host;
+  }
+
+  it('gives a returning player their old seat, not the team they ask for', async () => {
+    const roomCode = freshRoomCode();
+    const host = await soloTableWithBots(roomCode);
+
+    await leaveForAWhile(host);
+
+    const returning = await connect();
+    const seat = await new Promise<number>((resolve) => {
+      returning.once('seat-assigned', resolve);
+      // Asking for team B: seat 0 is team A, so this is the swap being tried.
+      returning.emit('join-room', { roomCode, playerId: 'player-0', playerName: 'player-0', team: 'B' });
+    });
+    expect(seat).toBe(0);
+  });
+
+  it('refuses a team switch once the match has been dealt', async () => {
+    const roomCode = freshRoomCode();
+    const host = await soloTableWithBots(roomCode);
+
+    await leaveForAWhile(host);
+
+    const returning = await connect();
+    await new Promise((resolve) => {
+      returning.once('seat-assigned', resolve);
+      returning.emit('restore-seat', { roomCode, playerId: 'player-0' });
+    });
+    expect((await ask(returning, 'switch-team', { roomCode, team: 'B' })).error).toMatch(
+      /already started/i,
+    );
+  });
+
+  it('still lets the table sort itself out while it is only a lobby', async () => {
+    const roomCode = freshRoomCode();
+    const host = await connect();
+    await joinTeam(host, roomCode, 'player-0', 'A');
+    // No match dealt, so the waiting room is still the waiting room.
+    expect(await ask(host, 'switch-team', { roomCode, team: 'B' })).toEqual({});
+  });
+});
+
+describe('a room lasts until its host deletes it', () => {
+  it('forgets the room and turns out everyone still sitting in it', async () => {
+    const roomCode = freshRoomCode();
+    const players = await seatFourPlayers(roomCode);
+    await startGame(players[0], roomCode);
+
+    const closed = new Promise<void>((resolve) => players[1].once('room-closed', () => resolve()));
+    closeSocketRoom(roomCode);
+    await closed;
+
+    // The code is free again. Without this a code handed out a second time
+    // would inherit the deleted room's seats and its half-played match.
+    const newcomer = await connect();
+    await expect(joinTeam(newcomer, roomCode, 'newcomer', 'A')).resolves.toBe(0);
   });
 });
