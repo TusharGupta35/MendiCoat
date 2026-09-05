@@ -39,6 +39,14 @@ type RoomPlayer = {
 } | null;
 
 /**
+ * Who is running the table, as the server reports it. Starting, restarting and
+ * the series length are theirs alone. Normally the host who made the room; when
+ * the host is away, the server hands it to whoever is sitting in the lowest
+ * seat so the table is never stuck.
+ */
+type AdminPayload = { id: string; name: string; isHost: boolean } | null;
+
+/**
  * The running series as the server reports it. `best` is the seat leading it on
  * tricks and 10s — the room's own count, so it survives nobody having opened
  * the stats page.
@@ -94,6 +102,7 @@ export function SocketRoomClient({
     null,
     null,
   ]);
+  const [admin, setAdmin] = useState<AdminPayload>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [matchHistory, setMatchHistory] = useState<MatchResult[]>([]);
   // Which slice of the history counts toward the running series, and how many
@@ -225,9 +234,10 @@ export function SocketRoomClient({
     client.on("disconnect", () => setIsConnected(false));
     client.emit("watch-room", { roomCode });
     client.emit("restore-seat", { roomCode, playerId });
-    client.on("room-update", (payload: { players: RoomPlayer[] }) =>
-      setRoomPlayers(payload.players),
-    );
+    client.on("room-update", (payload: { players: RoomPlayer[]; admin: AdminPayload }) => {
+      setRoomPlayers(payload.players);
+      setAdmin(payload.admin ?? null);
+    });
     client.on("seat-assigned", (payload: number) => setSeat(payload));
     client.on("game-started", (payload: GameState) => {
       setGameState(payload);
@@ -527,6 +537,11 @@ export function SocketRoomClient({
   // wipe a win that has already been played for.
   const seriesUnderway = !seriesWinner && seriesLeader > 0;
   const matchInProgress = gameState?.status === "PLAYING";
+  // Running the table is one person's job, so everyone else sees the same
+  // controls greyed out with their name on them rather than nothing at all.
+  const isAdmin = admin !== null && admin.id === playerId;
+  const adminName = admin?.name ?? "the host";
+  const waitingOnAdmin = `Only ${adminName} can do this`;
 
   function setSeriesTarget(target: number) {
     setError(null);
@@ -686,6 +701,13 @@ export function SocketRoomClient({
                                   {occupant.title}
                                 </span>
                               ) : null}
+                              {/* The one seat that can start, restart and set
+                                  the series length. */}
+                              {occupant && admin?.id === occupant.id ? (
+                                <span className="block truncate text-[10px] font-medium uppercase tracking-wider text-emerald-300/90">
+                                  {admin.isHost ? "Host" : "Acting host"}
+                                </span>
+                              ) : null}
                             </span>
                           </span>
                         </div>
@@ -783,7 +805,8 @@ export function SocketRoomClient({
                     <button
                       type="button"
                       onClick={startNewSeries}
-                      disabled={seat === null || matchInProgress}
+                      disabled={!isAdmin || matchInProgress}
+                      title={isAdmin ? undefined : waitingOnAdmin}
                       className="rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-semibold text-amber-950 transition disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       New series
@@ -805,8 +828,12 @@ export function SocketRoomClient({
                           key={target}
                           type="button"
                           onClick={() => setSeriesTarget(target)}
-                          disabled={seat === null || matchInProgress}
-                          title={`Keep this score and play on to ${target} wins`}
+                          disabled={!isAdmin || matchInProgress}
+                          title={
+                            isAdmin
+                              ? `Keep this score and play on to ${target} wins`
+                              : waitingOnAdmin
+                          }
                           className="rounded-full border border-amber-400/50 px-2.5 py-1 text-xs font-semibold text-amber-200 transition hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {target * 2 - 1}
@@ -833,12 +860,14 @@ export function SocketRoomClient({
                     key={target}
                     type="button"
                     onClick={() => setSeriesTarget(target)}
-                    disabled={seat === null || matchInProgress}
+                    disabled={!isAdmin || matchInProgress}
                     aria-pressed={series.target === target}
                     title={
-                      matchInProgress
-                        ? "Finish the current match first"
-                        : `First to ${target}`
+                      !isAdmin
+                        ? waitingOnAdmin
+                        : matchInProgress
+                          ? "Finish the current match first"
+                          : `First to ${target}`
                     }
                     className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
                       series.target === target
@@ -855,8 +884,17 @@ export function SocketRoomClient({
               </div>
             )}
 
+            {/* Only the person running the table deals. Everyone else is told
+                who they are waiting on, rather than being shown a button that
+                would only be refused. */}
             {seat !== null && !gameState ? (
-              openSeats === 0 ? (
+              !isAdmin ? (
+                <p className="mt-3 w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-center text-sm text-slate-400">
+                  Waiting for{" "}
+                  <span className="font-semibold text-slate-200">{adminName}</span> to start the
+                  game
+                </p>
+              ) : openSeats === 0 ? (
                 <button
                   type="button"
                   onClick={startGame}
@@ -1432,7 +1470,15 @@ export function SocketRoomClient({
                       </p>
                     ) : null}
 
-                    {seat !== null && !roomPlayers[seat]?.isBot ? (
+                    {!isAdmin ? (
+                      <p className="mt-3 text-sm text-amber-200/80">
+                        Waiting for{" "}
+                        <span className="font-semibold text-amber-100">{adminName}</span>
+                        {seriesWinner
+                          ? " to start the next series"
+                          : " to deal the next match"}
+                      </p>
+                    ) : (
                       seriesWinner ? (
                         <div className="mt-3 space-y-2">
                           <button
@@ -1475,7 +1521,7 @@ export function SocketRoomClient({
                           Play the next match
                         </button>
                       )
-                    ) : null}
+                    )}
                   </div>
                 </div>
               ) : null}

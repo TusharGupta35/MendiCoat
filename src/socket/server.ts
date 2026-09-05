@@ -40,6 +40,14 @@ interface RoomState {
   trumpAtTrickStart?: Suit | null;
   /** Last status written to the database, so we only write on an actual change. */
   persistedStatus?: RoomStatus;
+  /**
+   * Who created the room, as the database records it: `null` once looked up and
+   * not found, `undefined` while it has never been looked up. The host is the
+   * table's admin — see adminOf.
+   */
+  hostId?: string | null;
+  /** The in-flight host lookup, so four players joining at once cause one read. */
+  hostLookup?: Promise<string | null>;
   /** Pending hand-back to the lobby for a room every human has left. */
   resetTimer?: ReturnType<typeof setTimeout>;
 }
@@ -126,6 +134,76 @@ function seatTeam(seat: SeatIndex | number): TeamId {
 
 function isBotSeat(room: RoomState, seat: SeatIndex) {
   return room.players[seat]?.isBot === true;
+}
+
+/**
+ * The room's host id, read once and kept. The lookup is lazy because a room
+ * only exists in this process from the first join, and the socket server is
+ * imported before Next.js loads .env.local — so Prisma is imported here rather
+ * than at the top of the file.
+ */
+function ensureHostId(io: Server, room: RoomState): Promise<string | null> {
+  room.hostLookup ??= import('@/lib/prisma')
+    .then(({ prisma }) =>
+      prisma.room.findUnique({ where: { code: room.roomCode }, select: { hostId: true } }),
+    )
+    .then((row) => {
+      room.hostId = row?.hostId ?? null;
+      // The table can only name who is running it once this lands.
+      emitState(io, room);
+      return room.hostId;
+    })
+    .catch(() => {
+      // Leave the next caller free to retry rather than caching the failure.
+      room.hostLookup = undefined;
+      return null;
+    });
+  return room.hostLookup;
+}
+
+/**
+ * Who runs the table: starting a match, restarting it, and setting the series
+ * length are theirs alone, so a match can never begin before the person holding
+ * the room is ready for it.
+ *
+ * That is the host — whoever created the room — whenever they are sitting at it
+ * and connected. When they are not, the connected human in the lowest seat
+ * stands in, because a table the host has walked away from must still be able
+ * to play on rather than freezing until they come back.
+ */
+function adminOf(room: RoomState): RoomPlayer | undefined {
+  // room.players is indexed by seat, so this keeps seat order.
+  const present = room.players.filter(
+    (player): player is RoomPlayer => !!player && !player.isBot && player.socketIds.size > 0,
+  );
+  return present.find((player) => player.id === room.hostId) ?? present[0];
+}
+
+/** What the room is told about who is running it. */
+function adminPayload(room: RoomState) {
+  const admin = adminOf(room);
+  if (!admin) return null;
+  return { id: admin.id, name: admin.name, isHost: admin.id === room.hostId };
+}
+
+/**
+ * Why this socket may not run the table, or undefined if it may. Awaits the
+ * host lookup so a decision is never made against a half-known room.
+ */
+async function adminDenial(io: Server, room: RoomState, socket: { data: Record<string, unknown> }) {
+  const playerId = socket.data.playerId as string | undefined;
+  const seat = socket.data.seat as SeatIndex | undefined;
+  if (socket.data.roomCode !== room.roomCode || seat === undefined || !playerId || isBotSeat(room, seat)) {
+    return 'Take a seat in this room first.';
+  }
+
+  await ensureHostId(io, room);
+  const admin = adminOf(room);
+  if (!admin) return 'Nobody is at this table.';
+  if (admin.id !== playerId) {
+    return `Only ${admin.name} can start a match or change the series.`;
+  }
+  return undefined;
 }
 
 function roomPlayersPayload(room: RoomState) {
@@ -218,6 +296,7 @@ function emitState(io: Server, room: RoomState) {
   scheduleEmptyRoomReset(io, room);
   io.to(room.roomCode).emit('room-update', {
     players: roomPlayersPayload(room),
+    admin: adminPayload(room),
   });
   io.to(room.roomCode).emit('match-history', room.matchHistory);
   io.to(room.roomCode).emit('series', seriesPayload(room));
@@ -340,8 +419,10 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       socket.join(roomCode);
       const room = rooms.get(roomCode);
       if (!room) return;
+      void ensureHostId(io, room);
       socket.emit('room-update', {
         players: roomPlayersPayload(room),
+        admin: adminPayload(room),
       });
       socket.emit('match-history', room.matchHistory);
       socket.emit('series', seriesPayload(room));
@@ -391,6 +472,9 @@ export function createSocketServer(httpServer: import('node:http').Server) {
         room.players[seat].title = playerTitle ?? null;
       }
       rooms.set(roomCode, room);
+      // Who runs this table is settled by the database, so read it as soon as
+      // the room exists in memory rather than on the first click of Start.
+      void ensureHostId(io, room);
       socket.join(roomCode);
       socket.data.roomCode = roomCode;
       socket.data.seat = seat;
@@ -448,12 +532,20 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       callback?.({});
     });
 
-    socket.on('fill-bots', ({ roomCode }: { roomCode: string }, callback?: (result: { error?: string }) => void) => {
+    socket.on('fill-bots', async ({ roomCode }: { roomCode: string }, callback?: (result: { error?: string }) => void) => {
       const room = rooms.get(roomCode);
       if (!room) {
         callback?.({ error: 'Connect to the room before adding bots.' });
         return;
       }
+      const denial = await adminDenial(io, room, socket);
+      if (denial) {
+        callback?.({ error: denial });
+        return;
+      }
+      // Read after the await, never before it: the host check can wait on a
+      // database round trip, and a second click arriving inside that window
+      // must not get past a check made against the older state.
       if (room.gameState) {
         callback?.({ error: 'This test match has already started.' });
         return;
@@ -477,7 +569,7 @@ export function createSocketServer(httpServer: import('node:http').Server) {
 
     socket.on(
       "start-game",
-      ({ roomCode }: { roomCode: string }, callback?: (result: { error?: string }) => void) => {
+      async ({ roomCode }: { roomCode: string }, callback?: (result: { error?: string }) => void) => {
         const room = rooms.get(roomCode);
 
         if (!room) {
@@ -485,6 +577,15 @@ export function createSocketServer(httpServer: import('node:http').Server) {
           return;
         }
 
+        const denial = await adminDenial(io, room, socket);
+        if (denial) {
+          callback?.({ error: denial });
+          return;
+        }
+
+        // Both of these are read after the await, never before it: the host
+        // check can wait on a database round trip, and two fast clicks must not
+        // both get past a check made against the state as it was.
         if (room.gameState) {
           callback?.({ error: "Game already started." });
           return;
@@ -500,15 +601,21 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       }
     );
 
-    socket.on('restart-game', ({ roomCode }: { roomCode: string }, callback?: (result: { error?: string }) => void) => {
+    socket.on('restart-game', async ({ roomCode }: { roomCode: string }, callback?: (result: { error?: string }) => void) => {
       const room = rooms.get(roomCode);
-      if (!room?.gameState || room.gameState.status !== 'FINISHED') {
-        callback?.({ error: 'Finish the current match before starting another one.' });
+      if (!room) {
+        callback?.({ error: 'Room not found.' });
         return;
       }
-      const seat = socket.data.seat as SeatIndex | undefined;
-      if (socket.data.roomCode !== roomCode || seat === undefined || isBotSeat(room, seat)) {
-        callback?.({ error: 'Only a human player in this room can start the next match.' });
+      const denial = await adminDenial(io, room, socket);
+      if (denial) {
+        callback?.({ error: denial });
+        return;
+      }
+      // Read after the await, so a second click landing while the host check
+      // was in flight cannot deal a second hand over the first.
+      if (!room.gameState || room.gameState.status !== 'FINISHED') {
+        callback?.({ error: 'Finish the current match before starting another one.' });
         return;
       }
 
@@ -538,11 +645,15 @@ export function createSocketServer(httpServer: import('node:http').Server) {
      * series has been won by anyone, or once it is decided — where a longer
      * target simply extends the same score into a longer contest.
      */
-    socket.on('set-series', ({ roomCode, target }: { roomCode: string; target: number }, callback?: (result: { error?: string }) => void) => {
+    socket.on('set-series', async ({ roomCode, target }: { roomCode: string; target: number }, callback?: (result: { error?: string }) => void) => {
       const room = rooms.get(roomCode);
-      const seat = socket.data.seat as SeatIndex | undefined;
-      if (!room || socket.data.roomCode !== roomCode || seat === undefined || isBotSeat(room, seat)) {
+      if (!room) {
         callback?.({ error: 'Take a seat before changing the series.' });
+        return;
+      }
+      const denial = await adminDenial(io, room, socket);
+      if (denial) {
+        callback?.({ error: denial });
         return;
       }
       if (!SERIES_TARGETS.includes(target)) {
@@ -571,11 +682,15 @@ export function createSocketServer(httpServer: import('node:http').Server) {
       callback?.({});
     });
 
-    socket.on('new-series', ({ roomCode }: { roomCode: string }, callback?: (result: { error?: string }) => void) => {
+    socket.on('new-series', async ({ roomCode }: { roomCode: string }, callback?: (result: { error?: string }) => void) => {
       const room = rooms.get(roomCode);
-      const seat = socket.data.seat as SeatIndex | undefined;
-      if (!room || socket.data.roomCode !== roomCode || seat === undefined || isBotSeat(room, seat)) {
+      if (!room) {
         callback?.({ error: 'Take a seat before starting a series.' });
+        return;
+      }
+      const denial = await adminDenial(io, room, socket);
+      if (denial) {
+        callback?.({ error: denial });
         return;
       }
       if (room.gameState && room.gameState.status === 'PLAYING') {
