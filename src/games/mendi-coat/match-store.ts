@@ -109,6 +109,7 @@ export async function openMatch(
   const players = humanSeats(seats, state);
   const match = await prisma.match.create({
     data: {
+      gameId: 'MENDI_COAT',
       roomId: room.id,
       hostId: room.hostId,
       status: 'PENDING',
@@ -174,6 +175,7 @@ export async function closeMatch(
     await prisma.match.create({
       data: {
         ...score,
+        gameId: 'MENDI_COAT',
         roomId: room.id,
         hostId: room.hostId,
         hadBots: seats.some((seat) => seat?.isBot === true),

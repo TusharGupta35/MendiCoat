@@ -9,7 +9,8 @@ import { LoadingScreen } from "@/components/LoadingScreen";
 import { Avatar } from "@/components/Avatar";
 import { CardBack } from "@/components/PlayingCard";
 import { EMOTES, isEmote } from "@/lib/emotes";
-import { ROOM_GAME } from "@/lib/games";
+import { closeCues, playCue } from "@/lib/table-cues";
+import { DEFAULT_GAME } from "@/games/registry";
 import type { MatchSummary } from "@/lib/match-summary";
 import { PlayingCard } from "@/components/PlayingCard";
 import { ProgressToast } from "@/components/ProgressCelebration";
@@ -145,7 +146,6 @@ export function SocketRoomClient({
     name: string;
     message: string;
   } | null>(null);
-  const audioContext = useRef<AudioContext | null>(null);
   const thoughtTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const moveErrorTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const coatTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -161,73 +161,6 @@ export function SocketRoomClient({
   const enteringGameTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dealTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const emoteTimeouts = useRef<Array<ReturnType<typeof setTimeout> | null>>([null, null, null, null]);
-
-  function audio() {
-    if (typeof window === "undefined") return null;
-    audioContext.current ??= new AudioContext();
-    // Browsers start the context suspended until a gesture; resuming on every
-    // cue means the first click a player makes unlocks the rest.
-    void audioContext.current.resume();
-    return audioContext.current;
-  }
-
-  function tone(
-    frequency: number,
-    duration = 0.09,
-    delay = 0,
-    peak = 0.06,
-    type: OscillatorType = "sine",
-  ) {
-    const context = audio();
-    if (!context) return;
-    const start = context.currentTime + delay;
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type = type;
-    oscillator.frequency.value = frequency;
-    gain.gain.setValueAtTime(peak, start);
-    gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
-    oscillator.connect(gain).connect(context.destination);
-    oscillator.start(start);
-    oscillator.stop(start + duration);
-  }
-
-  /** Named cues, so call sites read as intent instead of raw frequencies. */
-  function playCue(cue: "card" | "trick" | "trump" | "coat" | "invalid" | "start" | "tap") {
-    switch (cue) {
-      case "card":
-        // The original card beep. A quieter, noise-based "felt" version read as
-        // silence on normal speakers, so this stays as it was.
-        tone(280, 0.09, 0, 0.06);
-        return;
-      case "trick":
-        // Two rising notes: someone just took the trick.
-        tone(523, 0.1, 0, 0.05);
-        tone(784, 0.16, 0.08, 0.05);
-        return;
-      case "trump":
-        // A bell over a rising sweep for the cut that fixes trump.
-        tone(392, 0.12, 0, 0.05);
-        tone(587, 0.14, 0.1, 0.05);
-        tone(880, 0.4, 0.2, 0.06, "triangle");
-        return;
-      case "coat":
-        // Four-note fanfare for a shutout.
-        [523, 659, 784, 1047].forEach((frequency, index) =>
-          tone(frequency, index === 3 ? 0.5 : 0.14, index * 0.11, 0.06, "triangle"),
-        );
-        return;
-      case "invalid":
-        tone(150, 0.2, 0, 0.05, "sawtooth");
-        return;
-      case "start":
-        tone(440, 0.12, 0, 0.05);
-        tone(660, 0.18, 0.1, 0.05);
-        return;
-      case "tap":
-        tone(440, 0.05, 0, 0.045);
-    }
-  }
 
   useEffect(() => {
     const client = io({ path: "/socket.io" });
@@ -285,7 +218,7 @@ export function SocketRoomClient({
       setSeat(null);
       setMoveError(null);
       setError("The host closed this room.");
-      router.replace(`/games/${ROOM_GAME.slug}`);
+      router.replace(`/games/${DEFAULT_GAME.slug}`);
     });
     client.on("room-full", () => setError("This room is full."));
     client.on("game-already-started", () => setError("This game has already started."));
@@ -323,8 +256,7 @@ export function SocketRoomClient({
 
     return () => {
       client.disconnect();
-      audioContext.current?.close();
-      audioContext.current = null;
+      closeCues();
       if (thoughtTimeout.current) clearTimeout(thoughtTimeout.current);
       if (moveErrorTimeout.current) clearTimeout(moveErrorTimeout.current);
       if (coatTimeout.current) clearTimeout(coatTimeout.current);

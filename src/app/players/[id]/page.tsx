@@ -44,7 +44,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
   const wearing = titleLabel(player.title, earnedTitles(milestones, feats, band.name));
 
   const lastPlayed = await prisma.match.findFirst({
-    where: { status: 'FINISHED', seats: { some: { userId: player.id } } },
+    where: { status: 'FINISHED', gameId: 'MENDI_COAT', seats: { some: { userId: player.id } } },
     orderBy: { finishedAt: 'desc' },
     select: { finishedAt: true },
   });

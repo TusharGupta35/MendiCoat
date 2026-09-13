@@ -406,6 +406,18 @@ section.bg-amber-500\/10 {
   box-shadow: 0 24px 60px -34px rgba(0, 0, 0, 0.95);
 }
 
+/* A table with one edge per player, for the games where the table size varies.
+   Same woven felt and overhead spotlight as the four-player table, but the
+   shape is cut by clip-path from the component, so it carries no inner trim of
+   its own — the rim is a second, slightly larger polygon behind it. */
+.polygon-table {
+  background-image:
+    radial-gradient(120% 90% at 50% -10%, rgba(255, 255, 255, 0.14), transparent 55%),
+    repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.055) 0 2px, transparent 2px 4px),
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.035) 0 2px, transparent 2px 4px);
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.4);
+}
+
 /* The table itself: woven felt, gold inner trim, spotlight overhead. */
 .game-table {
   background-image:

@@ -20,6 +20,14 @@ import {
 import type { TeamId } from '@/types/game';
 
 /**
+ * Every stat on this page is a Mendi Coat stat: 10s captured, teams A and B,
+ * partner chemistry, the trick log a feat is read from. Matches from other
+ * games sit in the same tables and would be counted as zero-10 losses, so the
+ * queries below name the game explicitly rather than reading "every match".
+ */
+const MENDI_COAT = 'MENDI_COAT';
+
+/**
  * Reads the durable match record and hands it to the pure functions in
  * stats-core and achievements. Only FINISHED matches count — a game that was
  * abandoned keeps its PENDING row, which is what makes completion rate
@@ -190,7 +198,7 @@ function toPlayedMatch(userId: string, { seat, team, match }: SeatRow): PlayedMa
 
 async function playedMatches(userId: string): Promise<PlayedMatch[]> {
   const seats = await prisma.matchPlayer.findMany({
-    where: { userId, match: { status: 'FINISHED' } },
+    where: { userId, match: { status: 'FINISHED', gameId: MENDI_COAT } },
     select: MATCH_SELECT,
   });
   return seats.map((row) => toPlayedMatch(userId, row));
@@ -262,6 +270,7 @@ async function leaderboard(limit: number, since?: Date): Promise<LeaderboardRow[
     where: {
       match: {
         status: 'FINISHED',
+        gameId: MENDI_COAT,
         hadBots: false,
         ...(since ? { finishedAt: { gte: since } } : {}),
       },
@@ -329,7 +338,7 @@ async function xpLeaderboard(limit: number): Promise<XpRow[]> {
   // answer this in SQL. Fine at this size, and the alternative is one full
   // stats query per player.
   const seats = await prisma.matchPlayer.findMany({
-    where: { match: { status: 'FINISHED' } },
+    where: { match: { status: 'FINISHED', gameId: MENDI_COAT } },
     select: {
       ...MATCH_SELECT,
       userId: true,

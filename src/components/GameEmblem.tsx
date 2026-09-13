@@ -1,4 +1,4 @@
-import type { Game } from '@/lib/games';
+import type { Game } from '@/games/registry';
 
 /**
  * A drawn emblem per game, in place of an emoji.

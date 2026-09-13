@@ -21,6 +21,8 @@ export interface Game {
   /** What actually happens in a round. Two or three sentences at most. */
   blurb: string;
   players: string;
+  /** The most people who can sit at one table, which is what a room caps at. */
+  maxPlayers: number;
   /** Whether a solo player can fill the empty seats. */
   bots: boolean;
   status: GameStatus;
@@ -38,10 +40,25 @@ export const GAMES: Game[] = [
     blurb:
       'Trick-taking in partners. Follow suit while you can; the first card that cannot sets trump for the rest of the hand. Take the tricks that carry the four 10s and the match is yours.',
     players: '4 players',
+    maxPlayers: 4,
     bots: true,
     status: 'live',
     emblem: '🔟',
     accent: 'from-amber-400/20 to-amber-500/5 text-amber-300',
+  },
+  {
+    id: 'TEEN_KI_TIGDI',
+    slug: 'teen-ki-tigdi',
+    name: 'Teen Ki Tigdi',
+    tagline: 'Bid big, then find out who is with you.',
+    blurb:
+      'Bid for the right to name trump, then call two cards to pick your partners — without knowing who is holding them. Nobody else knows either. The table plays for 250 points while everyone works out, card by card, whose side they are actually on.',
+    players: '5–7 players',
+    maxPlayers: 7,
+    bots: true,
+    status: 'live',
+    emblem: '🃏',
+    accent: 'from-rose-400/20 to-rose-500/5 text-rose-300',
   },
   {
     id: 'CALLBREAK',
@@ -51,6 +68,7 @@ export const GAMES: Game[] = [
     blurb:
       'Thirteen tricks, spades always trump. Before a card is played you call how many tricks you will take — hit the call and you score it, fall short and you lose it. No partners, five rounds, highest total wins.',
     players: '4 players',
+    maxPlayers: 4,
     bots: false,
     status: 'soon',
     emblem: '♠️',
@@ -64,6 +82,7 @@ export const GAMES: Game[] = [
     blurb:
       'Everybody gets the same question and answers it — except the impostor, who only sees the answers and has to invent one that fits. Then the table votes. Crew win by catching them; the impostor wins by surviving the vote.',
     players: '4–10 players',
+    maxPlayers: 10,
     bots: true,
     status: 'soon',
     emblem: '🕵️',
@@ -77,6 +96,7 @@ export const GAMES: Game[] = [
     blurb:
       'One player draws, everyone else races to guess — with a twist every round: draw left-handed, draw without lifting the pen, or draw while the rest shout wrong answers. Points for guessing fast and for being guessed fast.',
     players: '3–12 players',
+    maxPlayers: 12,
     bots: false,
     status: 'soon',
     emblem: '🎨',
@@ -88,11 +108,15 @@ export const liveGames = () => GAMES.filter((game) => game.status === 'live');
 export const comingSoon = () => GAMES.filter((game) => game.status === 'soon');
 export const gameBySlug = (slug: string) => GAMES.find((game) => game.slug === slug);
 
+export const gameById = (id: string) => GAMES.find((game) => game.id === id);
+
 /**
- * The game a room is playing.
+ * The game a room whose `gameId` we cannot place is playing.
  *
- * Rooms carry no game of their own yet — there is one playable game, so every
- * room is a table for it. When a second game ships, a room will name its own
- * and this constant is what the callers should stop using.
+ * Every room now names its own game, but rooms created before that column
+ * existed default to Mendi Coat — which is what they were — so this is the
+ * fallback rather than the rule.
  */
-export const ROOM_GAME = GAMES.find((game) => game.id === 'MENDI_COAT')!;
+export const DEFAULT_GAME = GAMES.find((game) => game.id === 'MENDI_COAT')!;
+export const gameForRoom = (gameId: string | null | undefined) =>
+  (gameId ? gameById(gameId) : undefined) ?? DEFAULT_GAME;

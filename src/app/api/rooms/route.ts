@@ -2,13 +2,14 @@ import { randomBytes } from 'crypto';
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
+import { GAMES } from '@/games/registry';
 import { prisma } from '@/lib/prisma';
 
 function createRoomCode() {
   return randomBytes(2).toString('hex').toUpperCase();
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
     return NextResponse.json({ error: 'Please sign in before creating a room.' }, { status: 401 });
@@ -19,6 +20,14 @@ export async function POST() {
     return NextResponse.json({ error: 'Your account could not be found.' }, { status: 401 });
   }
 
+  // A room is a table for one game, named when it is created. An unrecognised
+  // or absent id falls back to Mendi Coat, which is what every room was before
+  // rooms carried a game at all.
+  const body = await request.json().catch(() => null);
+  const requested = typeof body?.gameId === 'string' ? body.gameId : null;
+  const game = GAMES.find((entry) => entry.id === requested && entry.status === 'live')
+    ?? GAMES.find((entry) => entry.id === 'MENDI_COAT')!;
+
   // A collision is unlikely, but the database remains the source of truth for uniqueness.
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const code = createRoomCode();
@@ -26,7 +35,8 @@ export async function POST() {
       const room = await prisma.room.create({
         data: {
           code,
-          name: `${user.username ?? user.name ?? 'Player'}'s table`,
+          name: `${user.username ?? user.name ?? 'Player'}'s ${game.name} table`,
+          gameId: game.id,
           hostId: user.id,
           players: { connect: { id: user.id } },
         },

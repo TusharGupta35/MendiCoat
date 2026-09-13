@@ -3,7 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-export function CreateRoomButton() {
+/** Creates a table for one game — the page that shows the button says which. */
+export function CreateRoomButton({ gameId }: { gameId: string }) {
   const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -13,7 +14,11 @@ export function CreateRoomButton() {
     setError(null);
 
     try {
-      const response = await fetch('/api/rooms', { method: 'POST' });
+      const response = await fetch('/api/rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId }),
+      });
       const payload = await response.json();
       if (!response.ok) {
         setError(payload.error ?? 'Unable to create a room.');

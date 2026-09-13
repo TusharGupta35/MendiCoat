@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildMatchSummary, type SummaryTrick } from '@/lib/match-summary';
-import { createInitialGameState } from '@/game-engine/mendi-coat';
+import { createInitialGameState } from '@/games/mendi-coat/engine';
 import type { GameState, Suit } from '@/types/game';
 
 const NAMES = ['Tushar', 'Priya', 'Arjun', 'Meera'];

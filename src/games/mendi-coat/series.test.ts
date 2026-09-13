@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { io as ioClient, type Socket } from 'socket.io-client';
 import type { Server } from 'socket.io';
-import { chooseBotCard } from '@/game-engine/bot';
+import { chooseBotCard } from '@/games/mendi-coat/bot';
 import type { GameState, MatchResult, SeatIndex } from '@/types/game';
 
 /**
@@ -33,8 +33,8 @@ vi.mock('@/lib/prisma', () => ({
   },
 }));
 
-vi.mock('@/socket/match-store', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/socket/match-store')>();
+vi.mock('@/games/mendi-coat/match-store', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/games/mendi-coat/match-store')>();
   return {
     ...actual,
     openMatch: vi.fn(async (_code, _seats, _state, series) => {
@@ -47,7 +47,7 @@ vi.mock('@/socket/match-store', async (importOriginal) => {
   };
 });
 
-const { createSocketServer } = await import('./server');
+const { createSocketServer } = await import('@/socket/server');
 
 let httpServer: HttpServer;
 let ioServer: Server;

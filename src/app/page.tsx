@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 import { LogoMark, Wordmark } from '@/components/Logo';
 import { authOptions } from '@/lib/auth';
-import { GAMES } from '@/lib/games';
+import { GAMES } from '@/games/registry';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;

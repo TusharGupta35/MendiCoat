@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { GameEmblem } from '@/components/GameEmblem';
-import { GAMES, type Game } from '@/lib/games';
+import { GAMES, type Game } from '@/games/registry';
 
 /**
  * The dashboard's game picker: the left-hand column, and the first thing the

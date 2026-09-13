@@ -83,12 +83,26 @@ function startGame(client: Socket, roomCode: string) {
   });
 }
 
-/** The status write rides an async import chain, so poll rather than assume. */
-async function waitForStatus(status: string, timeoutMs = 2000) {
+/** Every status write for one room, in order. */
+const writesFor = (roomCode: string) =>
+  statusWrites.filter((write) => write.code === roomCode);
+
+/**
+ * The status write rides an async import chain, so poll rather than assume.
+ *
+ * Scoped to one room on purpose. A write is fired and never awaited, so a room
+ * from an earlier test can land its last status after `statusWrites` has been
+ * cleared for this one — and a global "what was written last" then waits on a
+ * status that already went by. Every test uses a fresh code, so filtering by it
+ * is exact.
+ */
+async function waitForStatus(status: string, roomCode: string, timeoutMs = 10_000) {
   const deadline = Date.now() + timeoutMs;
-  while (statusWrites.at(-1)?.status !== status) {
+  while (writesFor(roomCode).at(-1)?.status !== status) {
     if (Date.now() > deadline) {
-      throw new Error(`expected status ${status}, saw ${JSON.stringify(statusWrites)}`);
+      throw new Error(
+        `expected ${roomCode} to be ${status}, saw ${JSON.stringify(writesFor(roomCode))}`,
+      );
     }
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
@@ -114,49 +128,49 @@ describe('room status tracks whether a live match has anyone in it', () => {
   it('stays in the lobby while players are only picking teams', async () => {
     const roomCode = freshRoomCode();
     await seatFourPlayers(roomCode);
-    await waitForStatus('LOBBY');
-    expect(statusWrites.every((write) => write.status === 'LOBBY')).toBe(true);
+    await waitForStatus('LOBBY', roomCode);
+    expect(writesFor(roomCode).every((write) => write.status === 'LOBBY')).toBe(true);
   });
 
   it('goes to PLAYING when the match starts', async () => {
     const roomCode = freshRoomCode();
     const players = await seatFourPlayers(roomCode);
     expect(await startGame(players[0], roomCode)).toEqual({});
-    await waitForStatus('PLAYING');
+    await waitForStatus('PLAYING', roomCode);
   });
 
   it('returns to the lobby once every player has left a live match', async () => {
     const roomCode = freshRoomCode();
     const players = await seatFourPlayers(roomCode);
     await startGame(players[0], roomCode);
-    await waitForStatus('PLAYING');
+    await waitForStatus('PLAYING', roomCode);
 
     for (const player of players) player.disconnect();
-    await waitForStatus('LOBBY');
+    await waitForStatus('LOBBY', roomCode);
   });
 
   it('goes back to PLAYING as soon as one player returns to the match', async () => {
     const roomCode = freshRoomCode();
     const players = await seatFourPlayers(roomCode);
     await startGame(players[0], roomCode);
-    await waitForStatus('PLAYING');
+    await waitForStatus('PLAYING', roomCode);
     for (const player of players) player.disconnect();
-    await waitForStatus('LOBBY');
+    await waitForStatus('LOBBY', roomCode);
 
     const returning = await connect();
     returning.emit('restore-seat', { roomCode, playerId: 'player-0' });
-    await waitForStatus('PLAYING');
+    await waitForStatus('PLAYING', roomCode);
   });
 
   it('keeps an abandoned room exactly as it was, so the table can be picked up again', async () => {
     const roomCode = freshRoomCode();
     const players = await seatFourPlayers(roomCode);
     await startGame(players[0], roomCode);
-    await waitForStatus('PLAYING');
+    await waitForStatus('PLAYING', roomCode);
 
     vi.useFakeTimers({ shouldAdvanceTime: true });
     for (const player of players) player.disconnect();
-    await waitForStatus('LOBBY');
+    await waitForStatus('LOBBY', roomCode);
     // Past the 60s after which an emptied room used to be wiped back to a
     // fresh lobby. Nothing should be waiting on that clock any more.
     vi.advanceTimersByTime(61_000);
@@ -188,10 +202,10 @@ describe('room status tracks whether a live match has anyone in it', () => {
     const roomCode = freshRoomCode();
     const players = await seatFourPlayers(roomCode);
     await startGame(players[0], roomCode);
-    await waitForStatus('PLAYING');
+    await waitForStatus('PLAYING', roomCode);
     // Four joins and a start produce many emitState passes; the room should
     // still have moved through exactly two states.
-    expect(statusWrites.map((write) => write.status)).toEqual(['LOBBY', 'PLAYING']);
+    expect(writesFor(roomCode).map((write) => write.status)).toEqual(['LOBBY', 'PLAYING']);
   });
 });
 
@@ -255,13 +269,13 @@ describe('a seat cannot be traded for a better one by leaving', () => {
    * Time enough away that the room would once have been wiped back to a fresh
    * lobby — which is exactly what let a losing player come back on a new team.
    */
-  async function leaveForAWhile(client: Socket) {
+  async function leaveForAWhile(client: Socket, roomCode: string) {
     // The fakes go in before the disconnect: the timer that used to wipe the
     // room was armed by the disconnect itself, so installing them afterwards
     // would leave it running on the real clock and never fire it.
     vi.useFakeTimers({ shouldAdvanceTime: true });
     client.disconnect();
-    await waitForStatus('LOBBY');
+    await waitForStatus('LOBBY', roomCode);
     vi.advanceTimersByTime(61_000);
     vi.useRealTimers();
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -279,7 +293,7 @@ describe('a seat cannot be traded for a better one by leaving', () => {
     const roomCode = freshRoomCode();
     const host = await soloTableWithBots(roomCode);
 
-    await leaveForAWhile(host);
+    await leaveForAWhile(host, roomCode);
 
     const returning = await connect();
     const seat = await new Promise<number>((resolve) => {
@@ -294,7 +308,7 @@ describe('a seat cannot be traded for a better one by leaving', () => {
     const roomCode = freshRoomCode();
     const host = await soloTableWithBots(roomCode);
 
-    await leaveForAWhile(host);
+    await leaveForAWhile(host, roomCode);
 
     const returning = await connect();
     await new Promise((resolve) => {

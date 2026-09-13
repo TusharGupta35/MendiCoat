@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { applyMove, createInitialGameState } from '@/game-engine/mendi-coat';
+import { applyMove, createInitialGameState } from '@/games/mendi-coat/engine';
 import type { GameState, TeamId } from '@/types/game';
 import type { TrickLogEntry } from './match-store';
 

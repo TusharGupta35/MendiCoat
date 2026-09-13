@@ -4,9 +4,10 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AppHeader } from "@/components/AppHeader";
-import { ROOM_GAME } from "@/lib/games";
+import { gameForRoom } from "@/games/registry";
 import { RoomCode } from "@/components/RoomCode";
-import { SocketRoomClient } from "@/components/SocketRoomClient";
+import { SocketRoomClient } from "@/games/mendi-coat/RoomClient";
+import { TigdiRoomClient } from "@/games/teen-ki-tigdi/RoomClient";
 import { titleLabelById } from "@/lib/titles";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +46,29 @@ export default async function RoomPage({
   // saved, so the table needs no stats query to print the words.
   const wearing = titleLabelById(currentUser.title);
 
+  // A room is a table for one game, and that is what decides which client is
+  // rendered here. Rooms made before rooms carried a game fall back to Mendi
+  // Coat, which is what they were.
+  const game = gameForRoom(room.gameId);
+  const table =
+    game.id === "TEEN_KI_TIGDI" ? (
+      <TigdiRoomClient
+        roomCode={room.code}
+        playerId={currentUser.id}
+        playerName={currentUser.username ?? currentUser.name ?? "Player"}
+        playerAvatar={currentUser.avatar}
+        playerTitle={wearing}
+      />
+    ) : (
+      <SocketRoomClient
+        roomCode={room.code}
+        playerId={currentUser.id}
+        playerName={currentUser.username ?? currentUser.name ?? "Player"}
+        playerAvatar={currentUser.avatar}
+        playerTitle={wearing}
+      />
+    );
+
   return (
     <main className="min-h-screen bg-slate-950 px-2 pb-6 pt-4 sm:px-6 sm:pb-8 sm:pt-5 lg:px-8">
       <div className="mx-auto mb-4 w-full max-w-[1600px]">
@@ -58,17 +82,17 @@ export default async function RoomPage({
               read. */}
           <div className="flex items-center justify-between gap-4">
             <p className="text-xs uppercase tracking-[0.35em] text-amber-400 sm:text-sm">
-              Waiting room
+              {game.name}
             </p>
             {/* Back to the game, not to the whole board: leaving a table means
                 going where the other tables for this game are, and that page
                 carries the rules and the room list. The mark in the bar above
                 is the way out to everything else. */}
             <Link
-              href={`/games/${ROOM_GAME.slug}`}
+              href={`/games/${game.slug}`}
               className="rounded-lg border border-slate-700 px-4 py-2 font-medium text-slate-100 transition hover:bg-slate-800"
             >
-              Back to {ROOM_GAME.name}
+              Back to {game.name}
             </Link>
           </div>
 
@@ -79,13 +103,7 @@ export default async function RoomPage({
         </header>
 
         <div className="mt-3 sm:mt-4">
-          <SocketRoomClient
-            roomCode={room.code}
-            playerId={currentUser.id}
-            playerName={currentUser.username ?? currentUser.name ?? "Player"}
-            playerAvatar={currentUser.avatar}
-            playerTitle={wearing}
-          />
+          {table}
         </div>
       </div>
     </main>

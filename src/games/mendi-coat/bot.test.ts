@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { chooseBotCard, wouldWin } from '@/game-engine/bot';
-import { createInitialGameState } from '@/game-engine/mendi-coat';
+import { chooseBotCard, wouldWin } from '@/games/mendi-coat/bot';
+import { createInitialGameState } from '@/games/mendi-coat/engine';
 import type { Card, GameState, SeatIndex, Suit, TrickPlay } from '@/types/game';
 
 const SUIT_OF: Record<string, Suit> = { S: 'SPADES', H: 'HEARTS', C: 'CLUBS', D: 'DIAMONDS' };

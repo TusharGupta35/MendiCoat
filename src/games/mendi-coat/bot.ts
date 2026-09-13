@@ -1,4 +1,4 @@
-import { RANK_VALUE, determineTrickWinner, validateMove } from '@/game-engine/mendi-coat';
+import { RANK_VALUE, determineTrickWinner, validateMove } from '@/games/mendi-coat/engine';
 import type { Card, GameState, SeatIndex } from '@/types/game';
 
 /**

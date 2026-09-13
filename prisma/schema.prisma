@@ -68,6 +68,10 @@ model Room {
   id           String   @id @default(cuid())
   code         String   @unique
   name         String
+  /// Which game this room is a table for, as an id from GAMES. Defaulted so
+  /// every room that existed before there was a second game stays a Mendi Coat
+  /// table, which is what it was.
+  gameId       String   @default("MENDI_COAT")
   hostId       String
   status       String   @default("LOBBY")
   createdAt    DateTime @default(now())
@@ -79,14 +83,23 @@ model Room {
 
 model Match {
   id           String   @id @default(cuid())
+  /// Which game was played, as an id from GAMES. Everything below this line
+  /// that names 10s or teams A and B is Mendi Coat's, and only ever filled for
+  /// a Mendi Coat match — which is why every stats query filters on this.
+  gameId       String   @default("MENDI_COAT")
+  /// Whatever a game needs to explain its own result and cannot say in the
+  /// columns above: the bid, the trump, the called cards, the points. A game
+  /// that needs to record more does it here rather than by adding columns no
+  /// other game will ever fill.
   // Nullable so a match outlives the room it was played in: rooms are hard
   // deleted by their host, and cascading that would wipe the career stats this
   // table exists to keep.
   roomId       String?
   hostId       String
   status       String   @default("PENDING")
+  detail       Json?
   winnerTeam   String?
-  // Final score of the match. The four 10s decide it; hands won is the
+  // Mendi Coat: the final score of the match. The four 10s decide it; hands won is the
   // tie-break, so both are needed to explain a result after the fact.
   capturedTensA Int     @default(0)
   capturedTensB Int     @default(0)
@@ -111,6 +124,7 @@ model Match {
   tricks       MatchTrick[]
 
   @@index([seriesId])
+  @@index([gameId])
 }
 
 /// One human seat in a finished match. Carries the seat and team that a

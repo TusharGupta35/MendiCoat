@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
+import { gameForRoom } from '@/games/registry';
 import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
@@ -27,7 +28,13 @@ export async function POST(request: NextRequest) {
   if (room.status !== 'LOBBY') {
     return NextResponse.json({ error: 'This game has already started.' }, { status: 409 });
   }
-  if (!room.players.some((player: { id: string }) => player.id === user.id) && room.players.length >= 4) {
+  // How many fit depends on the game the room is a table for: four at Mendi
+  // Coat, up to seven at Teen Ki Tigdi.
+  const game = gameForRoom(room.gameId);
+  if (
+    !room.players.some((player: { id: string }) => player.id === user.id) &&
+    room.players.length >= game.maxPlayers
+  ) {
     return NextResponse.json({ error: 'This room is already full.' }, { status: 409 });
   }
 

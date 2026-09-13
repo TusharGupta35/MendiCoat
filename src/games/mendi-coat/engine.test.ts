@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { applyMove } from './mendi-coat';
-import type { Card, GameState, SeatIndex, Suit } from '../types/game';
+import { applyMove } from './engine';
+import type { Card, GameState, SeatIndex, Suit } from '@/types/game';
 
 function card(rank: string, suit: Suit): Card {
   return { rank, suit, code: `${rank}${suit[0]}` };

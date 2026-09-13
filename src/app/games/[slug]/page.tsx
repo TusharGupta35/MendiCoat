@@ -5,11 +5,12 @@ import { notFound, redirect } from 'next/navigation';
 import { CreateRoomButton } from '@/components/CreateRoomButton';
 import { DeleteRoomButton } from '@/components/DeleteRoomButton';
 import { GameEmblem } from '@/components/GameEmblem';
-import { GameInstructions } from '@/components/GameInstructions';
+import { GameInstructions } from '@/games/mendi-coat/Instructions';
+import { TigdiInstructions } from '@/games/teen-ki-tigdi/Instructions';
 import { AppHeader } from '@/components/AppHeader';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { gameBySlug } from '@/lib/games';
+import { gameBySlug, gameForRoom } from '@/games/registry';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -39,11 +40,13 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
       rooms: {
         orderBy: { updatedAt: 'desc' },
         take: 8,
-        select: { id: true, name: true, code: true, status: true, hostId: true },
+        select: { id: true, name: true, code: true, status: true, hostId: true, gameId: true },
       },
     },
   });
-  const rooms = user?.rooms ?? [];
+  // A game's page lists the tables for that game. A Mendi Coat room under
+  // Teen Ki Tigdi would open into a client that cannot play it.
+  const rooms = (user?.rooms ?? []).filter((room) => gameForRoom(room.gameId).id === game.id);
 
   return (
     <main className="min-h-screen bg-slate-950 px-3 pb-8 pt-4 text-slate-100 sm:px-6 sm:pb-12 sm:pt-6">
@@ -77,7 +80,7 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
           <p className="mt-4 max-w-2xl text-sm text-slate-400">{game.blurb}</p>
 
           <div className="mt-5 flex flex-wrap items-start gap-3">
-            <CreateRoomButton />
+            <CreateRoomButton gameId={game.id} />
             <Link
               href="/room/join"
               className="rounded-lg border border-slate-700 px-4 py-2 font-medium transition hover:bg-slate-800"
@@ -87,15 +90,15 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
           </div>
         </header>
 
-        <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <GameInstructions />
+        <section className="grid grid-cols-1 gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          {game.id === 'TEEN_KI_TIGDI' ? <TigdiInstructions /> : <GameInstructions />}
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
+          <div className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
             <h2 className="text-xl font-semibold text-white">Your rooms</h2>
             <div className="mt-4 space-y-3">
               {rooms.length === 0 ? (
                 <p className="text-sm text-slate-400">
-                  You have not joined any rooms yet. Create one and share the code.
+                  You have no {game.name} tables yet. Create one and share the code.
                 </p>
               ) : null}
               {rooms.map((room) => (
@@ -106,11 +109,11 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
                   <div className="min-w-0">
                     <Link
                       href={`/room/${room.code}`}
-                      className="truncate font-medium text-white hover:text-amber-300"
+                      className="block truncate font-medium text-white hover:text-amber-300"
                     >
                       {room.name}
                     </Link>
-                    <p className="text-sm text-slate-400">{room.code}</p>
+                    <p className="truncate text-sm text-slate-400">{room.code}</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     <span className="rounded-full bg-slate-800 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-300">
