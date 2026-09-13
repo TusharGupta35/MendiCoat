@@ -3,6 +3,7 @@ import {
   careerStats,
   cutterOf,
   partnerRecords,
+  rivalRecords,
   type PlayedMatch,
   type PlayedTrick,
 } from '@/lib/stats-core';
@@ -145,5 +146,40 @@ describe('cutterOf', () => {
     expect(
       cutterOf(trick({ leadSuit: 'CLUBS', cards: ['AC', '3C', '2C', 'KC'] })),
     ).toBeNull();
+  });
+});
+
+describe('rivalRecords', () => {
+  const vs = (over: Partial<PlayedMatch> = {}) =>
+    match({
+      team: 'A',
+      winnerTeam: 'A',
+      others: [
+        { userId: 'partner', name: 'Neha', avatar: null, seat: 2, team: 'A' as const },
+        { userId: 'rival-1', name: 'Kabir', avatar: null, seat: 1, team: 'B' as const },
+        { userId: 'rival-2', name: 'Aman', avatar: null, seat: 3, team: 'B' as const },
+      ],
+      ...over,
+    });
+
+  it('counts only the seats on the other team', () => {
+    const records = rivalRecords([vs()]);
+    expect(records.map((record) => record.userId)).toEqual(['rival-1', 'rival-2']);
+  });
+
+  it('counts a match once per opponent, not once overall', () => {
+    const records = rivalRecords([vs(), vs({ winnerTeam: 'B' })]);
+    expect(records[0]).toMatchObject({ played: 2, won: 1, lost: 1 });
+    expect(records[1]).toMatchObject({ played: 2, won: 1, lost: 1 });
+  });
+
+  // A draw is neither a win nor a loss, but you did still play them.
+  it('a draw lifts played and nothing else', () => {
+    const records = rivalRecords([vs({ winnerTeam: 'DRAW' })]);
+    expect(records[0]).toMatchObject({ played: 1, won: 0, lost: 0 });
+  });
+
+  it('is empty when nobody sat opposite', () => {
+    expect(rivalRecords([vs({ others: [] })])).toEqual([]);
   });
 });

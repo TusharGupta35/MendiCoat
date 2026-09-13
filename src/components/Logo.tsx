@@ -36,15 +36,26 @@ export function LogoMark({ className = 'h-10 w-auto' }: { className?: string }) 
   );
 }
 
-export function Wordmark({ className = '' }: { className?: string }) {
+export function Wordmark({
+  className = '',
+  size = 'lg',
+}: {
+  className?: string;
+  /** 'lg' is the front door and the splash; 'sm' is a navigation bar. */
+  size?: 'lg' | 'sm';
+}) {
+  const scale =
+    size === 'sm'
+      ? 'text-xl tracking-[0.1em] sm:text-2xl sm:tracking-[0.12em]'
+      : 'text-4xl tracking-[0.12em] sm:text-5xl sm:tracking-[0.15em]';
+  const accent = size === 'sm' ? 'text-xl sm:text-2xl' : 'text-4xl sm:text-5xl';
+
   return (
     <span className={`flex select-none items-baseline gap-1.5 ${className}`}>
       {/* The phone size only shows up on the front door — the header hides the
           wordmark below sm — so it can be set for a page that has the width. */}
-      <span className="text-4xl font-black uppercase tracking-[0.12em] text-white sm:text-5xl sm:tracking-[0.15em]">
-        Dehel
-      </span>
-      <span className="text-4xl font-black text-amber-400 drop-shadow-[0_0_12px_rgba(255,194,51,0.45)] sm:text-5xl">
+      <span className={`font-black uppercase text-white ${scale}`}>Dehel</span>
+      <span className={`font-black text-amber-400 drop-shadow-[0_0_12px_rgba(255,194,51,0.45)] ${accent}`}>
         पकड़
       </span>
     </span>

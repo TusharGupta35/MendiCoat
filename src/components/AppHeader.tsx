@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 import { AvatarPicker } from '@/components/AvatarPicker';
-import { BrandMark, Wordmark } from '@/components/Logo';
+import { BrandMark, LogoMark, Wordmark } from '@/components/Logo';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getPlayerStats } from '@/lib/stats';
@@ -24,13 +24,56 @@ import type { Level } from '@/lib/progression';
 export async function AppHeader({
   level,
   wearing,
+  variant = 'full',
 }: {
   level?: Level;
   /** The title being worn, already checked as earned by the calling page. */
   wearing?: string | null;
+  /**
+   * 'full' — the mark, the wordmark and who you are, for every page whose
+   * identity lives nowhere else.
+   *
+   * 'slim' — mark, wordmark and the page links only. The dashboard uses this:
+   * its left rail already carries the player at full size, and repeating the
+   * name and face in a bar above it says the same thing twice.
+   */
+  variant?: 'full' | 'slim';
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return null;
+
+  if (variant === 'slim') {
+    return (
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <Link
+          href="/dashboard"
+          className="group flex items-center gap-3"
+          aria-label="Dehel Pakad — all games"
+        >
+          <LogoMark className="h-14 w-auto shrink-0 drop-shadow-[0_0_18px_rgba(255,194,51,0.25)] transition duration-200 group-hover:scale-105" />
+          <Wordmark size="sm" className="hidden sm:flex" />
+        </Link>
+        <nav className="flex items-center gap-1">
+          <span className="rounded-full bg-amber-400 px-4 py-2 text-sm font-semibold text-amber-950">
+            Play
+          </span>
+          <Link
+            href="/stats"
+            className="rounded-full px-4 py-2 text-sm font-medium text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+          >
+            Your record
+          </Link>
+          <Link
+            href="/players"
+            className="rounded-full px-4 py-2 text-sm font-medium text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+          >
+            Players
+          </Link>
+        </nav>
+      </header>
+    );
+  }
+
 
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },

@@ -13,9 +13,11 @@ import {
 import {
   careerStats,
   partnerRecords,
+  rivalRecords,
   type CareerStats,
   type PartnerRecord,
   type PlayedMatch,
+  type RivalRecord,
 } from '@/lib/stats-core';
 import type { TeamId } from '@/types/game';
 
@@ -65,6 +67,8 @@ export interface PlayerStats {
   level: Level;
   band: { name: string; nextAt: number | null };
   partners: PartnerRecord[];
+  /** The same walk over the same matches, counting the other side. */
+  rivals: RivalRecord[];
   milestones: MilestoneState[];
   feats: FeatState[];
   challenges: ChallengeState[];
@@ -77,6 +81,7 @@ function progressFor(matches: PlayedMatch[]): PlayerStats {
     level,
     band: bandForLevel(level.level),
     partners: partnerRecords(matches),
+    rivals: rivalRecords(matches),
     milestones: milestoneStates(matches),
     feats: evaluateFeats(matches),
     challenges: currentChallenges(matches),
