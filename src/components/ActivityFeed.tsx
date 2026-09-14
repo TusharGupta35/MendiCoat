@@ -61,16 +61,14 @@ export function ActivityFeed({ entries }: { entries: ActivityEntry[] }) {
           No finished matches yet. The first one played here shows up in this list.
         </p>
       ) : (
-        <ul className="mt-4 flex flex-col gap-2">
+        <ul className="mt-4 flex flex-col gap-2 max-sm:mt-3 max-sm:gap-1.5">
           {entries.map((entry) => (
             <li
               key={entry.matchId}
-              className={`flex items-center gap-3 rounded-xl border p-3 ${
+              className={`flex items-center gap-3 rounded-xl border bg-slate-950/60 p-3 max-sm:px-2.5 max-sm:py-2 ${
                 // A coat is the thing the game is named for, so it is the one
-                // line that gets to shout.
-                entry.kind === 'coat'
-                  ? 'border-amber-400/25 bg-slate-950/70'
-                  : 'border-slate-800 bg-slate-950/70'
+                // line that gets a gold edge.
+                entry.kind === 'coat' ? 'border-amber-400/25' : 'border-slate-800'
               }`}
             >
               <Mark kind={entry.kind} />

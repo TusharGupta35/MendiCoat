@@ -560,4 +560,63 @@ section.bg-amber-500\/10 {
   }
 }
 
+/* ──────────────────────────────────────────────────────────────────────────
+   The podium on /players. Three slow loops that make the top three feel like
+   a result screen rather than a table: light rays turning behind a face, a
+   glint crossing the foil now and then, and the leader's crown bobbing.
+   All three stop outright under reduced motion — they are loops, so a 1ms
+   duration would only turn them into a flicker.
+   ────────────────────────────────────────────────────────────────────────── */
+@keyframes podium-rays {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes podium-shine {
+  0%,
+  70% {
+    transform: translateX(-180%) skewX(-22deg);
+  }
+  100% {
+    transform: translateX(460%) skewX(-22deg);
+  }
+}
+
+/* Composes with the crown's own `rotate` utility rather than replacing it, so
+   the resting tilt survives reduced motion when the animation is switched off. */
+@keyframes podium-crown {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-3px) rotate(4deg);
+  }
+}
+
+.animate-podium-rays {
+  animation: podium-rays 36s linear infinite;
+}
+
+.animate-podium-shine {
+  animation: podium-shine 5.5s ease-in-out infinite;
+}
+
+.animate-podium-crown {
+  animation: podium-crown 2.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-podium-rays,
+  .animate-podium-crown {
+    animation: none;
+  }
+  /* At rest the glint would sit on the card as a stripe, so it goes too. */
+  .animate-podium-shine {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 /* ── END THEME EXPERIMENT (surface treatments) ─────────────────────────── */

@@ -393,7 +393,7 @@ export function TigdiRoomClient({
       {error ? (
         <p
           role="alert"
-          className="rounded-lg border border-rose-500/40 bg-rose-950/40 px-3 py-2 text-sm text-rose-200"
+          className="rounded-xl border border-rose-500/40 bg-rose-950/40 px-3 py-2 text-sm text-rose-200"
         >
           {error}
         </p>
@@ -401,7 +401,7 @@ export function TigdiRoomClient({
 
       <div className="room-sidebar flex flex-col gap-4">
         {/* ── Who is here ─────────────────────────────────────────────────── */}
-        <section className="live-room-panel rounded-xl border border-slate-800 bg-slate-950/70 p-4">
+        <section className="live-room-panel rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
           <button
             type="button"
             onClick={() => setSeatsOpen((open) => !open)}
@@ -417,7 +417,7 @@ export function TigdiRoomClient({
               />
               <span className="text-lg font-semibold text-white">Live room</span>
             </span>
-            <span className="shrink-0 whitespace-nowrap rounded-full bg-rose-500/10 px-3 py-1 text-sm text-rose-300">
+            <span className="shrink-0 whitespace-nowrap rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-semibold tabular-nums text-amber-300">
               {seated}/{room.seatCount}
             </span>
           </button>
@@ -428,7 +428,7 @@ export function TigdiRoomClient({
               return (
                 <div
                   key={index}
-                  className="flex items-center justify-between gap-2 rounded-md bg-slate-900 px-3 py-2 text-sm"
+                  className="flex items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm"
                 >
                   <span className="live-seat-label shrink-0 text-slate-400">S{index + 1}</span>
                   <span
@@ -488,7 +488,7 @@ export function TigdiRoomClient({
                     title={isAdmin ? `Play with ${count}` : waitingOnAdmin}
                     className={`rounded-full border px-3 py-1 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
                       room.seatCount === count
-                        ? 'border-rose-400 bg-rose-400/15 text-rose-300'
+                        ? 'border-amber-400 bg-amber-400/15 text-amber-300'
                         : 'border-slate-700 text-slate-400 hover:border-slate-500'
                     }`}
                   >
@@ -507,7 +507,7 @@ export function TigdiRoomClient({
                     onClick={() => send('tigdi:start')}
                     disabled={!tableFull}
                     title={tableFull ? undefined : 'Every seat has to be filled first'}
-                    className="flex-1 rounded-lg bg-rose-500 px-4 py-2 text-sm font-semibold text-rose-950 transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex-1 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-amber-950 transition disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Deal
                   </button>
@@ -515,13 +515,13 @@ export function TigdiRoomClient({
                     type="button"
                     onClick={() => send('tigdi:fill-bots')}
                     disabled={tableFull}
-                    className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Add bots
                   </button>
                 </div>
               ) : (
-                <p className="mt-3 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-center text-sm text-slate-400">
+                <p className="mt-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2.5 text-center text-sm text-slate-400">
                   Waiting for <span className="font-semibold text-slate-200">{adminName}</span> to
                   deal
                 </p>
@@ -540,7 +540,7 @@ export function TigdiRoomClient({
             that says nothing, above the only thing that matters there — who is
             here and whether we can start. */}
         {room.history.length > 0 ? (
-          <section className="match-history-panel rounded-xl border border-slate-800 bg-slate-950/70 p-4">
+          <section className="match-history-panel rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
             <button
               type="button"
               onClick={() => setHistoryOpen((open) => !open)}
@@ -556,7 +556,7 @@ export function TigdiRoomClient({
                 />
                 <span className="text-lg font-semibold text-white">Hands</span>
               </span>
-              <span className="shrink-0 whitespace-nowrap rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300">
+              <span className="shrink-0 whitespace-nowrap rounded-full bg-slate-950/60 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400">
                 {room.history.length} played
               </span>
             </button>
@@ -565,7 +565,7 @@ export function TigdiRoomClient({
               {[...room.history].reverse().map((hand, index) => (
                 <div
                   key={room.history.length - index}
-                  className="flex items-center justify-between gap-3 rounded-lg bg-slate-900 px-3 py-2 text-sm"
+                  className="flex items-center justify-between gap-3 rounded-lg bg-slate-950/60 px-3 py-2 text-sm"
                 >
                   <span className="min-w-0 truncate text-slate-300">
                     {hand.names[hand.bidderSeat]}{' '}
@@ -592,9 +592,9 @@ export function TigdiRoomClient({
             lobby the table is still assembling and there is nothing yet to
             react to. */}
         {view && seat !== null ? (
-          <section className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
+          <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
             {visibleThought ? (
-              <p className="mb-2 rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-300">
+              <p className="mb-2 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-300">
                 <span className="font-semibold text-rose-300">{visibleThought.name}:</span>{' '}
                 {visibleThought.message}
               </p>
@@ -607,7 +607,7 @@ export function TigdiRoomClient({
                   onClick={() => socket?.emit('tigdi:thought', { roomCode, message: emote.emoji })}
                   title={emote.label}
                   aria-label={emote.label}
-                  className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-lg leading-none transition hover:border-rose-400/60 hover:bg-slate-800 active:translate-y-0.5"
+                  className="rounded-lg border border-slate-800 bg-slate-950/60 px-2 py-1 text-lg leading-none transition hover:-translate-y-0.5 hover:border-amber-400/60 hover:bg-amber-400/10 active:translate-y-0.5"
                 >
                   {emote.emoji}
                 </button>
@@ -615,7 +615,7 @@ export function TigdiRoomClient({
             </div>
             <form
               onSubmit={sendThought}
-              className="mt-2 flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1"
+              className="mt-2 flex items-center gap-1 rounded-xl border border-slate-700 bg-slate-950/60 p-1 focus-within:border-amber-400/60"
             >
               <button
                 type="button"
@@ -637,7 +637,7 @@ export function TigdiRoomClient({
                 title={voice.speakerOn ? 'Mute other players' : 'Hear other players'}
                 className={`shrink-0 rounded-md p-1.5 transition ${
                   voice.speakerOn
-                    ? 'bg-rose-500/20 text-rose-300'
+                    ? 'bg-amber-500/20 text-amber-300'
                     : 'text-slate-400 hover:bg-slate-800'
                 }`}
               >
@@ -656,7 +656,7 @@ export function TigdiRoomClient({
               />
               <button
                 type="submit"
-                className="shrink-0 rounded-md bg-rose-400 px-3 py-1 text-xs font-semibold text-rose-950"
+                className="shrink-0 rounded-lg bg-amber-500 px-3 py-1 text-xs font-semibold text-amber-950"
               >
                 Send
               </button>
@@ -680,10 +680,21 @@ export function TigdiRoomClient({
       {view ? (
         <section
           ref={boardRef}
-          className="active-game-panel space-y-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-2 sm:space-y-4 sm:p-4"
+          className="active-game-panel space-y-3 rounded-2xl border border-amber-300/30 bg-slate-900/80 p-2 sm:space-y-4 sm:p-4"
         >
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-950/40 px-2.5 py-2">
-            <span className="rounded-full bg-rose-500/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-rose-200">
+          {/* The same chips as the Mendi Coat table: what stage the hand is at,
+              then the contract, trump and whose move it is. Your own move is
+              the one that lights. */}
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-400">
+              <span
+                aria-hidden="true"
+                className={`h-2 w-2 rounded-full ${
+                  view.phase === 'FINISHED' || view.phase === 'PASSED_OUT'
+                    ? 'bg-slate-600'
+                    : 'bg-emerald-400 shadow-[0_0_0_3px_rgba(52,211,153,0.18),0_0_10px_rgba(52,211,153,0.8)]'
+                }`}
+              />
               {view.phase === 'BIDDING'
                 ? 'Bidding'
                 : view.phase === 'CALLING'
@@ -691,30 +702,48 @@ export function TigdiRoomClient({
                   : view.phase === 'FINISHED'
                     ? 'Hand over'
                     : `Trick ${view.trickNumber}`}
-            </span>
-            <div className="flex items-center gap-2 text-xs">
+            </p>
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
               {view.highBid ? (
-                <span className="rounded-md bg-slate-900/80 px-2 py-1 font-semibold tabular-nums text-amber-200">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/60 px-2.5 py-1 font-semibold tabular-nums text-slate-200">
+                  <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400">
+                    Bid
+                  </span>
                   {view.highBid}
                 </span>
               ) : null}
               <span
-                className={`rounded-md bg-slate-900/80 px-2 py-1 text-base leading-none ${
-                  view.trumpSuit
-                    ? view.trumpSuit === 'HEARTS' || view.trumpSuit === 'DIAMONDS'
-                      ? 'text-rose-400'
-                      : 'text-slate-100'
-                    : 'text-slate-600'
-                }`}
+                className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/60 px-2.5 py-1 font-semibold"
                 title={view.trumpSuit ? `${view.trumpSuit} is trump` : 'Trump not named yet'}
               >
-                {view.trumpSuit ? SUIT_GLYPH[view.trumpSuit] : '—'}
+                <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400">
+                  Trump
+                </span>
+                <span
+                  className={`text-sm leading-none ${
+                    view.trumpSuit
+                      ? view.trumpSuit === 'HEARTS' || view.trumpSuit === 'DIAMONDS'
+                        ? 'text-rose-300'
+                        : 'text-white'
+                      : 'text-slate-500'
+                  }`}
+                >
+                  {view.trumpSuit ? SUIT_GLYPH[view.trumpSuit] : '—'}
+                </span>
               </span>
               {/* Whose move it is, which is the one thing you look up mid-hand. */}
-              <span className="flex items-center gap-1.5 rounded-md bg-amber-300 px-2 py-1 font-semibold text-emerald-950">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-800" />
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold ${
+                  myTurn
+                    ? 'bg-amber-400 text-amber-950 shadow-[0_0_14px_rgba(255,194,51,0.55)]'
+                    : 'bg-slate-950/60 text-slate-200'
+                }`}
+              >
+                <span className="text-[10px] font-medium uppercase tracking-[0.14em] opacity-70">
+                  Turn
+                </span>
                 <span className="max-w-[7rem] truncate">
-                  {view.players[view.currentTurn]?.name}
+                  {myTurn ? 'You' : view.players[view.currentTurn]?.name}
                 </span>
               </span>
             </div>
@@ -749,24 +778,34 @@ export function TigdiRoomClient({
               ) : null}
 
               {view.phase === 'PASSED_OUT' ? (
-                <p className="rounded-lg border border-slate-700 bg-slate-950/60 p-3 text-center text-sm text-slate-300">
+                <p className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 text-center text-sm text-slate-300">
                   Nobody wanted it. Dealing again…
                 </p>
               ) : null}
 
-              <div className="game-hand rounded-lg bg-slate-950/60 p-3 sm:p-4">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <p className="text-sm text-slate-400">
-                    Your hand {seat === null ? '' : `(Seat ${seat + 1})`}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {view.phase !== 'PLAYING'
-                      ? null
-                      : myTurn
-                        ? 'Your turn'
-                        : `Waiting on ${view.players[view.currentTurn]?.name}`}
-                  </p>
-                </div>
+              <div
+                className={`game-hand rounded-xl border bg-slate-950/60 p-3 transition-colors sm:p-4 ${
+                  myTurn && view.phase === 'PLAYING'
+                    ? 'border-amber-300/50 shadow-[0_0_24px_-8px_rgba(255,194,51,0.45)]'
+                    : 'border-slate-800'
+                }`}
+              >
+                {/* A <p>, not a <div>: globals.css styles `.game-hand > div` as
+                    the row of cards. */}
+                <p className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                    Your hand{seat === null ? '' : ` · Seat ${seat + 1}`}
+                  </span>
+                  {view.phase !== 'PLAYING' ? null : myTurn ? (
+                    <span className="rounded-full bg-amber-400 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.12em] text-amber-950">
+                      Your turn
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-500">
+                      Waiting on {view.players[view.currentTurn]?.name}
+                    </span>
+                  )}
+                </p>
                 <div className="mt-2 flex items-end overflow-x-auto px-4 pb-3 pt-8">
                   {myHand.map((card, index) => {
                     // Your move, and this card is one the rules allow.
@@ -873,10 +912,10 @@ function Standings({
   const most = Math.max(1, ...scores);
 
   return (
-    <section className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
+    <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-lg font-semibold text-white">Standings</h2>
-        <span className="shrink-0 rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300">
+        <span className="shrink-0 rounded-full bg-slate-950/60 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400">
           {played} hand{played === 1 ? '' : 's'}
         </span>
       </div>
@@ -899,7 +938,7 @@ function Standings({
                   className="h-5 w-5 shrink-0"
                 />
               ) : (
-                <span className="h-5 w-5 shrink-0 rounded-full bg-slate-800" />
+                <span className="h-5 w-5 shrink-0 rounded-full bg-slate-950/60" />
               )}
               <span
                 className={`min-w-0 flex-1 truncate text-sm ${
@@ -910,9 +949,9 @@ function Standings({
               </span>
               {/* The bar makes a run of wins visible at a glance, which a
                   column of numbers does not. */}
-              <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-slate-800">
+              <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-slate-950">
                 <span
-                  className="block h-full rounded-full bg-rose-400 transition-all duration-500"
+                  className="block h-full rounded-full bg-amber-400 shadow-[0_0_8px_rgba(255,194,51,0.6)] transition-all duration-500"
                   style={{ width: `${(row.wins / most) * 100}%` }}
                 />
               </span>
@@ -944,16 +983,17 @@ function isLegal(view: TigdiView, card: Card): boolean {
 function ContractCard({ view }: { view: TigdiView }) {
   if (view.highBid === null) {
     return (
-      <div className="rounded-lg bg-slate-950/60 p-3">
-        <p className="font-medium text-white">The contract</p>
+      <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-300">The contract</p>
         <p className="mt-1 text-sm text-slate-400">Nobody has bought the hand yet.</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg bg-slate-950/60 p-3">
-      <p className="font-medium text-white">
+    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-300">The contract</p>
+      <p className="mt-1 font-semibold text-white">
         {view.players[view.highBidder!]?.name} · {view.highBid}
         {view.trumpSuit ? ` ${SUIT_GLYPH[view.trumpSuit]}` : ''}
       </p>
@@ -965,7 +1005,7 @@ function ContractCard({ view }: { view: TigdiView }) {
             return (
               <div
                 key={code}
-                className={`flex items-center justify-between gap-2 rounded px-2 py-1 text-xs ${
+                className={`flex items-center justify-between gap-2 rounded-md px-2 py-1 text-xs ${
                   holder === undefined
                     ? 'border border-dashed border-slate-700 text-slate-400'
                     : 'bg-rose-500/15 text-rose-200'
@@ -1023,9 +1063,9 @@ function PointsCard({ view }: { view: TigdiView }) {
   const final = view.points;
 
   return (
-    <div className="rounded-lg bg-slate-950/60 p-3">
+    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="font-medium text-white">Points</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-300">Points</p>
         <p className="text-[11px] text-slate-500">{unplayed} still out there</p>
       </div>
 
@@ -1034,7 +1074,7 @@ function PointsCard({ view }: { view: TigdiView }) {
           {/* Solid is what can be pinned on the bidder's side; the faint band
               beside it is everything captured by a seat nobody has placed yet,
               which could still land either way. */}
-          <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-slate-800">
+          <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-slate-950">
             <div
               className="h-full bg-rose-400 transition-all duration-500"
               style={{ width: `${Math.min(100, ((final?.BIDDER ?? placed.BIDDER) / bid) * 100)}%` }}
@@ -1120,17 +1160,29 @@ function HandResult({
 
   return (
     <div className="space-y-3">
-      <p
-        className={`rounded-lg border py-3 text-center text-xl font-semibold text-white ${
-          result.made ? 'border-rose-400/50 bg-rose-400/10' : 'border-slate-600 bg-slate-800/60'
+      {/* A made bid gets the gold foil the Mendi Coat result wears; a broken one
+          gets the same frame in slate, so the outcome reads before the words. */}
+      <div
+        className={`rounded-2xl p-[2px] ${
+          result.made
+            ? 'bg-[linear-gradient(160deg,#ffe08a,#e0900c_38%,#7a4a06_62%,#ffd970)] shadow-[0_18px_40px_-22px_rgba(245,166,21,0.7)]'
+            : 'bg-[linear-gradient(160deg,#94a3b8,#475569_45%,#1e293b_70%,#64748b)]'
         }`}
       >
-        {result.made
-          ? `Bid made — ${result.points.BIDDER} against ${result.bid}`
-          : `Bid broken — ${result.points.BIDDER} of ${result.bid}`}
-      </p>
+        <p
+          className={`rounded-[14px] bg-[#211539] py-4 text-center font-display text-xl font-bold sm:text-2xl ${
+            result.made
+              ? 'bg-[radial-gradient(90%_120%_at_50%_0%,rgba(245,166,21,0.28),transparent_70%)] text-amber-200'
+              : 'text-slate-200'
+          }`}
+        >
+          {result.made
+            ? `Bid made — ${result.points.BIDDER} against ${result.bid}`
+            : `Bid broken — ${result.points.BIDDER} of ${result.bid}`}
+        </p>
+      </div>
 
-      <div className="divide-y divide-slate-800 rounded-lg bg-slate-950/60">
+      <div className="divide-y divide-slate-800 rounded-xl border border-slate-800 bg-slate-950/60">
         <div className="p-3">
           <p className="text-[11px] uppercase tracking-[0.2em] text-rose-300">
             Bidder&rsquo;s side · {result.points.BIDDER}
@@ -1153,12 +1205,12 @@ function HandResult({
         <button
           type="button"
           onClick={onNext}
-          className="w-full rounded-lg bg-rose-500 px-4 py-2 text-sm font-semibold text-rose-950 transition hover:bg-rose-400"
+          className="w-full rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-amber-950 transition"
         >
           Deal the next hand
         </button>
       ) : (
-        <p className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-center text-sm text-slate-400">
+        <p className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2.5 text-center text-sm text-slate-400">
           Waiting for <span className="font-semibold text-slate-200">{adminName}</span> to deal
           again
         </p>

@@ -578,7 +578,7 @@ export function SocketRoomClient({
         </div>
       ) : null}
       <div className="room-sidebar flex flex-col gap-4">
-        <section className="live-room-panel rounded-xl border border-slate-800 bg-slate-950/70 p-4">
+        <section className="live-room-panel rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
           <button
             type="button"
             onClick={() => setSeatsOpen((open) => !open)}
@@ -594,7 +594,7 @@ export function SocketRoomClient({
               />
               <span className="text-lg font-semibold text-white">Live room</span>
             </span>
-            <span className="shrink-0 whitespace-nowrap rounded-full bg-amber-500/10 px-3 py-1 text-sm text-amber-400">
+            <span className="shrink-0 whitespace-nowrap rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-semibold tabular-nums text-amber-300">
               {4 - openSeats}/4
             </span>
           </button>
@@ -602,7 +602,7 @@ export function SocketRoomClient({
             {(["A", "B"] as const).map((team) => (
               <div
                 key={team}
-                className="rounded-lg border border-slate-800 bg-slate-900 p-3"
+                className="rounded-xl border border-slate-800 bg-slate-950/60 p-3"
               >
                 <p className="team-heading text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
                   Team {team} · Seats {team === "A" ? "1 & 3" : "2 & 4"}
@@ -614,7 +614,7 @@ export function SocketRoomClient({
                       return (
                         <div
                           key={playerSeat}
-                          className="flex items-center justify-between gap-2 rounded-md bg-slate-950/70 px-3 py-2 text-sm"
+                          className="flex items-center justify-between gap-2 rounded-lg bg-black/20 px-3 py-2 text-sm"
                         >
                           <span className="live-seat-label text-slate-400">
                             Seat {playerSeat + 1}
@@ -656,12 +656,12 @@ export function SocketRoomClient({
                   <button
                     type="button"
                     onClick={() => joinTeam(team)}
-                    className="mt-3 w-full rounded-lg border border-amber-400/50 px-3 py-2 text-sm font-medium text-amber-300 transition hover:bg-amber-400/10"
+                    className="mt-3 w-full rounded-xl border border-amber-400/50 px-3 py-2 text-sm font-semibold text-amber-300 transition hover:bg-amber-400/10"
                   >
                     Join Team {team}
                   </button>
                 ) : myTeam === team ? (
-                  <p className="mt-3 w-full rounded-lg border border-emerald-400/40 bg-emerald-400/5 px-3 py-2 text-center text-sm font-medium text-emerald-300">
+                  <p className="mt-3 w-full rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-3 py-2 text-center text-sm font-semibold text-emerald-300">
                     Your team
                   </p>
                 ) : (
@@ -669,7 +669,7 @@ export function SocketRoomClient({
                     type="button"
                     onClick={() => switchTeam(team)}
                     disabled={isTeamFull(team)}
-                    className="mt-3 w-full rounded-lg border border-amber-400/50 px-3 py-2 text-sm font-medium text-amber-300 transition hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500 disabled:hover:bg-transparent"
+                    className="mt-3 w-full rounded-xl border border-amber-400/50 px-3 py-2 text-sm font-semibold text-amber-300 transition hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500 disabled:hover:bg-transparent"
                   >
                     {isTeamFull(team) ? `Team ${team} is full` : `Switch to Team ${team}`}
                   </button>
@@ -678,24 +678,24 @@ export function SocketRoomClient({
             ))}
           </div>
         </section>
-        <section className="match-history-panel rounded-xl border border-slate-800 bg-slate-950/70 p-4">
+        <section className="match-history-panel rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-semibold text-white">
                 {seriesWinner ? "Series won" : "Series"}
               </h2>
-              <span className="shrink-0 whitespace-nowrap rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300">
+              <span className="shrink-0 whitespace-nowrap rounded-full bg-slate-950/60 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400">
                 First to {series.target}
               </span>
             </div>
 
             {/* Score first, because during a series it is the only number that
                 matters; the lifetime tally moves below it. */}
-            <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-slate-900 p-3">
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-3">
               {(["A", "B"] as const).map((team, index) => (
                 <div key={team} className={`min-w-0 flex-1 ${index === 1 ? "text-right" : ""}`}>
                   <p className="text-xs uppercase tracking-wide text-amber-300">Team {team}</p>
                   <p
-                    className={`mt-0.5 text-3xl font-semibold tabular-nums ${
+                    className={`mt-0.5 font-display text-4xl font-bold leading-none tabular-nums ${
                       seriesWinner === team ? "text-amber-300" : "text-white"
                     }`}
                   >
@@ -706,7 +706,7 @@ export function SocketRoomClient({
                       <span
                         key={pip}
                         className={`h-1.5 w-4 rounded-full ${
-                          pip < seriesScore[team] ? "bg-amber-400" : "bg-slate-800"
+                          pip < seriesScore[team] ? "bg-amber-400 shadow-[0_0_8px_rgba(255,194,51,0.6)]" : "bg-slate-950"
                         }`}
                       />
                     ))}
@@ -719,7 +719,7 @@ export function SocketRoomClient({
             </div>
 
             {seriesWinner ? (
-              <div className="mt-3 space-y-2 rounded-lg border border-amber-400/40 bg-amber-500/10 p-3">
+              <div className="mt-3 space-y-2 rounded-xl border border-amber-400/40 bg-amber-500/10 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-amber-200">
@@ -785,7 +785,7 @@ export function SocketRoomClient({
                 ) : null}
               </div>
             ) : seriesUnderway ? (
-              <p className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-xs text-slate-400">
+              <p className="mt-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-400">
                 Series under way — first to {series.target}. The length can be changed once it
                 is decided.
               </p>
@@ -826,7 +826,7 @@ export function SocketRoomClient({
                 would only be refused. */}
             {seat !== null && !gameState ? (
               !isAdmin ? (
-                <p className="mt-3 w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-center text-sm text-slate-400">
+                <p className="mt-3 w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2.5 text-center text-sm text-slate-400">
                   Waiting for{" "}
                   <span className="font-semibold text-slate-200">{adminName}</span> to start the
                   game
@@ -835,7 +835,7 @@ export function SocketRoomClient({
                 <button
                   type="button"
                   onClick={startGame}
-                  className="mt-3 w-full rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400"
+                  className="mt-3 w-full rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-amber-950 transition"
                 >
                   Start Game
                 </button>
@@ -843,7 +843,7 @@ export function SocketRoomClient({
                 <button
                   type="button"
                   onClick={fillWithBots}
-                  className="mt-3 w-full rounded-lg bg-amber-400 px-4 py-2.5 text-sm font-semibold text-amber-950 transition hover:bg-amber-300"
+                  className="mt-3 w-full rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-amber-950 transition"
                 >
                   Add {openSeats} bot{openSeats === 1 ? "" : "s"} and Start
                 </button>
@@ -858,7 +858,7 @@ export function SocketRoomClient({
                 type="button"
                 onClick={() => setHistoryOpen((open) => !open)}
                 aria-expanded={historyOpen}
-                className="mt-3 flex w-full items-center gap-2 border-t border-slate-800 pt-3 text-left text-xs uppercase tracking-wide text-slate-500 transition hover:text-slate-300"
+                className="mt-3 flex w-full items-center gap-2 border-t border-slate-800 pt-3 text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 transition hover:text-amber-300"
               >
                 <ChevronDown
                   className={`h-4 w-4 shrink-0 transition-transform duration-200 ${
@@ -880,7 +880,7 @@ export function SocketRoomClient({
                   .map(({ result, index }) => (
                     <li
                       key={index}
-                      className="flex items-center justify-between gap-2 rounded-md bg-slate-950/70 px-3 py-1.5 text-sm"
+                      className="flex items-center justify-between gap-2 rounded-lg bg-slate-950/60 px-3 py-1.5 text-sm"
                     >
                       <span className="text-slate-400">Match {index + 1}</span>
                       <span
@@ -905,9 +905,9 @@ export function SocketRoomClient({
             ) : null}
           </section>
         {gameState ? (
-          <section className="table-chat-panel rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+          <section className="table-chat-panel rounded-2xl border border-slate-800 bg-slate-900/80 p-3">
             {visibleThought ? (
-              <p className="mt-2 rounded-lg bg-slate-900 px-3 py-2 text-sm text-white">
+              <p className="mt-2 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-white">
                 <span className="font-semibold text-amber-300">
                   {visibleThought.name}:
                 </span>{" "}
@@ -927,7 +927,7 @@ export function SocketRoomClient({
                     onClick={() => sendEmote(emote.emoji)}
                     title={emote.label}
                     aria-label={emote.label}
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-lg leading-none transition hover:border-amber-400/60 hover:bg-slate-800 active:translate-y-0.5"
+                    className="rounded-lg border border-slate-800 bg-slate-950/60 px-2 py-1 text-lg leading-none transition hover:-translate-y-0.5 hover:border-amber-400/60 hover:bg-amber-400/10 active:translate-y-0.5"
                   >
                     {emote.emoji}
                   </button>
@@ -936,7 +936,7 @@ export function SocketRoomClient({
             ) : null}
             <form
               onSubmit={sendThought}
-              className="mt-2 flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1"
+              className="mt-2 flex items-center gap-1 rounded-xl border border-slate-700 bg-slate-950/60 p-1 focus-within:border-amber-400/60"
             >
               {seat !== null ? (
                 <>
@@ -985,7 +985,7 @@ export function SocketRoomClient({
               />
               <button
                 type="submit"
-                className="shrink-0 rounded-md bg-amber-400 px-3 py-1 text-xs font-semibold text-emerald-950"
+                className="shrink-0 rounded-lg bg-amber-500 px-3 py-1 text-xs font-semibold text-amber-950"
               >
                 Send
               </button>
@@ -1002,16 +1002,65 @@ export function SocketRoomClient({
       {gameState ? (
         <section
           ref={boardRef}
-          className="active-game-panel space-y-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4"
+          className="active-game-panel space-y-4 rounded-2xl border border-amber-300/30 bg-slate-900/80 p-3 sm:p-4"
         >
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm uppercase tracking-[0.3em] text-amber-400">
-              Game started
+          {/* The three things anyone glances up to check mid-hand, as chips
+              rather than a run of "Label: value" text: whose turn, what is
+              trump, and how far in. Your own turn is the one that lights. */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-400">
+              <span
+                aria-hidden="true"
+                className={`h-2 w-2 rounded-full ${
+                  gameState.status === "PLAYING"
+                    ? "bg-emerald-400 shadow-[0_0_0_3px_rgba(52,211,153,0.18),0_0_10px_rgba(52,211,153,0.8)]"
+                    : "bg-slate-600"
+                }`}
+              />
+              {gameState.status === "PLAYING" ? "Match in play" : "Match over"}
             </p>
-            <div className="flex gap-4 text-sm text-slate-200">
-              <p>Turn: Seat {gameState.currentTurn + 1}</p>
-              <p>Trump: {gameState.trumpSuit ?? "Until first cut"}</p>
-              <p>Hand: {gameState.trickNumber}</p>
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              {gameState.status === "PLAYING" ? (
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold ${
+                    seat === gameState.currentTurn
+                      ? "bg-amber-400 text-amber-950 shadow-[0_0_14px_rgba(255,194,51,0.55)]"
+                      : "bg-slate-950/60 text-slate-200"
+                  }`}
+                >
+                  <span className="text-[10px] font-medium uppercase tracking-[0.14em] opacity-70">
+                    Turn
+                  </span>
+                  {seat === gameState.currentTurn
+                    ? "You"
+                    : gameState.players[gameState.currentTurn]?.name ?? `Seat ${gameState.currentTurn + 1}`}
+                </span>
+              ) : null}
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/60 px-2.5 py-1 font-semibold text-slate-200">
+                <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400">
+                  Trump
+                </span>
+                {gameState.trumpSuit ? (
+                  <span
+                    className={
+                      gameState.trumpSuit === "HEARTS" || gameState.trumpSuit === "DIAMONDS"
+                        ? "text-rose-300"
+                        : "text-white"
+                    }
+                  >
+                    {SUIT_SYMBOL[gameState.trumpSuit]}{" "}
+                    <span className="capitalize">{gameState.trumpSuit.toLowerCase()}</span>
+                  </span>
+                ) : (
+                  <span className="font-medium text-slate-400">at the first cut</span>
+                )}
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/60 px-2.5 py-1 font-semibold tabular-nums text-slate-200">
+                <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400">
+                  Hand
+                </span>
+                {gameState.trickNumber}
+              </span>
             </div>
           </div>
           <div className="game-play-layout">
@@ -1189,9 +1238,24 @@ export function SocketRoomClient({
               </div>
             </div>
             <div className="game-sidebar space-y-4">
-              <div className="game-hand rounded-lg bg-slate-950/60 p-3 sm:p-4">
-                <p className="text-sm text-slate-400">
-                  Your hand {seat === null ? "" : `(Seat ${seat + 1})`}
+              <div
+                className={`game-hand rounded-xl border bg-slate-950/60 p-3 transition-colors sm:p-4 ${
+                  seat !== null && seat === gameState.currentTurn && gameState.status === "PLAYING"
+                    ? "border-amber-300/50 shadow-[0_0_24px_-8px_rgba(255,194,51,0.45)]"
+                    : "border-slate-800"
+                }`}
+              >
+                {/* A <p>, not a <div>: globals.css styles `.game-hand > div` as
+                    the row of cards. */}
+                <p className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                    Your hand{seat === null ? "" : ` · Seat ${seat + 1}`}
+                  </span>
+                  {seat !== null && seat === gameState.currentTurn && gameState.status === "PLAYING" ? (
+                    <span className="rounded-full bg-amber-400 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.12em] text-amber-950">
+                      Your turn
+                    </span>
+                  ) : null}
                 </p>
                 <div className="mt-2 flex items-end overflow-x-auto px-4 pb-3 pt-8">
                   {player?.cards.map((card, index) => (
@@ -1217,49 +1281,78 @@ export function SocketRoomClient({
               </div>
               <div className="game-scores grid gap-3 sm:grid-cols-2">
                 {(["A", "B"] as const).map((team) => (
-                  <div key={team} className="rounded-lg bg-slate-950/60 p-3">
-                    <p className="font-medium text-white">
-                      Team {team} · Seats {team === "A" ? "1 & 3" : "2 & 4"}
-                    </p>
-                    <p className="mt-1 text-sm text-amber-300">
-                      Hands won: {gameState.handsWon[team]}
-                    </p>
-                    <p className="mt-1 text-sm text-amber-300">
-                      Captured 10s: {gameState.capturedTens[team]}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      ♠ {gameState.capturedTensBySuit[team].SPADES} · ♥{" "}
-                      {gameState.capturedTensBySuit[team].HEARTS} · ♣{" "}
-                      {gameState.capturedTensBySuit[team].CLUBS} · ♦{" "}
-                      {gameState.capturedTensBySuit[team].DIAMONDS}
+                  <div
+                    key={team}
+                    className={`rounded-xl border bg-slate-950/60 p-3 ${
+                      myTeam === team ? "border-amber-300/35" : "border-slate-800"
+                    }`}
+                  >
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-300">
+                        Team {team}
+                        {myTeam === team ? <span className="text-slate-400"> · you</span> : null}
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        Seats {team === "A" ? "1 & 3" : "2 & 4"}
+                      </p>
+                    </div>
+                    {/* The 10s are what the game is scored on, so they are the
+                        big number; tricks are how you get there. */}
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <div className="rounded-lg bg-black/20 px-2 py-1.5 text-center">
+                        <p className="font-display text-2xl font-bold leading-none tabular-nums text-amber-300">
+                          {gameState.capturedTens[team]}
+                        </p>
+                        <p className="mt-1 text-[9px] font-medium uppercase tracking-[0.14em] text-slate-400">
+                          10s taken
+                        </p>
+                      </div>
+                      <div className="rounded-lg bg-black/20 px-2 py-1.5 text-center">
+                        <p className="font-display text-2xl font-bold leading-none tabular-nums text-white">
+                          {gameState.handsWon[team]}
+                        </p>
+                        <p className="mt-1 text-[9px] font-medium uppercase tracking-[0.14em] text-slate-400">
+                          Hands won
+                        </p>
+                      </div>
+                    </div>
+                    <p className="mt-2 flex justify-center gap-3 text-xs tabular-nums text-slate-400">
+                      <span>♠ {gameState.capturedTensBySuit[team].SPADES}</span>
+                      <span className="text-rose-300/80">♥ {gameState.capturedTensBySuit[team].HEARTS}</span>
+                      <span>♣ {gameState.capturedTensBySuit[team].CLUBS}</span>
+                      <span className="text-rose-300/80">♦ {gameState.capturedTensBySuit[team].DIAMONDS}</span>
                     </p>
                   </div>
                 ))}
               </div>
               {gameState.status === "FINISHED" ? (
                 <div ref={outcomeRef} className="scroll-mt-4 space-y-3">
-                  <p className="rounded-lg border border-amber-400/50 bg-amber-400/10 py-3 text-center text-xl font-semibold text-white">
-                    {gameState.winnerTeam === "DRAW"
-                      ? "The match is a draw."
-                      : `Team ${gameState.winnerTeam} wins!`}
-                  </p>
+                  <div className="rounded-2xl bg-[linear-gradient(160deg,#ffe08a,#e0900c_38%,#7a4a06_62%,#ffd970)] p-[2px] shadow-[0_18px_40px_-22px_rgba(245,166,21,0.7)]">
+                    <p className="rounded-[14px] bg-[#211539] bg-[radial-gradient(90%_120%_at_50%_0%,rgba(245,166,21,0.28),transparent_70%)] py-4 text-center font-display text-2xl font-bold text-amber-200">
+                      {gameState.winnerTeam === "DRAW"
+                        ? "The match is a draw"
+                        : myTeam === gameState.winnerTeam
+                          ? `Team ${gameState.winnerTeam} wins — that's you!`
+                          : `Team ${gameState.winnerTeam} wins!`}
+                    </p>
+                  </div>
 
                   {summary ? (
                     // Kept out of the winner banner: nesting panels inside it
                     // stacked amber on emerald on rose and read as clutter.
-                    <div className="divide-y divide-emerald-800/60 rounded-lg bg-emerald-950/60">
+                    <div className="divide-y divide-slate-800 rounded-xl border border-slate-800 bg-slate-950/60">
                       <div className="p-3">
                         <p className="text-[11px] uppercase tracking-[0.2em] text-amber-300">
                           Where the 10s went
                         </p>
                         <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
                           {summary.tenCaptures.length === 0 ? (
-                            <p className="text-sm text-emerald-100/60">No 10s were taken.</p>
+                            <p className="text-sm text-slate-400">No 10s were taken.</p>
                           ) : (
                             summary.tenCaptures.map((capture) => (
                               <div
                                 key={capture.card}
-                                className="rounded-md bg-emerald-950/70 px-2.5 py-2 text-center"
+                                className="rounded-lg bg-black/20 px-2.5 py-2 text-center"
                               >
                                 <p
                                   className={`text-base font-semibold leading-none ${
@@ -1270,10 +1363,10 @@ export function SocketRoomClient({
                                 >
                                   10{SUIT_SYMBOL[capture.suit]}
                                 </p>
-                                <p className="mt-1.5 truncate text-xs text-emerald-100">
+                                <p className="mt-1.5 truncate text-xs text-slate-200">
                                   {capture.name}
                                 </p>
-                                <p className="text-[10px] text-emerald-300/60">
+                                <p className="text-[10px] text-slate-500">
                                   Team {capture.team}
                                 </p>
                               </div>
@@ -1290,8 +1383,8 @@ export function SocketRoomClient({
                         {summary.mvp ? (
                           <li className="flex gap-2">
                             <span aria-hidden="true">🏆</span>
-                            <span className="min-w-0 text-emerald-100/80">
-                              <span className="font-semibold text-emerald-50">
+                            <span className="min-w-0 text-slate-300">
+                              <span className="font-semibold text-white">
                                 {summary.mvp.name}
                               </span>{" "}
                               played best — {summary.mvp.tricks} tricks and {summary.mvp.tens} 10s
@@ -1300,10 +1393,10 @@ export function SocketRoomClient({
                         ) : null}
                         <li className="flex gap-2">
                           <span aria-hidden="true">✂️</span>
-                          <span className="min-w-0 text-emerald-100/80">
+                          <span className="min-w-0 text-slate-300">
                             {summary.cut ? (
                               <>
-                                <span className="font-semibold text-emerald-50">
+                                <span className="font-semibold text-white">
                                   {summary.cut.name}
                                 </span>{" "}
                                 cut with the {summary.cut.card.slice(0, -1)}
@@ -1322,8 +1415,8 @@ export function SocketRoomClient({
                         {summary.biggestTrick ? (
                           <li className="flex gap-2">
                             <span aria-hidden="true">💥</span>
-                            <span className="min-w-0 text-emerald-100/80">
-                              <span className="font-semibold text-emerald-50">
+                            <span className="min-w-0 text-slate-300">
+                              <span className="font-semibold text-white">
                                 {summary.biggestTrick.name}
                               </span>{" "}
                               took {summary.biggestTrick.tens} 10s in a single trick
@@ -1336,13 +1429,13 @@ export function SocketRoomClient({
                           numbers line up and never wrap mid-value. */}
                       <div className="p-3">
                         <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 text-sm">
-                          <span className="text-[11px] uppercase tracking-[0.14em] text-emerald-300/60">
+                          <span className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
                             Player
                           </span>
-                          <span className="text-right text-[11px] uppercase tracking-[0.14em] text-emerald-300/60">
+                          <span className="text-right text-[11px] uppercase tracking-[0.14em] text-slate-500">
                             Tricks
                           </span>
-                          <span className="w-8 text-right text-[11px] uppercase tracking-[0.14em] text-emerald-300/60">
+                          <span className="w-8 text-right text-[11px] uppercase tracking-[0.14em] text-slate-500">
                             10s
                           </span>
                           {summary.seats.map((line) => (
@@ -1351,15 +1444,15 @@ export function SocketRoomClient({
                                 className={`mt-1 min-w-0 truncate ${
                                   summary.mvp?.seat === line.seat
                                     ? "font-semibold text-amber-200"
-                                    : "text-emerald-50"
+                                    : "text-white"
                                 }`}
                               >
                                 {line.name}
                               </span>
-                              <span className="mt-1 text-right tabular-nums text-emerald-100/70">
+                              <span className="mt-1 text-right tabular-nums text-slate-300">
                                 {line.tricks}
                               </span>
-                              <span className="mt-1 w-8 text-right tabular-nums text-emerald-100/70">
+                              <span className="mt-1 w-8 text-right tabular-nums text-slate-300">
                                 {line.tens}
                               </span>
                             </Fragment>
@@ -1377,7 +1470,7 @@ export function SocketRoomClient({
                       won. Restarting was the only button on offer, so tables
                       kept playing match after match while the series sat
                       finished and unclaimed behind them. */}
-                  <div className="rounded-lg border border-amber-400/40 bg-amber-500/10 p-3">
+                  <div className="rounded-xl border border-amber-400/40 bg-amber-500/10 p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-[11px] uppercase tracking-[0.2em] text-amber-300">
                         {seriesWinner ? "Series won" : "Series"} · first to {series.target}
@@ -1421,7 +1514,7 @@ export function SocketRoomClient({
                           <button
                             type="button"
                             onClick={startNewSeries}
-                            className="w-full rounded-lg bg-amber-400 px-4 py-2 font-medium text-amber-950 transition hover:bg-amber-300 sm:w-auto"
+                            className="w-full rounded-xl bg-amber-500 px-5 py-2.5 font-semibold text-amber-950 transition sm:w-auto"
                           >
                             Start a new series
                           </button>
@@ -1453,7 +1546,7 @@ export function SocketRoomClient({
                         <button
                           type="button"
                           onClick={restartGame}
-                          className="mt-3 w-full rounded-lg bg-amber-400 px-4 py-2 font-medium text-amber-950 transition hover:bg-amber-300 sm:w-auto"
+                          className="mt-3 w-full rounded-xl bg-amber-500 px-5 py-2.5 font-semibold text-amber-950 transition sm:w-auto"
                         >
                           Play the next match
                         </button>

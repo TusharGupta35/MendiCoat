@@ -2,7 +2,7 @@
 
 import { Check, Pencil, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { Avatar, LevelAvatar } from '@/components/Avatar';
 import { UsernameField } from '@/components/UsernameField';
 import { AVATARS } from '@/lib/avatars';
@@ -18,6 +18,12 @@ interface AvatarPickerProps {
   level?: { level: number; into: number; span: number };
   /** The saved username, or null while the player still uses their Google name. */
   username?: string | null;
+  /**
+   * 'lg' — the portrait in the full header bar.
+   * 'sm' — the one in the slim bar, where it sits beside the page links and
+   * has to read as a control rather than a portrait.
+   */
+  size?: 'lg' | 'sm';
 }
 
 /**
@@ -28,11 +34,19 @@ interface AvatarPickerProps {
  * into one idea. Tapping your own picture is the thing people try first, so
  * that is where both live now.
  */
-export function AvatarPicker({ avatar, userKey, name, photo, level, username }: AvatarPickerProps) {
+export function AvatarPicker({ avatar, userKey, name, photo, level, username, size = 'lg' }: AvatarPickerProps) {
+  const small = size === 'sm';
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [choice, setChoice] = useState(avatar);
   const [isSaving, setIsSaving] = useState(false);
+  // router.refresh() returns before the new data arrives. Running it in a
+  // transition keeps the modal saying "Saving…" until the refreshed page — the
+  // new face in the bar — is actually on screen, and closes it then. Closing
+  // straight away left the old face showing for as long as the refresh took.
+  const [isRefreshing, startRefresh] = useTransition();
+  const [closeWhenFresh, setCloseWhenFresh] = useState(false);
+  const busy = isSaving || isRefreshing;
   const [error, setError] = useState<string | null>(null);
 
   function openModal() {
@@ -42,7 +56,7 @@ export function AvatarPicker({ avatar, userKey, name, photo, level, username }: 
   }
 
   function closeModal() {
-    if (isSaving) return;
+    if (busy) return;
     setIsOpen(false);
   }
 
@@ -62,6 +76,13 @@ export function AvatarPicker({ avatar, userKey, name, photo, level, username }: 
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (closeWhenFresh && !isRefreshing) {
+      setCloseWhenFresh(false);
+      setIsOpen(false);
+    }
+  }, [closeWhenFresh, isRefreshing]);
+
   async function save() {
     if (!choice) return;
     setIsSaving(true);
@@ -78,8 +99,8 @@ export function AvatarPicker({ avatar, userKey, name, photo, level, username }: 
         setError(payload.error ?? 'Unable to save your avatar.');
         return;
       }
-      setIsOpen(false);
-      router.refresh();
+      setCloseWhenFresh(true);
+      startRefresh(() => router.refresh());
     } catch {
       setError('A network error occurred. Please try again.');
     } finally {
@@ -94,7 +115,7 @@ export function AvatarPicker({ avatar, userKey, name, photo, level, username }: 
         onClick={openModal}
         title="Change your avatar"
         aria-label="Change your avatar"
-        className="relative rounded-full transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
+        className="relative rounded-full transition duration-200 hover:scale-105 hover:drop-shadow-[0_0_12px_rgba(255,194,51,0.55)] motion-reduce:transform-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
       >
         {level ? (
           <LevelAvatar
@@ -105,7 +126,7 @@ export function AvatarPicker({ avatar, userKey, name, photo, level, username }: 
             level={level.level}
             into={level.into}
             span={level.span}
-            className="h-16 w-16 sm:h-[4.5rem] sm:w-[4.5rem]"
+            className={small ? 'h-11 w-11' : 'h-16 w-16 sm:h-[4.5rem] sm:w-[4.5rem]'}
           />
         ) : (
           <Avatar
@@ -113,14 +134,16 @@ export function AvatarPicker({ avatar, userKey, name, photo, level, username }: 
             userKey={userKey}
             name={name}
             photo={photo}
-            className="h-14 w-14 sm:h-16 sm:w-16"
+            className={small ? 'h-10 w-10' : 'h-14 w-14 sm:h-16 sm:w-16'}
           />
         )}
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute -right-1 -top-1 rounded-full bg-amber-400 p-1 text-slate-950 shadow-md ring-2 ring-slate-900"
+          className={`pointer-events-none absolute -right-1 -top-1 rounded-full bg-amber-400 text-slate-950 shadow-md ring-2 ring-slate-900 ${
+            small ? 'p-[3px]' : 'p-1'
+          }`}
         >
-          <Pencil className="h-3 w-3" strokeWidth={2.5} />
+          <Pencil className={small ? 'h-2.5 w-2.5' : 'h-3 w-3'} strokeWidth={2.5} />
         </span>
       </button>
 
@@ -147,7 +170,7 @@ export function AvatarPicker({ avatar, userKey, name, photo, level, username }: 
               <button
                 type="button"
                 onClick={closeModal}
-                disabled={isSaving}
+                disabled={busy}
                 aria-label="Close"
                 className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -156,7 +179,7 @@ export function AvatarPicker({ avatar, userKey, name, photo, level, username }: 
             </div>
 
             <div className="mt-5">
-              <UsernameField username={username ?? null} fallbackName={name} disabled={isSaving} />
+              <UsernameField username={username ?? null} fallbackName={name} disabled={busy} />
             </div>
 
             <p className="mt-5 text-xs uppercase tracking-[0.16em] text-slate-400">Your face</p>
@@ -200,7 +223,7 @@ export function AvatarPicker({ avatar, userKey, name, photo, level, username }: 
               <button
                 type="button"
                 onClick={closeModal}
-                disabled={isSaving}
+                disabled={busy}
                 className="rounded-lg border border-slate-700 px-4 py-2 font-medium transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancel
@@ -208,10 +231,10 @@ export function AvatarPicker({ avatar, userKey, name, photo, level, username }: 
               <button
                 type="button"
                 onClick={save}
-                disabled={isSaving || !choice || choice === avatar}
+                disabled={busy || !choice || choice === avatar}
                 className="rounded-lg bg-amber-500 px-4 py-2 font-medium text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isSaving ? 'Saving…' : 'Save'}
+                {busy ? 'Saving…' : 'Save'}
               </button>
             </div>
           </div>

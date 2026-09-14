@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 
 interface DeleteRoomButtonProps {
   roomCode: string;
@@ -10,6 +10,11 @@ interface DeleteRoomButtonProps {
 export function DeleteRoomButton({ roomCode }: DeleteRoomButtonProps) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
+  // The row only disappears when the refreshed list arrives, so "Deleting…"
+  // lasts until then — not until the request returns, which left a live-looking
+  // Delete button on a table that no longer existed.
+  const [isRefreshing, startRefresh] = useTransition();
+  const busy = isDeleting || isRefreshing;
   const [error, setError] = useState<string | null>(null);
 
   async function deleteRoom() {
@@ -24,7 +29,7 @@ export function DeleteRoomButton({ roomCode }: DeleteRoomButtonProps) {
         setError(payload.error ?? 'Unable to delete this room.');
         return;
       }
-      router.refresh();
+      startRefresh(() => router.refresh());
     } catch {
       setError('A network error occurred. Please try again.');
     } finally {
@@ -37,10 +42,10 @@ export function DeleteRoomButton({ roomCode }: DeleteRoomButtonProps) {
       <button
         type="button"
         onClick={deleteRoom}
-        disabled={isDeleting}
+        disabled={busy}
         className="rounded-md border border-rose-500/40 px-2.5 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isDeleting ? 'Deleting…' : 'Delete'}
+        {busy ? 'Deleting…' : 'Delete'}
       </button>
       {error ? <p role="alert" className="mt-1 text-xs text-rose-300">{error}</p> : null}
     </div>

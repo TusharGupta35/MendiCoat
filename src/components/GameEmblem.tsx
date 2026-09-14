@@ -117,11 +117,16 @@ export function GameEmblem({
 }: {
   game: Game;
   /** Tile-sized on the board, larger where the game is the page's subject. */
-  size?: 'md' | 'lg';
+  size?: 'md' | 'lg' | 'xl';
   className?: string;
 }) {
   const Drawn = EMBLEMS[game.id];
-  const box = size === 'lg' ? 'h-16 w-16 p-3 text-3xl' : 'h-12 w-12 p-2.5 text-2xl';
+  const box =
+    size === 'xl'
+      ? 'h-20 w-20 p-4 text-4xl'
+      : size === 'lg'
+        ? 'h-16 w-16 p-3 text-3xl'
+        : 'h-12 w-12 p-2.5 text-2xl';
 
   return (
     <span
