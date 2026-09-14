@@ -1,0 +1,48 @@
+name: Deploy to Azure VM
+
+on:
+  push:
+    branches:
+      - MendiCoatProd
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to VM
+        uses: appleboy/ssh-action@v1.2.4
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          passphrase: ${{ secrets.VM_SSH_PASSPHRASE }}
+          port: 22
+
+          script: |
+            set -e
+
+            echo "Deployment started: $(date)"
+
+            cd /opt/MendiCoat
+
+            echo "Pulling latest code..."
+            git fetch origin MendiCoatProd
+            git reset --hard origin/MendiCoatProd
+
+            echo "Installing dependencies..."
+            npm ci
+
+            echo "Generating Prisma client..."
+            npx prisma generate
+
+            echo "Building application..."
+            npm run build
+
+            echo "Restarting application..."
+            pm2 restart mendicoat --update-env
+
+            echo "Saving PM2 process list..."
+            pm2 save
+
+            echo "Deployment completed: $(date)"
