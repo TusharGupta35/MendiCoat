@@ -14,16 +14,17 @@ export const revalidate = 0;
 /**
  * Every table, newest first.
  *
- * Three piles, because a table means three different things depending on where
- * you stand with it. Yours are rooms you can simply walk back into — you were
- * let in once and nothing takes that back. Everybody else's are rooms you have
- * to get into: an open one hands you a seat, an invite-only one asks for the
- * code its row deliberately does not print. And below the line sit the rooms
- * nobody has touched in hours, which are not tables so much as leftovers.
+ * Two piles, because a table means two different things depending on where you
+ * stand with it. Yours are rooms you can simply walk back into. Everybody
+ * else's are rooms you have to be let into, with the code the host sent you.
  *
- * Nothing here deletes anything — the split is presentation. The only way a
- * room leaves the database is its host deleting it, which is the control the
- * host still has on their own rows.
+ * A room nobody has touched for a week is not on anybody's list but its
+ * host's, where it sits under Your tables marked "left open" — to reopen or
+ * delete. It rejoins everyone's list as soon as someone joins it or a match
+ * starts there (see splitTables in lobby-core).
+ *
+ * Nothing here deletes anything — hiding is presentation. The only way a room
+ * leaves the database is its host deleting it.
  */
 export default async function TablesPage() {
   const session = await getServerSession(authOptions);
@@ -35,13 +36,9 @@ export default async function TablesPage() {
   });
   if (!user) redirect('/login');
 
-  // Everything, not a page of it: five friends do not generate a second page,
-  // and a list you cannot see the bottom of hides exactly the stale rows the
-  // split exists to surface.
+  // Everything, not a page of it: five friends do not generate a second page.
   const tables = await getTables(user.id, { limit: 200 });
-
-  const openNow = tables.global.filter((table) => table.state !== 'stale');
-  const earlier = tables.global.filter((table) => table.state === 'stale');
+  const openNow = tables.global;
 
   return (
     <main className="min-h-screen bg-slate-950 px-3 pb-10 pt-4 text-slate-100 sm:px-6 sm:pb-12 sm:pt-6">
@@ -91,16 +88,6 @@ export default async function TablesPage() {
           empty={<p className="text-sm text-slate-400">Nobody else has a table open right now.</p>}
         />
 
-        {earlier.length > 0 ? (
-          <OpenTables
-            tables={earlier}
-            liveGames={liveGames()}
-            meId={user.id}
-            heading="Left open"
-            actions={false}
-            blurb="Nobody has touched these in hours. They still exist — a host can delete their own."
-          />
-        ) : null}
       </div>
     </main>
   );

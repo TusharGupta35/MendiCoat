@@ -91,11 +91,9 @@ export default async function DashboardPage() {
   // this page you can act on without asking anybody. Then everybody else's.
   // The rest lives on /tables.
   //
-  // The newest three of each, whatever state they are in. Hiding the ones
-  // nobody has touched in hours emptied the panels on any evening the rooms
-  // were left over from the night before, which is most of them — and a row
-  // already says "left open" for itself. Rows arrive newest first, so a table
-  // still going always outranks a leftover anyway.
+  // The newest three of each. Nobody else's week-quiet tables reach this far
+  // (splitTables drops them), while your own stay under Your tables marked
+  // "left open", so there is nothing more to filter here.
   const yours = tables.mine.slice(0, 3);
   const others = tables.global.slice(0, 3);
 
