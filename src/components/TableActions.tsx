@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { hidePageLoading, showPageLoading } from '@/components/NavigationLoader';
 import type { Game } from '@/games/registry';
 
 /**
@@ -47,10 +48,16 @@ export function TableActions({ games }: { games: Game[] }) {
     if (codeOpen) codeInput.current?.focus();
   }, [codeOpen]);
 
+  // Both actions raise the loading screen at the click, before the request, and
+  // leave it up on success: router.push returns at once, and resetting `busy`
+  // in a finally block used to flash the old buttons back while the table was
+  // still on its way. The route change clears the screen; a failure clears it
+  // here, next to the error that explains why.
   async function startTable(gameId: string) {
     setBusy(true);
     setError(null);
     setMenuOpen(false);
+    showPageLoading();
     try {
       const response = await fetch('/api/rooms', {
         method: 'POST',
@@ -59,21 +66,26 @@ export function TableActions({ games }: { games: Game[] }) {
       });
       const payload = await response.json();
       if (!response.ok) {
-        setError(payload.error ?? 'Unable to open a table.');
+        fail(payload.error ?? 'Unable to open a table.');
         return;
       }
       router.push(`/room/${payload.code}`);
     } catch {
-      setError('A network error occurred. Please try again.');
-    } finally {
-      setBusy(false);
+      fail('A network error occurred. Please try again.');
     }
+  }
+
+  function fail(message: string) {
+    hidePageLoading();
+    setError(message);
+    setBusy(false);
   }
 
   async function joinByCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setError(null);
+    showPageLoading();
     try {
       const response = await fetch('/api/rooms/join', {
         method: 'POST',
@@ -82,14 +94,12 @@ export function TableActions({ games }: { games: Game[] }) {
       });
       const payload = await response.json();
       if (!response.ok) {
-        setError(payload.error ?? 'Unable to join this room.');
+        fail(payload.error ?? 'Unable to join this room.');
         return;
       }
       router.push(`/room/${payload.code}`);
     } catch {
-      setError('A network error occurred. Please try again.');
-    } finally {
-      setBusy(false);
+      fail('A network error occurred. Please try again.');
     }
   }
 
@@ -97,20 +107,32 @@ export function TableActions({ games }: { games: Game[] }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2.5">
-        <div className="relative" ref={menuRef}>
+      {/* One row on a phone, with short labels. Stacked full-width buttons
+          were two 48px bars before the first table; side by side with the
+          full labels they did not fit — "Start a table" wrapped at ~147px.
+          "New table" and "Join by code" fit at 320px with room to spare. From
+          sm up the full labels and sizes are back. */}
+      <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+        <div className="relative min-w-0 flex-1 sm:flex-none" ref={menuRef}>
           <button
             type="button"
             disabled={busy}
             onClick={() => (single ? startTable(games[0].id) : setMenuOpen((open) => !open))}
             aria-haspopup={single ? undefined : 'menu'}
             aria-expanded={single ? undefined : menuOpen}
-            className="flex h-[52px] items-center gap-2 rounded-xl bg-amber-500 px-6 text-base font-semibold text-amber-950 transition disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex h-11 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-amber-500 px-3 text-sm font-semibold text-amber-950 transition disabled:cursor-not-allowed disabled:opacity-60 sm:h-[52px] sm:w-auto sm:gap-2 sm:px-6 sm:text-base"
           >
             <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" aria-hidden="true">
               <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
             </svg>
-            {busy ? 'Opening…' : 'Start a table'}
+            {busy ? (
+              'Opening…'
+            ) : (
+              <>
+                <span className="sm:hidden">New table</span>
+                <span className="hidden sm:inline">Start a table</span>
+              </>
+            )}
           </button>
 
           {menuOpen ? (
@@ -137,8 +159,8 @@ export function TableActions({ games }: { games: Game[] }) {
         </div>
 
         {codeOpen ? (
-          <form onSubmit={joinByCode} className="flex items-center gap-2">
-            <label className="flex h-[52px] items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/70 px-4">
+          <form onSubmit={joinByCode} className="flex w-full items-center gap-2 sm:w-auto">
+            <label className="flex h-11 flex-1 items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/70 px-3 sm:h-[52px] sm:flex-none sm:px-4">
               <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">
                 Code
               </span>
@@ -149,14 +171,14 @@ export function TableActions({ games }: { games: Game[] }) {
                 maxLength={4}
                 required
                 aria-label="Room code"
-                className="w-24 bg-transparent text-xl font-bold tracking-[0.24em] tabular-nums text-white outline-none placeholder:text-slate-600"
+                className="w-full min-w-0 bg-transparent text-xl font-bold tracking-[0.24em] tabular-nums text-white outline-none placeholder:text-slate-600 sm:w-24"
                 placeholder="····"
               />
             </label>
             <button
               type="submit"
               disabled={busy}
-              className="h-[52px] rounded-xl border border-slate-700 px-5 font-medium transition hover:bg-slate-800 disabled:opacity-60"
+              className="h-11 shrink-0 whitespace-nowrap rounded-xl border border-slate-700 px-4 font-medium transition hover:bg-slate-800 disabled:opacity-60 sm:h-[52px] sm:px-5"
             >
               {busy ? 'Joining…' : 'Join'}
             </button>
@@ -165,9 +187,10 @@ export function TableActions({ games }: { games: Game[] }) {
           <button
             type="button"
             onClick={() => setCodeOpen(true)}
-            className="h-[52px] rounded-xl border border-slate-700 px-5 font-medium transition hover:bg-slate-800"
+            className="h-11 min-w-0 flex-1 whitespace-nowrap rounded-xl border border-slate-700 px-3 text-sm font-medium transition hover:bg-slate-800 sm:h-[52px] sm:flex-none sm:px-5 sm:text-base"
           >
-            Join with a code
+            <span className="sm:hidden">Join by code</span>
+            <span className="hidden sm:inline">Join with a code</span>
           </button>
         )}
       </div>

@@ -12,7 +12,7 @@ import type { LeaderboardRow, XpRow } from '@/lib/stats';
 
 function Stat({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
   return (
-    <div className="rounded-lg bg-slate-950/70 p-3">
+    <div className="rounded-lg bg-slate-950/60 p-3">
       <p className="text-xs uppercase tracking-[0.16em] text-slate-400">{label}</p>
       <p className="mt-1 text-2xl font-semibold tabular-nums text-white">{value}</p>
       {hint ? <p className="mt-0.5 text-xs text-slate-500">{hint}</p> : null}
@@ -129,7 +129,7 @@ export function ChallengeList({ challenges }: { challenges: ChallengeState[] }) 
           <div
             key={challenge.id}
             className={`rounded-lg border p-3 ${
-              challenge.done ? 'border-emerald-400/40 bg-emerald-500/10' : 'border-slate-800 bg-slate-950/70'
+              challenge.done ? 'border-emerald-400/40 bg-emerald-500/10' : 'border-slate-800 bg-slate-950/60'
             }`}
           >
             <div className="flex items-baseline justify-between gap-2">
@@ -173,26 +173,21 @@ export function MilestoneGrid({ milestones }: { milestones: MilestoneState[] }) 
           const filled = milestone.target === null ? 100 : Math.round((into / span) * 100);
 
           return (
-            <div key={milestone.id} className="rounded-lg border border-slate-800 bg-slate-950/70 p-3">
-              <div className="flex items-start gap-3">
-                <span className="text-2xl" aria-hidden="true">{milestone.badge}</span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <p className="font-medium text-white">{milestone.label}</p>
-                    <span className="shrink-0 text-xs tabular-nums text-slate-400">
-                      {milestone.target === null
-                        ? 'Maxed'
-                        : `${milestone.count} / ${milestone.target}`}
-                    </span>
-                  </div>
-                  <p className="mt-0.5 text-sm text-slate-400">{milestone.unit}</p>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-950">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-300"
-                      style={{ width: `${Math.max(2, Math.min(100, filled))}%` }}
-                    />
-                  </div>
-                </div>
+            <div key={milestone.id} className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="font-medium text-white">{milestone.label}</p>
+                <span className="shrink-0 text-xs tabular-nums text-slate-400">
+                  {milestone.target === null
+                    ? 'Maxed'
+                    : `${milestone.count} / ${milestone.target}`}
+                </span>
+              </div>
+              <p className="mt-0.5 text-sm text-slate-400">{milestone.unit}</p>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-950">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-300"
+                  style={{ width: `${Math.max(2, Math.min(100, filled))}%` }}
+                />
               </div>
             </div>
           );
@@ -219,12 +214,28 @@ export function FeatGrid({ feats }: { feats: FeatState[] }) {
           <div
             key={feat.id}
             className={`flex gap-3 rounded-lg border p-3 ${
-              feat.earned ? 'border-amber-400/40 bg-amber-500/10' : 'border-slate-800 bg-slate-950/70'
+              feat.earned ? 'border-amber-400/40 bg-amber-500/10' : 'border-slate-800 bg-slate-950/60'
             }`}
           >
-            <span className={`text-2xl ${feat.earned ? '' : 'opacity-40 grayscale'}`} aria-hidden="true">
-              {feat.badge}
-            </span>
+            {/* A tick or a padlock rather than the registry's emoji: the state
+                is the whole message, and it has to read the same everywhere. */}
+            {feat.earned ? (
+              <svg viewBox="0 0 24 24" className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true">
+                <path
+                  d="M5 13l4 4 10-10"
+                  stroke="#ffd970"
+                  strokeWidth="2.6"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true">
+                <rect x="5" y="10.5" width="14" height="9.5" rx="2.4" fill="none" stroke="#63438f" strokeWidth="1.8" />
+                <path d="M8.4 10.5V8a3.6 3.6 0 0 1 7.2 0v2.5" fill="none" stroke="#63438f" strokeWidth="1.8" />
+              </svg>
+            )}
             <div className="min-w-0">
               <div className="flex items-baseline justify-between gap-2">
                 <p className={`font-medium ${feat.earned ? 'text-amber-200' : 'text-slate-300'}`}>
@@ -255,7 +266,7 @@ export function PartnerTable({ partners }: { partners: PartnerRecord[] }) {
           {partners.map((partner) => (
             <li
               key={partner.userId}
-              className="flex items-center justify-between gap-3 rounded-lg bg-slate-950/70 p-3"
+              className="flex items-center justify-between gap-3 rounded-lg bg-slate-950/60 p-3"
             >
               <span className="flex min-w-0 items-center gap-2.5">
                 <Avatar
@@ -309,7 +320,7 @@ function LeaderRow({
   return (
     <li
       className={`flex items-center gap-3 rounded-lg p-3 ${
-        row.userId === meId ? 'bg-amber-500/10 ring-1 ring-amber-400/40' : 'bg-slate-950/70'
+        row.userId === meId ? 'bg-amber-500/10 ring-1 ring-amber-400/40' : 'bg-slate-950/60'
       }`}
     >
       <span className="w-6 shrink-0 text-center text-sm font-semibold tabular-nums text-slate-500">
@@ -346,7 +357,7 @@ export function Leaderboard({ rows, meId }: { rows: LeaderboardRow[]; meId: stri
           Nobody has finished an all-human match yet.
         </p>
       ) : (
-        <ol className="mt-4 space-y-2">
+        <ol className="mt-4 space-y-2 max-sm:mt-3 max-sm:space-y-1.5">
           {rows.map((row, index) => (
             <LeaderRow key={row.userId} row={row} place={index + 1} meId={meId} />
           ))}
@@ -377,7 +388,7 @@ export function TopPlayers({ rows, meId }: { rows: XpRow[]; meId: string }) {
           See all →
         </Link>
       </div>
-      <p className="mt-1 text-sm text-slate-400">
+      <p className="mt-1 text-sm text-slate-400 max-sm:hidden">
         The five furthest along, by XP earned across every game.
       </p>
       {rows.length === 0 ? (
@@ -385,7 +396,7 @@ export function TopPlayers({ rows, meId }: { rows: XpRow[]; meId: string }) {
           Nobody has finished a match yet. Play one and this is your board to lead.
         </p>
       ) : (
-        <ol className="mt-4 space-y-2">
+        <ol className="mt-4 space-y-2 max-sm:mt-3 max-sm:space-y-1.5">
           {rows.map((row, index) => {
             const podium = podiumFor(index);
             const isMe = row.userId === meId;
@@ -393,8 +404,8 @@ export function TopPlayers({ rows, meId }: { rows: XpRow[]; meId: string }) {
             <li key={row.userId}>
               <Link
                 href={`/players/${row.userId}`}
-                className={`flex items-center gap-3 rounded-lg p-3 transition hover:bg-slate-800 ${
-                  podium?.row ?? 'bg-slate-950/70'
+                className={`flex items-center gap-3 rounded-lg p-3 transition hover:bg-slate-800 max-sm:px-2.5 max-sm:py-2 ${
+                  podium?.row ?? 'bg-slate-950/60'
                 } ${
                   // On the podium the medal already colours the row, so your own
                   // place takes a dashed edge rather than a second ring.
@@ -464,7 +475,7 @@ export function WeeklyTopFive({ rows, meId }: { rows: LeaderboardRow[]; meId: st
           No all-human match has finished this week — win one and the top spot is yours.
         </p>
       ) : (
-        <ol className="mt-4 space-y-2">
+        <ol className="mt-4 space-y-2 max-sm:mt-3 max-sm:space-y-1.5">
           {rows.map((row, index) => (
             <LeaderRow key={row.userId} row={row} place={index + 1} meId={meId} />
           ))}

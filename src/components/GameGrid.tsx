@@ -13,19 +13,27 @@ import { comingSoon, liveGames, type Game } from '@/games/registry';
  *
  * The whole tile is the link and the whole tile lights up: a button inside a
  * card that is itself about one game gives two targets for one intent.
+ *
+ * Below lg the tiles tighten — a smaller emblem, the blurb held to two lines —
+ * and the promised games become three small chips in a row instead of three
+ * full-width bars. Each change is a `max-lg:` override, so desktop is as it was.
  */
 
 function LiveTile({ game }: { game: Game }) {
   return (
     <Link
       href={`/games/${game.slug}`}
-      className="group flex flex-col rounded-2xl border border-slate-800 bg-slate-900/80 p-5 transition duration-200 hover:-translate-y-0.5 hover:border-amber-400/60 hover:bg-amber-500/[0.06] hover:shadow-[0_0_34px_-6px_rgba(255,194,51,0.4)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 motion-reduce:transform-none"
+      className="group flex flex-col rounded-2xl border border-slate-800 bg-slate-900/80 p-5 max-lg:p-4 transition duration-200 hover:-translate-y-0.5 hover:border-amber-400/60 hover:bg-amber-500/[0.06] hover:shadow-[0_0_34px_-6px_rgba(255,194,51,0.4)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 motion-reduce:transform-none"
     >
-      <div className="flex items-start gap-3.5">
-        <GameEmblem game={game} size="lg" className="group-hover:scale-110" />
+      <div className="flex items-start gap-3.5 max-lg:items-center max-lg:gap-3">
+        <GameEmblem
+          game={game}
+          size="lg"
+          className="group-hover:scale-110 max-lg:h-12 max-lg:w-12 max-lg:p-2.5"
+        />
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-xl font-semibold text-white transition group-hover:text-amber-300">
+            <h3 className="text-xl font-semibold text-white transition group-hover:text-amber-300 max-lg:text-lg">
               {game.name}
             </h3>
             <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-300">
@@ -36,9 +44,11 @@ function LiveTile({ game }: { game: Game }) {
         </div>
       </div>
 
-      <p className="mt-3.5 text-sm leading-relaxed text-slate-400">{game.blurb}</p>
+      <p className="mt-3.5 text-sm leading-relaxed text-slate-400 max-lg:mt-2.5 max-lg:line-clamp-2 max-lg:text-[13px]">
+        {game.blurb}
+      </p>
 
-      <div className="mt-auto flex items-center justify-between gap-3 pt-4">
+      <div className="mt-auto flex items-center justify-between gap-3 pt-4 max-lg:pt-3">
         <span className="text-sm font-medium text-amber-300 transition group-hover:text-amber-200">
           Play now{' '}
           <span className="inline-block transition-transform duration-200 group-hover:translate-x-1 motion-reduce:transform-none">
@@ -62,21 +72,21 @@ function LiveTile({ game }: { game: Game }) {
  */
 function SoonStrip({ games }: { games: Game[] }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 px-4 py-3">
+    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 px-4 py-3 max-lg:gap-2 max-lg:px-3">
       <p className="shrink-0 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-400">
         On the way
       </p>
-      <div className="flex min-w-0 flex-1 flex-wrap gap-2.5">
+      <div className="flex min-w-0 flex-1 flex-wrap gap-2.5 max-lg:grid max-lg:basis-full max-lg:grid-cols-3 max-lg:gap-2">
         {games.map((game) => (
           <div
             key={game.id}
-            className="flex min-w-0 flex-1 basis-40 items-center gap-2.5 rounded-xl bg-slate-950/40 px-3 py-2"
+            className="flex min-w-0 flex-1 basis-40 items-center gap-2.5 rounded-xl bg-slate-950/40 px-3 py-2 max-lg:flex-col max-lg:gap-1.5 max-lg:px-1.5 max-lg:text-center"
             title={game.tagline}
           >
             <GameEmblem game={game} className="h-8 w-8 p-1.5" />
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-medium text-slate-200">{game.name}</span>
-              <span className="block truncate text-[11px] text-slate-500">{game.players}</span>
+            <span className="min-w-0 max-lg:w-full">
+              <span className="block truncate text-sm font-medium text-slate-200 max-lg:text-xs">{game.name}</span>
+              <span className="block truncate text-[11px] text-slate-500 max-lg:hidden">{game.players}</span>
             </span>
           </div>
         ))}
@@ -98,14 +108,14 @@ export function GameGrid() {
         </p>
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 max-lg:mt-3 max-lg:gap-3">
         {live.map((game) => (
           <LiveTile key={game.id} game={game} />
         ))}
       </div>
 
       {soon.length > 0 ? (
-        <div className="mt-4">
+        <div className="mt-4 max-lg:mt-3">
           <SoonStrip games={soon} />
         </div>
       ) : null}

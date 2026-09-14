@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 
 /**
  * The name field, for use inside the profile modal.
@@ -28,6 +28,10 @@ export function UsernameField({
   const router = useRouter();
   const [draft, setDraft] = useState(username ?? '');
   const [isSaving, setIsSaving] = useState(false);
+  // Held until the refreshed page is on screen, so "Saved" means the new name
+  // is showing, not merely that the request came back.
+  const [isRefreshing, startRefresh] = useTransition();
+  const busy = isSaving || isRefreshing;
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -51,7 +55,7 @@ export function UsernameField({
         return;
       }
       setSaved(true);
-      router.refresh();
+      startRefresh(() => router.refresh());
     } catch {
       setError('A network error occurred. Please try again.');
     } finally {
@@ -74,16 +78,16 @@ export function UsernameField({
             setSaved(false);
           }}
           maxLength={20}
-          disabled={disabled || isSaving}
+          disabled={disabled || busy}
           placeholder={fallbackName}
           className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950/70 px-3 py-2 text-white outline-none transition focus:border-amber-400 disabled:opacity-60"
         />
         <button
           type="submit"
-          disabled={disabled || isSaving || unchanged}
+          disabled={disabled || busy || unchanged}
           className="shrink-0 rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-amber-400/60 hover:text-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isSaving ? 'Saving…' : saved ? 'Saved' : 'Save name'}
+          {busy ? 'Saving…' : saved ? 'Saved' : 'Save name'}
         </button>
       </div>
       <p className="mt-2 text-xs text-slate-500">

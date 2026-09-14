@@ -13,9 +13,14 @@ import type { CareerStats, RivalRecord } from '@/lib/stats-core';
  * and who you are chasing — and the rest of the page is what you can do.
  *
  * It sticks on a wide screen so the answer to "how am I doing" stays on screen
- * while the right-hand column is read. On a phone the grid puts it first in the
- * stack and it scrolls with everything else; the component is the same either
- * way.
+ * while the right-hand column is read.
+ *
+ * On a phone it is not a column at all. The aside becomes `display: contents`,
+ * so its four cards fall into the page's own stack and can be ordered among
+ * the panels beside them — the card stays at the top where identity belongs,
+ * and the goals, the rival and the record link drop below the things you came
+ * to do. A rail that kept its shape on a phone meant scrolling past three
+ * panels to reach a table.
  */
 
 /** The three weekly goals, as compact bars. The full wording lives on /stats. */
@@ -23,7 +28,7 @@ function WeekStrip({ challenges }: { challenges: ChallengeState[] }) {
   const done = challenges.filter((challenge) => challenge.done).length;
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 max-lg:p-3.5">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold text-white">This week</h2>
         <span className="rounded-full bg-slate-950/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] tabular-nums text-slate-400">
@@ -31,14 +36,14 @@ function WeekStrip({ challenges }: { challenges: ChallengeState[] }) {
         </span>
       </div>
 
-      <div className="mt-3 flex flex-col gap-2.5">
+      <div className="mt-3 flex flex-col gap-2.5 max-lg:mt-2.5 max-lg:gap-2">
         {challenges.map((challenge) => (
           <div
             key={challenge.id}
-            className={`rounded-xl border p-3 ${
+            className={`rounded-xl border p-3 max-lg:px-3 max-lg:py-2.5 ${
               challenge.done
                 ? 'border-emerald-400/40 bg-emerald-500/10'
-                : 'border-slate-800 bg-slate-950/70'
+                : 'border-slate-800 bg-slate-950/60'
             }`}
           >
             <div className="flex items-baseline justify-between gap-2">
@@ -58,7 +63,7 @@ function WeekStrip({ challenges }: { challenges: ChallengeState[] }) {
               </span>
             </div>
             <p className="mt-0.5 text-xs text-slate-400">{challenge.description}</p>
-            <div className="mt-2 flex items-center gap-2">
+            <div className="mt-2 flex items-center gap-2 max-lg:mt-1.5">
               <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-950">
                 <div
                   className={`h-full rounded-full ${
@@ -77,7 +82,7 @@ function WeekStrip({ challenges }: { challenges: ChallengeState[] }) {
         ))}
       </div>
 
-      <p className="mt-3 text-xs text-slate-500">A new set of three arrives every Monday.</p>
+      <p className="mt-3 text-xs text-slate-500 max-lg:hidden">A new set of three arrives every Monday.</p>
     </div>
   );
 }
@@ -169,25 +174,33 @@ export function PlayerRail({
   rivalXpGap: number;
 }) {
   return (
-    <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
-      <PlayerCard
-        userId={userId}
-        name={name}
-        avatar={avatar}
-        photo={photo}
-        wearing={wearing}
-        level={level}
-        band={band}
-        stats={stats}
-      />
+    <aside className="contents lg:sticky lg:top-6 lg:flex lg:flex-col lg:gap-4">
+      <div className="order-1 lg:order-none">
+        <PlayerCard
+          userId={userId}
+          name={name}
+          avatar={avatar}
+          photo={photo}
+          wearing={wearing}
+          level={level}
+          band={band}
+          stats={stats}
+        />
+      </div>
 
-      <WeekStrip challenges={challenges} />
+      <div className="order-4 lg:order-none">
+        <WeekStrip challenges={challenges} />
+      </div>
 
-      {rival ? <RivalCard rival={rival} xpGap={rivalXpGap} /> : null}
+      {rival ? (
+        <div className="order-7 lg:order-none">
+          <RivalCard rival={rival} xpGap={rivalXpGap} />
+        </div>
+      ) : null}
 
       <Link
         href="/stats"
-        className="rounded-xl border border-slate-700 px-4 py-3 text-center text-sm font-medium text-slate-200 transition hover:bg-slate-800"
+        className="order-8 rounded-xl border border-slate-700 px-4 py-3 text-center text-sm font-medium text-slate-200 transition hover:bg-slate-800 lg:order-none"
       >
         Your full record →
       </Link>
