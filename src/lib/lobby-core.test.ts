@@ -85,14 +85,41 @@ describe('toOpenTable — whose table it is', () => {
 });
 
 describe('splitTables', () => {
+  const quiet = new Date(NOW.getTime() - FRESH_FOR_MS - 1000);
+
   it('puts yours and everybody else\'s in separate piles, order kept', () => {
     const rows = [
       toOpenTable(room({ id: 'a' }), 'kabir', NOW),
       toOpenTable(room({ id: 'b', hostId: 'neha', players: [seat('neha')] }), 'kabir', NOW),
       toOpenTable(room({ id: 'c', hostId: 'neha', players: [seat('neha'), seat('kabir')] }), 'kabir', NOW),
     ];
-    const split = splitTables(rows);
+    const split = splitTables(rows, 'kabir');
     expect(split.mine.map((table) => table.id)).toEqual(['a', 'c']);
     expect(split.global.map((table) => table.id)).toEqual(['b']);
+  });
+
+  it('keeps a table that has gone quiet on its host\'s list', () => {
+    const rows = [toOpenTable(room({ updatedAt: quiet }), 'kabir', NOW)];
+    expect(splitTables(rows, 'kabir').mine).toHaveLength(1);
+  });
+
+  it('takes a quiet table off everybody else\'s list', () => {
+    const rows = [toOpenTable(room({ updatedAt: quiet }), 'rohan', NOW)];
+    const split = splitTables(rows, 'rohan');
+    expect(split.global).toHaveLength(0);
+    expect(split.mine).toHaveLength(0);
+  });
+
+  it('takes a quiet table off the list of a player seated there who is not the host', () => {
+    const rows = [
+      toOpenTable(room({ updatedAt: quiet, players: [seat('kabir'), seat('neha')] }), 'neha', NOW),
+    ];
+    expect(splitTables(rows, 'neha').mine).toHaveLength(0);
+  });
+
+  it('brings a table back for everybody once it is touched again', () => {
+    const touched = new Date(NOW.getTime() - 60_000);
+    const rows = [toOpenTable(room({ updatedAt: touched }), 'rohan', NOW)];
+    expect(splitTables(rows, 'rohan').global).toHaveLength(1);
   });
 });

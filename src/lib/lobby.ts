@@ -53,7 +53,10 @@ export async function getTables(
       },
     });
 
-    return splitTables(rooms.map((room) => toOpenTable(room, userId, now)));
+    return splitTables(
+      rooms.map((room) => toOpenTable(room, userId, now)),
+      userId,
+    );
   } catch (error) {
     // A dashboard is not broken because the lobby could not be read; it just
     // has no tables to show.

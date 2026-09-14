@@ -17,15 +17,18 @@ import { gameForRoom, type Game } from '@/games/registry';
  */
 
 /**
- * How long a room goes untouched before it stops counting as "open now".
+ * How long a room goes untouched before it goes quiet.
  *
  * Nothing ever deletes a room — the host has to — and the socket server resets
  * every PLAYING row to LOBBY when it boots, so an abandoned match comes back
- * looking joinable. Six hours is long enough to cover a table someone stepped
- * away from and short enough that last week's leftovers stop being offered as
- * somewhere to sit.
+ * looking joinable. A week is long enough that a regular table between game
+ * nights never disappears, and short enough that a room nobody came back to
+ * stops cluttering everybody's list.
+ *
+ * "Touched" is a write to the room row: created, joined, or a match starting
+ * or ending. Opening the room page alone is not one.
  */
-export const FRESH_FOR_MS = 6 * 60 * 60 * 1000;
+export const FRESH_FOR_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * What the join route will do with this table if somebody tries.
@@ -38,7 +41,7 @@ export const FRESH_FOR_MS = 6 * 60 * 60 * 1000;
  *  - `playing` — a match is under way. "This game has already started."
  *
  * `stale` is the one the server has no opinion about: the row is untouched for
- * hours, so whatever it claims, nobody is sitting there waiting.
+ * a week, so whatever it claims, nobody is sitting there waiting.
  */
 export type TableState = 'open' | 'full' | 'playing' | 'stale';
 
@@ -147,16 +150,26 @@ export function toOpenTable(room: RoomRow, userId: string, now: Date): OpenTable
 }
 
 export interface Tables {
-  /** Hosted by you, or sat at by you: yours to walk back into. */
+  /** Hosted by you, or sat at by you — and, once it has gone quiet, hosted by you. */
   mine: OpenTable[];
-  /** Everybody else's. Listed without their codes. */
+  /** Everybody else's that are still going. Listed without their codes. */
   global: OpenTable[];
 }
 
-/** Yours and everybody else's, keeping the order they arrived in. */
-export function splitTables(tables: OpenTable[]): Tables {
+/**
+ * Yours and everybody else's, keeping the order they arrived in.
+ *
+ * A table that has gone quiet stays on its host's list and drops off everyone
+ * else's, seated players included: the host is the one who can reopen it or
+ * delete it, and to anyone else it is only a row they cannot act on. It comes
+ * back for everybody the moment it is touched again, because staleness is
+ * worked out from the room's last write every time the list is read — there is
+ * nothing to switch back on.
+ */
+export function splitTables(tables: OpenTable[], userId: string): Tables {
+  const going = (table: OpenTable) => table.state !== 'stale';
   return {
-    mine: tables.filter((table) => table.mine),
-    global: tables.filter((table) => !table.mine),
+    mine: tables.filter((table) => table.mine && (going(table) || table.hostId === userId)),
+    global: tables.filter((table) => !table.mine && going(table)),
   };
 }
