@@ -1,10 +1,23 @@
-import { ChevronDown, Crown, Layers, Scissors, Spade, Trophy } from 'lucide-react';
+import { Crown, Layers, Scissors, Spade, Trophy } from 'lucide-react';
+import { HowToPlay } from '@/components/HowToPlay';
 
 const QUICK_STEPS = [
-  'Create or join a room, then pick a team. Partners sit opposite each other — Seats 1 & 3 are Team A, Seats 2 & 4 are Team B.',
-  'All 52 cards are dealt, 13 to each player. A random seat leads the first trick.',
-  'Follow the led suit whenever you hold it. When you cannot, the card you play sets trump.',
-  'Win tricks to capture the four 10s — they decide the match.',
+  {
+    title: 'Pick a team',
+    body: 'Create or join a room, then pick a team. Partners sit opposite each other — Seats 1 & 3 are Team A, Seats 2 & 4 are Team B.',
+  },
+  {
+    title: 'The deal',
+    body: 'All 52 cards are dealt, 13 to each player. A random seat leads the first trick.',
+  },
+  {
+    title: 'Follow or cut',
+    body: 'Follow the led suit whenever you hold it. When you cannot, the card you play sets trump.',
+  },
+  {
+    title: 'Take the 10s',
+    body: 'Win tricks to capture the four 10s — they decide the match.',
+  },
 ];
 
 const RULES = [
@@ -35,51 +48,15 @@ const RULES = [
   },
 ];
 
-/**
- * The dashboard rules card. Stays a server component — the expandable section
- * is a plain <details>, so the full rules cost no client JavaScript.
- */
+/** The Mendi Coat rules, in the shared card layout every game's page uses. */
 export function GameInstructions() {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-xl font-semibold text-white">How to play - By PRATIMA</h2>
-        <span className="rounded-full bg-slate-800 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-300">
-          4 players · 13 tricks
-        </span>
-      </div>
-      <p className="mt-2 text-sm text-slate-400">
-        Mendi Coat is a partnership trick-taking game played with a full deck. The four 10s decide who wins.
-      </p>
-
-      <ol className="mt-5 space-y-3">
-        {QUICK_STEPS.map((step, index) => (
-          <li key={step} className="flex gap-3">
-            <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-xs font-semibold text-amber-300">
-              {index + 1}
-            </span>
-            <p className="text-sm text-slate-300">{step}</p>
-          </li>
-        ))}
-      </ol>
-
-      <details className="group mt-5 border-t border-slate-800 pt-4">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-medium text-amber-300 transition hover:text-amber-200 [&::-webkit-details-marker]:hidden">
-          Full rules
-          <ChevronDown className="h-4 w-4 transition group-open:rotate-180" aria-hidden="true" />
-        </summary>
-        <div className="mt-4 space-y-4">
-          {RULES.map(({ icon: Icon, title, body }) => (
-            <div key={title} className="flex gap-3">
-              <Icon className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" aria-hidden="true" />
-              <div>
-                <h3 className="text-sm font-semibold text-white">{title}</h3>
-                <p className="mt-1 text-sm text-slate-400">{body}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </details>
-    </div>
+    <HowToPlay
+      heading="How to play - By PRATIMA"
+      badge="4 players · 13 tricks"
+      intro="Mendi Coat is a partnership trick-taking game played with a full deck. The four 10s decide who wins."
+      steps={QUICK_STEPS}
+      rules={RULES}
+    />
   );
 }

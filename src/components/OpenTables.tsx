@@ -81,6 +81,16 @@ const SUMMARY: Record<OpenTable['state'], (table: OpenTable) => string> = {
   stale: () => 'left open',
 };
 
+/**
+ * One table.
+ *
+ * Laid out by the width of the list it sits in, not the width of the screen:
+ * the same row appears in a full-width dashboard panel and in half of a game
+ * page's two-column grid, and a phone breakpoint cannot tell those apart. Below
+ * @2xl (42rem of list) it is two lines — emblem, name and the controls on top,
+ * seats and tally underneath — and the name is the part that gives way, so the
+ * controls never wrap off to a line of their own.
+ */
 function TableRow({ table, meId }: { table: OpenTable; meId?: string }) {
   const iHost = meId !== undefined && table.hostId === meId;
   // The join route refuses a started match and a full table, so a row must not
@@ -90,15 +100,21 @@ function TableRow({ table, meId }: { table: OpenTable; meId?: string }) {
 
   return (
     <li
-      className={`flex flex-wrap items-center gap-x-3 gap-y-2.5 rounded-2xl border bg-slate-950/60 p-3.5 sm:gap-x-4 sm:p-4 ${
+      className={`flex flex-wrap items-center gap-x-3 gap-y-2.5 rounded-2xl border bg-slate-950/60 p-3.5 @2xl:gap-x-4 @2xl:p-4 ${
         lit ? 'border-amber-400/25' : 'border-slate-800'
       }`}
     >
-      <GameEmblem game={table.game} className="h-10 w-10 shrink-0 p-1.5 sm:h-11 sm:w-11 sm:p-2" />
+      <GameEmblem
+        game={table.game}
+        className="shrink-0 @max-2xl:h-10 @max-2xl:w-10 @max-2xl:p-1.5 @2xl:h-11 @2xl:w-11 @2xl:p-2"
+      />
 
-      <div className="min-w-0 flex-1 basis-36 sm:basis-48">
+      {/* basis-0 in a narrow list: the name starts from nothing and takes what
+          the emblem and the controls leave, truncating rather than pushing the
+          controls onto a line of their own. */}
+      <div className="min-w-0 flex-1 basis-0 @2xl:basis-48">
         <div className="flex items-center gap-2">
-          <p className="truncate text-[15px] font-semibold text-white sm:text-[17px]">
+          <p className="truncate text-[15px] font-semibold text-white @2xl:text-[17px]">
             {table.name}
           </p>
           <CodeChip table={table} />
@@ -108,41 +124,45 @@ function TableRow({ table, meId }: { table: OpenTable; meId?: string }) {
         </p>
       </div>
 
-      {/* On a phone this pair drops to a line of its own under the name and the
-          action, which is the difference between a row that wraps into four
-          ragged pieces and one that reads as two. */}
-      <div className="order-last flex w-full min-w-0 items-center gap-3 sm:order-none sm:w-auto sm:flex-1 sm:basis-40">
+      {/* In a narrow list this pair drops to a line of its own under the name
+          and the controls, which is the difference between a row that wraps
+          into four ragged pieces and one that reads as two. */}
+      <div className="order-last flex w-full min-w-0 items-center gap-3 @2xl:order-none @2xl:w-auto @2xl:flex-1 @2xl:basis-40">
         <Seats table={table} />
-        <p className="min-w-0 flex-1 truncate text-[12px] text-slate-500 sm:text-[13px]">
+        <p className="min-w-0 flex-1 truncate text-[12px] text-slate-500 @2xl:text-[13px]">
           {table.seatsTaken} of {table.game.maxPlayers} joined
           {timeSince(table.updatedAt) ? ` · active ${timeSince(table.updatedAt)}` : ''}
         </p>
       </div>
 
-      {table.mine && table.code !== null ? (
-        // You are already at this table, so the door is just a door — a match
-        // in progress is a reason to hurry back, not a reason to keep you out.
-        <Link
-          href={`/room/${table.code}`}
-          className={`flex h-10 shrink-0 items-center whitespace-nowrap rounded-xl px-3.5 text-[13px] font-medium transition sm:px-5 sm:text-sm ${
-            table.state === 'playing'
-              ? 'bg-amber-500 font-semibold text-amber-950'
-              : 'border border-slate-700 text-slate-200 hover:bg-slate-800'
-          }`}
-        >
-          {table.state === 'playing' ? 'Back to the table' : 'Open'}
-        </Link>
-      ) : seatOpen ? (
-        <EnterCodeButton />
-      ) : (
-        // No seat to take: say which, rather than offering a button that would
-        // only be refused.
-        <span className="flex h-10 shrink-0 items-center whitespace-nowrap px-1.5 text-[13px] text-slate-500 sm:px-2">
-          {table.state === 'playing' ? 'In play' : table.state === 'full' ? 'Full' : 'Left open'}
-        </span>
-      )}
-
-      {iHost && table.code !== null ? <DeleteRoomButton roomCode={table.code} /> : null}
+      {/* The row's controls travel as one group. As separate flex items, the
+          host's Delete wrapped onto a line of its own at the left edge of a
+          narrow card, away from the Open it belongs beside. */}
+      <div className="flex shrink-0 items-center gap-2">
+        {table.mine && table.code !== null ? (
+          // You are already at this table, so the door is just a door — a match
+          // in progress is a reason to hurry back, not a reason to keep you out.
+          <Link
+            href={`/room/${table.code}`}
+            className={`flex h-10 shrink-0 items-center whitespace-nowrap rounded-xl px-3.5 text-[13px] font-medium transition @2xl:px-5 @2xl:text-sm ${
+              table.state === 'playing'
+                ? 'bg-amber-500 font-semibold text-amber-950'
+                : 'border border-slate-700 text-slate-200 hover:bg-slate-800'
+            }`}
+          >
+            {table.state === 'playing' ? 'Back to the table' : 'Open'}
+          </Link>
+        ) : seatOpen ? (
+          <EnterCodeButton />
+        ) : (
+          // No seat to take: say which, rather than offering a button that would
+          // only be refused.
+          <span className="flex h-10 shrink-0 items-center whitespace-nowrap px-1.5 text-[13px] text-slate-500 sm:px-2">
+            {table.state === 'playing' ? 'In play' : table.state === 'full' ? 'Full' : 'Left open'}
+          </span>
+        )}
+        {iHost && table.code !== null ? <DeleteRoomButton roomCode={table.code} /> : null}
+      </div>
     </li>
   );
 }
@@ -233,7 +253,7 @@ export function OpenTables({
           )}
         </div>
       ) : (
-        <ul className="mt-4 flex flex-col gap-2.5 max-sm:mt-3 max-sm:gap-2">
+        <ul className="@container mt-4 flex flex-col gap-2.5 max-sm:mt-3 max-sm:gap-2">
           {tables.map((table) => (
             <TableRow key={table.id} table={table} meId={meId} />
           ))}

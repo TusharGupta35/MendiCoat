@@ -158,30 +158,35 @@ export function PlayerCard({
               {name}
             </h1>
 
-            {/* The title is the one thing on this card you choose, so it is struck
-                rather than typed: a gold ribbon with its tail cut. */}
-            <div className="relative mt-2 flex justify-center max-lg:mt-1.5 max-lg:justify-start">
-              {wearing ? (
-                <span className="inline-flex items-center gap-1.5 border border-amber-200/75 bg-[linear-gradient(180deg,#ffe08a,#ffc233_48%,#e0900c)] px-5 pb-4 pt-1.5 text-[13px] font-bold max-lg:max-w-full max-lg:gap-1 max-lg:px-3 max-lg:pb-3 max-lg:pt-1 max-lg:text-[11px] text-amber-950 shadow-[0_5px_16px_-7px_rgba(245,166,21,0.9)] [clip-path:polygon(0_0,100%_0,100%_100%,50%_76%,0_100%)]">
-                  <svg viewBox="0 0 24 24" className="h-3 w-3" aria-hidden="true">
-                    <path
-                      d="M12 3l2.5 5.5 6 .8-4.3 4.1 1 6-5.2-2.8-5.2 2.8 1-6L3.5 9.3l6-.8z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                  {wearing}
-                </span>
-              ) : (
-                <span className="text-sm text-slate-500">No title yet</span>
-              )}
-            </div>
+            {/* On its side, the ribbon and the band travel as one column the width
+                of the ribbon, so the band sits centred under the gold rather than
+                flush left under the name. A plain block on desktop. */}
+            <div className="max-lg:inline-flex max-lg:max-w-full max-lg:flex-col max-lg:items-center">
+              {/* The title is the one thing on this card you choose, so it is struck
+                  rather than typed: a gold ribbon with its tail cut. */}
+              <div className="relative mt-2 flex justify-center max-lg:mt-1.5 max-lg:justify-start">
+                {wearing ? (
+                  <span className="inline-flex items-center gap-1.5 border border-amber-200/75 bg-[linear-gradient(180deg,#ffe08a,#ffc233_48%,#e0900c)] px-5 pb-4 pt-1.5 text-[13px] font-bold max-lg:max-w-full max-lg:gap-1 max-lg:px-3 max-lg:pb-3 max-lg:pt-1 max-lg:text-[11px] text-amber-950 shadow-[0_5px_16px_-7px_rgba(245,166,21,0.9)] [clip-path:polygon(0_0,100%_0,100%_100%,50%_76%,0_100%)]">
+                    <svg viewBox="0 0 24 24" className="h-3 w-3" aria-hidden="true">
+                      <path
+                        d="M12 3l2.5 5.5 6 .8-4.3 4.1 1 6-5.2-2.8-5.2 2.8 1-6L3.5 9.3l6-.8z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                    {wearing}
+                  </span>
+                ) : (
+                  <span className="text-sm text-slate-500">No title yet</span>
+                )}
+              </div>
 
-            {/* The band divider says this on desktop; on its side the card has no
-                room for the divider, so the band is named here. The level is the
-                corner pip's to state, as it is on desktop. */}
-            <p className="relative mt-1.5 truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-300 lg:hidden">
-              {band.name}
-            </p>
+              {/* The band divider says this on desktop; on its side the card has no
+                  room for the divider, so the band is named here. The level is the
+                  corner pip's to state, as it is on desktop. */}
+              <p className="relative mt-1.5 max-w-full truncate text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-300 lg:hidden">
+                {band.name}
+              </p>
+            </div>
           </div>
         </div>
 
