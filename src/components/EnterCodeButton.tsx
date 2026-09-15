@@ -60,7 +60,7 @@ export function EnterCodeButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-slate-700 px-3.5 text-[13px] font-medium text-slate-200 transition hover:bg-slate-800 sm:px-4 sm:text-sm"
+        className="flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-slate-700 px-3.5 text-[13px] font-medium text-slate-200 transition hover:bg-slate-800 @2xl:px-4 @2xl:text-sm"
       >
         <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
           <path
