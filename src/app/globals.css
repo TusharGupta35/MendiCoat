@@ -620,3 +620,141 @@ section.bg-amber-500\/10 {
 }
 
 /* ── END THEME EXPERIMENT (surface treatments) ─────────────────────────── */
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Doodle Dhamaka: the Fog Dhamaka. Soft blobs that wander across the guessers'
+   canvas, hiding a different part of the drawing every few seconds. Blurred
+   rather than solid so the drawing can still be glimpsed at the edges — the
+   point is to slow people down, not to make the round unguessable.
+   ────────────────────────────────────────────────────────────────────────── */
+@keyframes doodle-fog-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(55%, 25%) scale(1.15);
+  }
+  66% {
+    transform: translate(20%, -30%) scale(0.9);
+  }
+}
+
+.doodle-fog {
+  position: absolute;
+  border-radius: 9999px;
+  background: rgba(203, 213, 225, 0.92);
+  filter: blur(28px);
+  animation: doodle-fog-drift 9s ease-in-out infinite;
+}
+
+.doodle-fog-slow {
+  animation-duration: 13s;
+  animation-direction: reverse;
+}
+
+.doodle-fog-late {
+  animation-duration: 11s;
+  animation-delay: -4s;
+}
+
+/* A Dhamaka being revealed: the card drops in and lands with a bounce. */
+@keyframes doodle-dhamaka-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-24px) scale(0.6) rotate(-6deg);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(4px) scale(1.06) rotate(2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0);
+  }
+}
+
+.animate-dhamaka-in {
+  animation: doodle-dhamaka-in 520ms cubic-bezier(0.2, 0.8, 0.25, 1.1) both;
+}
+
+/* The last ten seconds: the timer pulses so it is felt, not just read. */
+@keyframes doodle-urgent {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+}
+
+.animate-urgent {
+  animation: doodle-urgent 1s ease-in-out infinite;
+}
+
+@keyframes doodle-hero-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(27deg);
+  }
+  50% {
+    transform: translateY(-3px) rotate(24deg);
+  }
+}
+
+@keyframes doodle-hero-dash {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate(2px, -3px) rotate(5deg);
+  }
+}
+
+@keyframes doodle-hero-bubble {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.doodle-hero-pencil {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: doodle-hero-bob 2.8s ease-in-out infinite;
+}
+
+.doodle-hero-dash {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: doodle-hero-dash 2.1s ease-in-out infinite;
+}
+
+.doodle-hero-bubble {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: doodle-hero-bubble 2.4s ease-in-out infinite;
+}
+
+.doodle-hero-bubble-late {
+  animation-delay: -1.1s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doodle-fog {
+    /* Still fog, still in the way — just not moving. */
+    animation: none;
+  }
+  .animate-dhamaka-in,
+  .animate-urgent,
+  .doodle-hero-pencil,
+  .doodle-hero-dash,
+  .doodle-hero-bubble {
+    animation: none;
+  }
+}

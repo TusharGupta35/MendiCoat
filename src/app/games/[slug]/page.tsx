@@ -5,8 +5,7 @@ import { notFound, redirect } from 'next/navigation';
 import { AppHeader } from '@/components/AppHeader';
 import { GameHero } from '@/components/GameHero';
 import { OpenTables } from '@/components/OpenTables';
-import { GameInstructions } from '@/games/mendi-coat/Instructions';
-import { TigdiInstructions } from '@/games/teen-ki-tigdi/Instructions';
+import { uiFor } from '@/games/ui';
 import { authOptions } from '@/lib/auth';
 import { getTables } from '@/lib/lobby';
 import { prisma } from '@/lib/prisma';
@@ -107,6 +106,7 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
   // A game that is not built yet has no rules to read and no room to sit in;
   // its tile on the dashboard is the whole of it for now.
   if (game.status !== 'live') notFound();
+  const { Instructions } = uiFor(game.id);
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) redirect('/login');
@@ -238,7 +238,7 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
 
         {/* The real rules, per game — richer and more accurate than anything
             this page could restate about a game it does not know. */}
-        {game.id === 'TEEN_KI_TIGDI' ? <TigdiInstructions /> : <GameInstructions />}
+        <Instructions />
       </div>
     </main>
   );

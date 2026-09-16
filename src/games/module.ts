@@ -1,6 +1,7 @@
 import type { Server } from 'socket.io';
 import { closeMendiCoatRoom, registerMendiCoatHandlers } from '@/games/mendi-coat/socket';
 import { closeTigdiRoom, registerTigdiHandlers } from '@/games/teen-ki-tigdi/socket';
+import { closeDoodleRoom, registerDoodleHandlers } from '@/games/doodle-dhamaka/socket';
 
 /**
  * What a game has to offer the platform to be playable.
@@ -20,9 +21,9 @@ export interface GameModule {
   /**
    * Attach this game's socket listeners. Called once as the server starts.
    *
-   * Two games share one socket connection, so every game must namespace its
-   * events — Teen Ki Tigdi prefixes all of its own with `tigdi:`. Mendi Coat's
-   * unprefixed names are the ones that were here first and are left alone.
+   * Every game shares one socket connection, so each must namespace its
+   * events — Teen Ki Tigdi prefixes its own with `tigdi:`, Doodle Dhamaka with
+   * `doodle:`. Mendi Coat's unprefixed names were here first and are left alone.
    */
   register: (io: Server) => void;
   /**
@@ -31,6 +32,11 @@ export interface GameModule {
    * so this must be a no-op for a code the game never held.
    */
   closeRoom: (code: string) => void;
+  /**
+   * The event this game's page listens for to learn its room was deleted, so
+   * the socket server can tell every page without knowing any game's names.
+   */
+  closedEvent: string;
 }
 
 export const GAME_MODULES: GameModule[] = [
@@ -38,10 +44,18 @@ export const GAME_MODULES: GameModule[] = [
     id: 'MENDI_COAT',
     register: registerMendiCoatHandlers,
     closeRoom: closeMendiCoatRoom,
+    closedEvent: 'room-closed',
   },
   {
     id: 'TEEN_KI_TIGDI',
     register: registerTigdiHandlers,
     closeRoom: closeTigdiRoom,
+    closedEvent: 'tigdi:closed',
+  },
+  {
+    id: 'DOODLE_DHAMAKA',
+    register: registerDoodleHandlers,
+    closeRoom: closeDoodleRoom,
+    closedEvent: 'doodle:closed',
   },
 ];

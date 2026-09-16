@@ -19,11 +19,11 @@ import { comingSoon, liveGames, type Game } from '@/games/registry';
  * full-width bars. Each change is a `max-lg:` override, so desktop is as it was.
  */
 
-function LiveTile({ game }: { game: Game }) {
+function LiveTile({ game, wide = false }: { game: Game; wide?: boolean }) {
   return (
     <Link
       href={`/games/${game.slug}`}
-      className="group flex flex-col rounded-2xl border border-slate-800 bg-slate-900/80 p-5 max-lg:p-4 transition duration-200 hover:-translate-y-0.5 hover:border-amber-400/60 hover:bg-amber-500/[0.06] hover:shadow-[0_0_34px_-6px_rgba(255,194,51,0.4)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 motion-reduce:transform-none"
+      className={`group flex flex-col rounded-2xl border border-slate-800 bg-slate-900/80 p-5 max-lg:p-4 transition duration-200 hover:-translate-y-0.5 hover:border-amber-400/60 hover:bg-amber-500/[0.06] hover:shadow-[0_0_34px_-6px_rgba(255,194,51,0.4)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 motion-reduce:transform-none ${wide ? 'sm:col-span-2' : ''}`}
     >
       <div className="flex items-start gap-3.5 max-lg:items-center max-lg:gap-3">
         <GameEmblem
@@ -109,8 +109,13 @@ export function GameGrid() {
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 max-lg:mt-3 max-lg:gap-3">
-        {live.map((game) => (
-          <LiveTile key={game.id} game={game} />
+        {live.map((game, index) => (
+          <LiveTile
+            key={game.id}
+            game={game}
+            // Keep an odd final tile from leaving half of the games board empty.
+            wide={live.length % 2 === 1 && index === live.length - 1}
+          />
         ))}
       </div>
 

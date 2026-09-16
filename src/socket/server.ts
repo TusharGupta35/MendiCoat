@@ -26,10 +26,11 @@ export function createSocketServer(httpServer: import('node:http').Server) {
    * told. The ones that never held it do nothing.
    */
   function closeRoom(code: string) {
-    for (const game of GAME_MODULES) game.closeRoom(code);
-    // Each game listens for its own name here; a client only knows one of them.
-    io.to(code).emit('room-closed');
-    io.to(code).emit('tigdi:closed');
+    for (const game of GAME_MODULES) {
+      game.closeRoom(code);
+      // Each game's page listens for its own name; a page only knows one of them.
+      io.to(code).emit(game.closedEvent);
+    }
     // Nobody is left to update, and the room must not linger in a channel.
     io.socketsLeave(code);
   }
