@@ -68,7 +68,7 @@ export function ActiveDhamakas({ ids, combo }: { ids: DhamakaId[]; combo?: strin
   return (
     <div className="rounded-xl border border-rose-400/30 bg-rose-500/[0.08] px-2.5 py-2">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-200">💥 This round</span>
+        <span className="text-[11px] font-black uppercase tracking-[0.16em] text-rose-200 sm:text-[10px] sm:tracking-[0.18em]">💥 This round</span>
         {combo ? (
           <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black uppercase text-amber-950">
             {combo}
@@ -81,7 +81,7 @@ export function ActiveDhamakas({ ids, combo }: { ids: DhamakaId[]; combo?: strin
           return (
             <div key={id} className="flex min-w-0 items-start gap-1.5 rounded-lg bg-slate-950/35 px-2 py-1.5">
               <span className="shrink-0 text-sm" aria-hidden="true">{dhamaka.emoji}</span>
-              <p className="min-w-0 text-[11px] leading-snug text-rose-50">
+              <p className="min-w-0 text-xs leading-snug text-rose-50 sm:text-[11px]">
                 <span className="font-black">{dhamaka.name}</span>
                 <span className="text-rose-100/65"> — {dhamaka.rule}</span>
               </p>
@@ -110,18 +110,18 @@ export function DhamakaReveal({ ids, combo }: { ids: DhamakaId[]; combo?: string
           {comboInfo.emoji} {comboInfo.name}
         </p>
       ) : null}
-      <div className="flex flex-wrap justify-center gap-2">
+      <div className="grid w-full max-w-xl grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:justify-center sm:gap-2">
         {ids.map((id, index) => {
           const dhamaka = dhamakaById(id);
           return (
             <div
               key={id}
-              className="animate-dhamaka-in w-40 rounded-2xl border border-rose-400/40 bg-slate-950/90 p-3 shadow-2xl sm:w-48"
+              className="animate-dhamaka-in min-w-0 rounded-2xl border border-rose-400/40 bg-slate-950/90 p-1.5 shadow-2xl sm:w-48 sm:p-3"
               style={{ animationDelay: `${300 + index * 220}ms` }}
             >
-              <p className="text-3xl" aria-hidden="true">{dhamaka.emoji}</p>
-              <p className="mt-1 text-sm font-black uppercase tracking-wide text-white">{dhamaka.name}</p>
-              <p className="mt-1 text-[11px] leading-snug text-slate-400">{dhamaka.rule}</p>
+              <p className="text-2xl sm:text-3xl" aria-hidden="true">{dhamaka.emoji}</p>
+              <p className="mt-1 break-words text-[10px] font-black uppercase leading-tight tracking-wide text-white sm:text-sm">{dhamaka.name}</p>
+              <p className="mt-1 text-[9px] leading-tight text-slate-400 sm:text-[11px] sm:leading-snug">{dhamaka.rule}</p>
             </div>
           );
         })}
