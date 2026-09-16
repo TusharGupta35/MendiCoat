@@ -41,9 +41,9 @@ export function BiddingPanel({
 
   if (view.phase === 'BIDDING') {
     return (
-      <div className="rounded-lg bg-slate-950/60 p-3 sm:p-4">
+      <div className="rounded-xl border border-amber-300/35 bg-slate-950/60 p-3 sm:p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="font-medium text-white">Bidding</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-300">Bidding</p>
           <p className="text-xs text-slate-400">
             {view.highBid ? `${view.players[view.highBidder!]?.name} holds it at ${view.highBid}` : 'Nobody has opened'}
           </p>
@@ -60,7 +60,7 @@ export function BiddingPanel({
                     key={amount}
                     type="button"
                     onClick={() => onBid(amount)}
-                    className="rounded-lg border border-rose-400/50 py-2.5 text-base font-semibold tabular-nums text-rose-200 transition hover:bg-rose-400/10 active:translate-y-0.5"
+                    className="rounded-xl border border-amber-400/50 py-2.5 font-display text-lg font-bold tabular-nums text-amber-200 transition hover:-translate-y-0.5 hover:bg-amber-400/10 active:translate-y-0.5"
                   >
                     {amount}
                   </button>
@@ -69,13 +69,13 @@ export function BiddingPanel({
             <button
               type="button"
               onClick={() => onBid(null)}
-              className="mt-2 w-full rounded-lg border border-slate-700 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 active:translate-y-0.5"
+              className="mt-2 w-full rounded-xl border border-slate-700 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 active:translate-y-0.5"
             >
               Pass — and you are out of this auction
             </button>
           </>
         ) : (
-          <p className="mt-3 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-center text-sm text-slate-400">
+          <p className="mt-3 rounded-xl border border-slate-800 bg-black/20 px-3 py-2.5 text-center text-sm text-slate-400">
             Waiting on <span className="font-semibold text-slate-200">{waitingOn}</span>…
           </p>
         )}
@@ -87,8 +87,8 @@ export function BiddingPanel({
                 key={index}
                 className={`rounded-full px-2 py-0.5 text-[11px] ${
                   entry.amount === null
-                    ? 'bg-slate-800 text-slate-500 line-through'
-                    : 'bg-rose-500/15 text-rose-200'
+                    ? 'bg-black/20 text-slate-500 line-through'
+                    : 'bg-amber-500/15 text-amber-200'
                 }`}
               >
                 {view.players[entry.seat]?.name} {entry.amount ?? 'out'}
@@ -105,8 +105,8 @@ export function BiddingPanel({
   return view.you === view.highBidder ? (
     <ContractPicker view={view} onContract={onContract} />
   ) : (
-    <div className="rounded-lg bg-slate-950/60 p-3 sm:p-4">
-      <p className="font-medium text-white">
+    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 sm:p-4">
+      <p className="font-semibold text-white">
         {view.players[view.highBidder!]?.name} bought the hand for {view.highBid}
       </p>
       <p className="mt-1 text-sm text-slate-400">
@@ -188,14 +188,14 @@ function ContractPicker({
   const ready = trump !== null && called.length === required;
 
   return (
-    <div className="rounded-lg border border-rose-400/40 bg-slate-950/60 p-3 sm:p-4">
-      <p className="font-medium text-white">You bought the hand for {view.highBid}</p>
+    <div className="rounded-xl border border-amber-300/45 bg-slate-950/60 p-3 shadow-[0_0_24px_-10px_rgba(255,194,51,0.45)] sm:p-4">
+      <p className="font-semibold text-white">You bought the hand for {view.highBid}</p>
       <p className="mt-1 text-sm text-slate-400">
         Name trump, then call {required === 1 ? 'a card' : `${required} cards`} you are not
         holding. Whoever has {required === 1 ? 'it' : 'them'} is with you.
       </p>
 
-      <p className="mt-3 text-[11px] uppercase tracking-[0.2em] text-slate-500">1 · Trump</p>
+      <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-300/80">1 · Trump</p>
       <div className="mt-1.5 grid grid-cols-4 gap-2">
         {SUITS.map((option) => (
           <button
@@ -204,9 +204,9 @@ function ContractPicker({
             onClick={() => setTrump(option)}
             aria-pressed={trump === option}
             aria-label={option.toLowerCase()}
-            className={`rounded-lg border py-2 text-2xl leading-none transition active:translate-y-0.5 ${
+            className={`rounded-xl border py-2 text-2xl leading-none transition active:translate-y-0.5 ${
               trump === option
-                ? 'border-rose-400 bg-rose-500/20'
+                ? 'border-amber-400 bg-amber-400/15 shadow-[0_0_14px_-4px_rgba(255,194,51,0.6)]'
                 : 'border-slate-700 hover:border-slate-500'
             } ${isRed(option) ? 'text-rose-300' : 'text-slate-200'}`}
           >
@@ -216,7 +216,7 @@ function ContractPicker({
       </div>
 
       <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-300/80">
           2 · Call {required === 1 ? 'a partner' : `${required} partners`}
         </p>
         <p className="text-[11px] text-slate-500">
@@ -233,7 +233,7 @@ function ContractPicker({
               type="button"
               onClick={() => setCalled((current) => current.filter((entry) => entry !== code))}
               title={`Take back the ${code}`}
-              className="rounded-full bg-rose-500 px-2.5 py-1 text-xs font-bold text-rose-950 transition hover:bg-rose-400"
+              className="rounded-full bg-amber-400/90 px-2.5 py-1 text-xs font-bold text-amber-950 transition hover:bg-amber-300"
             >
               {code.slice(0, -1)}
               {SUIT_GLYPH[SUIT_BY_LETTER[code.slice(-1)]]} ×
@@ -254,12 +254,12 @@ function ContractPicker({
                   disabled={blocked}
                   onClick={() => setRank(option === rank ? null : option)}
                   aria-pressed={rank === option}
-                  className={`min-w-[2rem] flex-1 rounded px-1 py-2 text-sm font-semibold transition ${
+                  className={`min-w-[2rem] flex-1 rounded-md px-1 py-2 text-sm font-semibold transition ${
                     rank === option
-                      ? 'bg-rose-500 text-rose-950'
+                      ? 'bg-amber-400/90 text-amber-950'
                       : blocked
-                        ? 'cursor-not-allowed bg-slate-900 text-slate-700 line-through'
-                        : 'bg-slate-800/70 text-slate-200 hover:bg-slate-700'
+                        ? 'cursor-not-allowed bg-black/30 text-slate-600 line-through'
+                        : 'bg-black/20 text-slate-200 hover:bg-slate-800'
                   }`}
                 >
                   {option}
@@ -279,12 +279,12 @@ function ContractPicker({
                   onClick={() => setSuit(option === suit ? null : option)}
                   aria-pressed={suit === option}
                   aria-label={option.toLowerCase()}
-                  className={`rounded py-1.5 text-xl leading-none transition ${
+                  className={`rounded-md py-1.5 text-xl leading-none transition ${
                     suit === option
-                      ? 'bg-rose-500 text-rose-950'
+                      ? 'bg-amber-400/90 text-amber-950'
                       : blocked
-                        ? 'cursor-not-allowed bg-slate-900 text-slate-700'
-                        : `bg-slate-800/70 hover:bg-slate-700 ${
+                        ? 'cursor-not-allowed bg-black/30 text-slate-600'
+                        : `bg-black/20 hover:bg-slate-800 ${
                             isRed(option) ? 'text-rose-300' : 'text-slate-200'
                           }`
                   }`}
@@ -299,7 +299,7 @@ function ContractPicker({
             type="button"
             onClick={addPending}
             disabled={!pending || pendingRefusal !== undefined}
-            className="mt-2 w-full rounded-lg border border-rose-400/50 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-400/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
+            className="mt-2 w-full rounded-xl border border-amber-400/50 py-2 text-sm font-semibold text-amber-200 transition hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
           >
             {!rank && !suit
               ? 'Pick a rank and a suit'
@@ -318,7 +318,7 @@ function ContractPicker({
         type="button"
         disabled={!ready}
         onClick={() => onContract(trump!, called)}
-        className="mt-3 w-full rounded-lg bg-rose-500 px-4 py-2.5 text-sm font-semibold text-rose-950 transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
+        className="mt-3 w-full rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-amber-950 transition disabled:cursor-not-allowed disabled:opacity-50"
       >
         {trump === null
           ? 'Pick trump first'

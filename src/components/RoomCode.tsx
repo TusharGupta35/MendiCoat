@@ -26,22 +26,22 @@ export function RoomCode({ code }: { code: string }) {
   }
 
   return (
-    // No box around it: the code is a piece of text to read out or send on, and
-    // a border made it look like a field to type into.
+    // A gold chip, the same one the table lists print a code in — tinted, never
+    // bordered: a border made it look like a field to type into.
     <button
       type="button"
       onClick={copy}
       title="Copy the room code"
-      className="group -m-1 flex items-center gap-2 rounded-lg p-1 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
+      className="group flex items-center gap-2.5 rounded-xl bg-amber-500/15 px-3 py-2 transition hover:bg-amber-500/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
     >
-      <span className="font-mono text-3xl font-bold leading-none tracking-[0.25em] text-amber-300 transition group-hover:text-amber-200 sm:text-4xl">
+      <span className="font-display text-2xl font-bold leading-none tracking-[0.18em] tabular-nums text-amber-300 transition group-hover:text-amber-200 sm:text-[26px]">
         {code}
       </span>
       {copied ? (
-        <Check className="h-5 w-5 shrink-0 text-emerald-400" aria-hidden="true" />
+        <Check className="h-[18px] w-[18px] shrink-0 text-emerald-400" aria-hidden="true" />
       ) : (
         <Copy
-          className="h-5 w-5 shrink-0 text-slate-500 transition group-hover:text-amber-300"
+          className="h-[18px] w-[18px] shrink-0 text-amber-300/60 transition group-hover:text-amber-200"
           aria-hidden="true"
         />
       )}

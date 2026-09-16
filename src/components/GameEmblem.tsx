@@ -17,6 +17,8 @@ const GOLD = '#ffc233';
 const GOLD_DEEP = '#f5a615';
 const CREAM = '#fff6da';
 const INK = '#150c26';
+const ROSE = '#fda4af';
+const ROSE_DEEP = '#f43f5e';
 
 function Cards() {
   // Three cards fanned from a common bottom edge, the front one face up.
@@ -87,8 +89,22 @@ function Doodle() {
   );
 }
 
+function Called() {
+  // Two cards called blind, and the bid marked across them: the whole game is
+  // naming partners you cannot see.
+  return (
+    <svg viewBox="0 0 48 48" className="h-full w-full" aria-hidden="true">
+      <rect x="9" y="10" width="18" height="26" rx="3" fill={ROSE} transform="rotate(-12 18 23)" />
+      <rect x="15" y="9" width="18" height="27" rx="3" fill={CREAM} transform="rotate(9 24 22)" />
+      <circle cx="24" cy="20" r="4.2" fill={ROSE_DEEP} />
+      <rect x="19" y="27" width="11" height="3" rx="1.5" fill={ROSE_DEEP} opacity="0.55" />
+    </svg>
+  );
+}
+
 const EMBLEMS: Record<string, () => React.ReactElement> = {
   MENDI_COAT: Cards,
+  TEEN_KI_TIGDI: Called,
   CALLBREAK: Bid,
   IMPOSTOR: Question,
   DOODLE_DHAMAKA: Doodle,
@@ -101,11 +117,16 @@ export function GameEmblem({
 }: {
   game: Game;
   /** Tile-sized on the board, larger where the game is the page's subject. */
-  size?: 'md' | 'lg';
+  size?: 'md' | 'lg' | 'xl';
   className?: string;
 }) {
   const Drawn = EMBLEMS[game.id];
-  const box = size === 'lg' ? 'h-16 w-16 p-3 text-3xl' : 'h-12 w-12 p-2.5 text-2xl';
+  const box =
+    size === 'xl'
+      ? 'h-20 w-20 p-4 text-4xl'
+      : size === 'lg'
+        ? 'h-16 w-16 p-3 text-3xl'
+        : 'h-12 w-12 p-2.5 text-2xl';
 
   return (
     <span

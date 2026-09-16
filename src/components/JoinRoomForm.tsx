@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { hidePageLoading, showPageLoading } from '@/components/NavigationLoader';
 
 export function JoinRoomForm() {
   const router = useRouter();
@@ -13,6 +14,8 @@ export function JoinRoomForm() {
     event.preventDefault();
     setIsJoining(true);
     setError(null);
+    // Up at the click and left up on success; the route change takes it down.
+    showPageLoading();
 
     try {
       const response = await fetch('/api/rooms/join', {
@@ -22,15 +25,19 @@ export function JoinRoomForm() {
       });
       const payload = await response.json();
       if (!response.ok) {
-        setError(payload.error ?? 'Unable to join this room.');
+        fail(payload.error ?? 'Unable to join this room.');
         return;
       }
       router.push(`/room/${payload.code}`);
     } catch {
-      setError('A network error occurred. Please try again.');
-    } finally {
-      setIsJoining(false);
+      fail('A network error occurred. Please try again.');
     }
+  }
+
+  function fail(message: string) {
+    hidePageLoading();
+    setError(message);
+    setIsJoining(false);
   }
 
   return (
@@ -43,13 +50,13 @@ export function JoinRoomForm() {
         required
         placeholder="ROOM CODE"
         aria-describedby={error ? 'room-code-error' : undefined}
-        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 font-mono tracking-[0.18em] text-slate-100 outline-none transition focus:border-amber-400"
+        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-center font-display text-2xl font-bold tracking-[0.3em] text-white outline-none transition placeholder:text-base placeholder:font-medium placeholder:tracking-[0.2em] placeholder:text-slate-600 focus:border-amber-400"
       />
       {error ? <p id="room-code-error" role="alert" className="text-sm text-rose-300">{error}</p> : null}
       <button
         type="submit"
         disabled={isJoining}
-        className="w-full rounded-lg bg-amber-500 px-4 py-3 font-medium text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-xl bg-amber-500 px-4 py-3 font-semibold text-amber-950 transition disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isJoining ? 'Joining…' : 'Join room'}
       </button>

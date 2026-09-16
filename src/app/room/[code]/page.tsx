@@ -5,9 +5,9 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AppHeader } from "@/components/AppHeader";
 import { gameForRoom } from "@/games/registry";
+import { GameEmblem } from "@/components/GameEmblem";
 import { RoomCode } from "@/components/RoomCode";
-import { SocketRoomClient } from "@/games/mendi-coat/RoomClient";
-import { TigdiRoomClient } from "@/games/teen-ki-tigdi/RoomClient";
+import { uiFor } from "@/games/ui";
 import { titleLabelById } from "@/lib/titles";
 
 export const dynamic = "force-dynamic";
@@ -22,10 +22,9 @@ export default async function RoomPage({
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) redirect("/login");
 
-  // Hold the branded loading screen for a minimum ~2s, overlapped with the
-  // queries so it's the floor, not added on top of them.
-  const [, room, currentUser] = await Promise.all([
-    new Promise((resolve) => setTimeout(resolve, 2000)),
+  // No minimum wait — see the note in dashboard/page.tsx. The loading screen
+  // shows from the click and for exactly as long as these queries take.
+  const [room, currentUser] = await Promise.all([
     prisma.room.findUnique({
       where: { code: code.toUpperCase() },
       include: { players: { select: { id: true, name: true } } },
@@ -50,61 +49,62 @@ export default async function RoomPage({
   // rendered here. Rooms made before rooms carried a game fall back to Mendi
   // Coat, which is what they were.
   const game = gameForRoom(room.gameId);
-  const table =
-    game.id === "TEEN_KI_TIGDI" ? (
-      <TigdiRoomClient
-        roomCode={room.code}
-        playerId={currentUser.id}
-        playerName={currentUser.username ?? currentUser.name ?? "Player"}
-        playerAvatar={currentUser.avatar}
-        playerTitle={wearing}
-      />
-    ) : (
-      <SocketRoomClient
-        roomCode={room.code}
-        playerId={currentUser.id}
-        playerName={currentUser.username ?? currentUser.name ?? "Player"}
-        playerAvatar={currentUser.avatar}
-        playerTitle={wearing}
-      />
-    );
+  const { RoomClient } = uiFor(game.id);
+  const table = (
+    <RoomClient
+      roomCode={room.code}
+      playerId={currentUser.id}
+      playerName={currentUser.username ?? currentUser.name ?? "Player"}
+      playerAvatar={currentUser.avatar}
+      playerTitle={wearing}
+    />
+  );
 
   return (
-    <main className="min-h-screen bg-slate-950 px-2 pb-6 pt-4 sm:px-6 sm:pb-8 sm:pt-5 lg:px-8">
-      <div className="mx-auto mb-4 w-full max-w-[1600px]">
-        <AppHeader />
-      </div>
+    <main className="min-h-screen bg-slate-950 px-2 pb-6 pt-4 sm:px-6 sm:pb-8 sm:pt-6 lg:px-8">
+      {/* Wider than the other pages' 86rem: the table and its sidebars want the
+          room. Everything above the table is the same kit as every other page —
+          the slim bar, then a panel that names what you are looking at. */}
+      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 sm:gap-5">
+        <AppHeader variant="slim" />
 
-      <div className="mx-auto w-full max-w-[1600px] rounded-2xl border border-slate-800 bg-slate-900/80 p-3 shadow-2xl sm:px-6 sm:py-3 lg:px-7 lg:py-3">
-        <header>
-          {/* The label and the way out share the top line; the code and what to
-              do with it share the one below, where the code is the thing being
-              read. */}
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-xs uppercase tracking-[0.35em] text-amber-400 sm:text-sm">
-              {game.name}
-            </p>
-            {/* Back to the game, not to the whole board: leaving a table means
-                going where the other tables for this game are, and that page
-                carries the rules and the room list. The mark in the bar above
-                is the way out to everything else. */}
-            <Link
-              href={`/games/${game.slug}`}
-              className="rounded-lg border border-slate-700 px-4 py-2 font-medium text-slate-100 transition hover:bg-slate-800"
-            >
-              Back to {game.name}
-            </Link>
+        {/* The table's own bar. It used to be a heading inside one big panel
+            that wrapped the whole game, which put every game panel inside a
+            second panel; the game's panels now sit on the page like the rest
+            of the app's. */}
+        <header className="flex flex-wrap items-center justify-between gap-x-5 gap-y-3 rounded-2xl border border-amber-300/30 bg-slate-900/80 px-4 py-3 sm:px-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <GameEmblem game={game} className="h-11 w-11 p-2" />
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium uppercase tracking-[0.3em] text-amber-400">
+                {game.name}
+              </p>
+              <h1 className="truncate text-lg font-semibold text-white sm:text-xl">{room.name}</h1>
+            </div>
           </div>
 
-          <div className="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-            <RoomCode code={room.code} />
-            <span className="text-sm text-slate-400">Share this code to fill the table</span>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex items-center gap-3">
+              <span className="hidden text-right text-xs leading-tight text-slate-400 sm:block">
+                Share this code
+                <br />
+                to fill the table
+              </span>
+              <RoomCode code={room.code} />
+            </div>
+            {/* Back to the game, not to the whole board: leaving a table means
+                going where the other tables for this game are. The mark in the
+                bar above is the way out to everything else. */}
+            <Link
+              href={`/games/${game.slug}`}
+              className="inline-flex h-10 items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-700 px-4 text-sm font-medium text-slate-200 transition hover:bg-slate-800"
+            >
+              ← {game.name}
+            </Link>
           </div>
         </header>
 
-        <div className="mt-3 sm:mt-4">
-          {table}
-        </div>
+        {table}
       </div>
     </main>
   );

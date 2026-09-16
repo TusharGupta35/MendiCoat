@@ -1,48 +1,42 @@
 import Link from 'next/link';
 import { GameEmblem } from '@/components/GameEmblem';
-import { GAMES, type Game } from '@/games/registry';
+import { comingSoon, liveGames, type Game } from '@/games/registry';
 
 /**
- * The dashboard's game picker: the left-hand column, and the first thing the
- * page is for.
+ * The board of games.
  *
- * A promised game is shown the same size as a playable one, because the point
- * of the board is what this table will hold, not only what it holds today. What
- * separates them is the footer: one opens the game, the other says to wait.
+ * It used to be five tiles in one column, all the same size — which meant three
+ * of the five, the ones you cannot play, took the same space and the same
+ * weight as the two you can. They are promises, not options, so they are a
+ * strip along the bottom now, and the playable ones sit two across with room
+ * for what they actually are.
  *
- * The tiles are a single stack rather than a grid — the column is narrow enough
- * that two across would squeeze every blurb into a paragraph of its own. The
- * whole tile lifts and glows under the cursor, which needs no javascript: with
- * four of them stacked, "which one am I on" should read from the corner of the
- * eye.
+ * The whole tile is the link and the whole tile lights up: a button inside a
+ * card that is itself about one game gives two targets for one intent.
+ *
+ * Below lg the tiles tighten — a smaller emblem, the blurb held to two lines —
+ * and the promised games become three small chips in a row instead of three
+ * full-width bars. Each change is a `max-lg:` override, so desktop is as it was.
  */
 
-function Meta({ game }: { game: Game }) {
+function LiveTile({ game, wide = false }: { game: Game; wide?: boolean }) {
   return (
-    <p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">
-      {game.players}
-      {game.bots ? ' · bots available' : ' · needs a full table'}
-    </p>
-  );
-}
-
-function LiveTile({ game }: { game: Game }) {
-  return (
-    // The whole tile is the link, and the whole tile is what lights up: gold
-    // glow, gold border, a small lift. A button inside a card that is itself
-    // about one game gives two targets for one intent.
     <Link
       href={`/games/${game.slug}`}
-      className="group flex flex-col rounded-2xl border border-slate-800 bg-slate-900/80 p-4 transition duration-200 hover:-translate-y-0.5 hover:border-amber-400/60 hover:bg-amber-500/[0.06] hover:shadow-[0_0_34px_-6px_rgba(255,194,51,0.4)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 motion-reduce:transform-none sm:p-5"
+      className={`group flex flex-col rounded-2xl border border-slate-800 bg-slate-900/80 p-5 max-lg:p-4 transition duration-200 hover:-translate-y-0.5 hover:border-amber-400/60 hover:bg-amber-500/[0.06] hover:shadow-[0_0_34px_-6px_rgba(255,194,51,0.4)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 motion-reduce:transform-none ${wide ? 'sm:col-span-2' : ''}`}
     >
-      <div className="flex items-start gap-3">
-        <GameEmblem game={game} className="group-hover:scale-110" />
+      <div className="flex items-start gap-3.5 max-lg:items-center max-lg:gap-3">
+        <GameEmblem
+          game={game}
+          size="lg"
+          className="group-hover:scale-110 max-lg:h-12 max-lg:w-12 max-lg:p-2.5"
+        />
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-lg font-semibold text-white transition group-hover:text-amber-300">
+            <h3 className="text-xl font-semibold text-white transition group-hover:text-amber-300 max-lg:text-lg">
               {game.name}
             </h3>
-            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-300">
+            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-300">
               Playable
             </span>
           </div>
@@ -50,60 +44,86 @@ function LiveTile({ game }: { game: Game }) {
         </div>
       </div>
 
-      <p className="mt-3 text-sm text-slate-400">{game.blurb}</p>
-      <Meta game={game} />
-
-      {/* Says where the tile goes, without being the only thing that goes
-          there. Rules and rooms live on that page: both mean something
-          different per game. */}
-      <p className="mt-4 text-sm font-medium text-amber-300 transition group-hover:text-amber-200">
-        Play now — rules and rooms inside{' '}
-        <span className="inline-block transition-transform duration-200 group-hover:translate-x-1 motion-reduce:transform-none">
-          →
-        </span>
+      <p className="mt-3.5 text-sm leading-relaxed text-slate-400 max-lg:mt-2.5 max-lg:line-clamp-2 max-lg:text-[13px]">
+        {game.blurb}
       </p>
+
+      <div className="mt-auto flex items-center justify-between gap-3 pt-4 max-lg:pt-3">
+        <span className="text-sm font-medium text-amber-300 transition group-hover:text-amber-200">
+          Play now{' '}
+          <span className="inline-block transition-transform duration-200 group-hover:translate-x-1 motion-reduce:transform-none">
+            →
+          </span>
+        </span>
+        <span className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
+          {game.players}
+          {game.bots ? ' · bots' : ''}
+        </span>
+      </div>
     </Link>
   );
 }
 
-function SoonTile({ game }: { game: Game }) {
+/**
+ * The promised games, as a strip.
+ *
+ * Still named and still drawn — what the table will hold is part of the pitch —
+ * but at a size that never pretends to be clickable.
+ */
+function SoonStrip({ games }: { games: Game[] }) {
   return (
-    // Lights too, so the board feels alive under the cursor — but in violet
-    // rather than gold, and without the lift, so it never promises a click.
-    <div className="group flex flex-col rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 p-4 transition duration-200 hover:border-slate-700 hover:bg-slate-900/70 hover:shadow-[0_0_28px_-10px_rgba(173,152,205,0.45)] sm:p-5">
-      <div className="flex items-start gap-3">
-        <GameEmblem game={game} className="group-hover:scale-110" />
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-lg font-semibold text-slate-200">{game.name}</h3>
-            <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-              Coming soon
+    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 px-4 py-3 max-lg:gap-2 max-lg:px-3">
+      <p className="shrink-0 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-400">
+        On the way
+      </p>
+      <div className="flex min-w-0 flex-1 flex-wrap gap-2.5 max-lg:grid max-lg:basis-full max-lg:grid-cols-3 max-lg:gap-2">
+        {games.map((game) => (
+          <div
+            key={game.id}
+            className="flex min-w-0 flex-1 basis-40 items-center gap-2.5 rounded-xl bg-slate-950/40 px-3 py-2 max-lg:flex-col max-lg:gap-1.5 max-lg:px-1.5 max-lg:text-center"
+            title={game.tagline}
+          >
+            <GameEmblem game={game} className="h-8 w-8 p-1.5" />
+            <span className="min-w-0 max-lg:w-full">
+              <span className="block truncate text-sm font-medium text-slate-200 max-lg:text-xs">{game.name}</span>
+              <span className="block truncate text-[11px] text-slate-500 max-lg:hidden">{game.players}</span>
             </span>
           </div>
-          <p className="text-sm text-slate-400">{game.tagline}</p>
-        </div>
+        ))}
       </div>
-
-      <p className="mt-3 text-sm text-slate-500">{game.blurb}</p>
-      <Meta game={game} />
     </div>
   );
 }
 
 export function GameGrid() {
+  const live = liveGames();
+  const soon = comingSoon();
+
   return (
     <section>
-      <h2 className="text-xl font-semibold text-white">Games</h2>
-
-      <div className="mt-4 space-y-4">
-        {GAMES.map((game) =>
-          game.status === 'live' ? (
-            <LiveTile key={game.id} game={game} />
-          ) : (
-            <SoonTile key={game.id} game={game} />
-          ),
-        )}
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-xl font-semibold text-white">Games</h2>
+        <p className="text-[13px] text-slate-500">
+          {live.length} playable · {soon.length} on the way
+        </p>
       </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 max-lg:mt-3 max-lg:gap-3">
+        {live.map((game, index) => (
+          <LiveTile
+            key={game.id}
+            game={game}
+            // Keep an odd final tile from leaving half of the games board empty.
+            wide={live.length % 2 === 1 && index === live.length - 1}
+          />
+        ))}
+      </div>
+
+      {soon.length > 0 ? (
+        <div className="mt-4 max-lg:mt-3">
+          <SoonStrip games={soon} />
+        </div>
+      ) : null}
     </section>
   );
 }

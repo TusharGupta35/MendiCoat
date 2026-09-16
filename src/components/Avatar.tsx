@@ -284,8 +284,15 @@ export function LevelAvatar({
   into,
   span,
   className,
+  badge = true,
   ...avatar
-}: AvatarProps & { level: number; into: number; span: number }) {
+}: AvatarProps & {
+  level: number;
+  into: number;
+  span: number;
+  /** The corner number. Off where something else already states the level. */
+  badge?: boolean;
+}) {
   const fraction = span > 0 ? Math.min(1, Math.max(0, into / span)) : 0;
   const radius = 46;
   const circumference = 2 * Math.PI * radius;
@@ -315,12 +322,14 @@ export function LevelAvatar({
 
       <Avatar {...avatar} className="absolute inset-[11%] h-[78%] w-[78%]" />
 
-      <span
-        className="absolute -bottom-0.5 -left-0.5 min-w-[1.35rem] rounded-full bg-slate-950 px-1 text-center text-[10px] font-bold leading-4 text-amber-300 ring-1 ring-amber-400/60"
-        aria-label={`Level ${level}`}
-      >
-        {level}
-      </span>
+      {badge ? (
+        <span
+          className="absolute -bottom-0.5 -left-0.5 min-w-[1.35rem] rounded-full bg-slate-950 px-1 text-center text-[10px] font-bold leading-4 text-amber-300 ring-1 ring-amber-400/60"
+          aria-label={`Level ${level}`}
+        >
+          {level}
+        </span>
+      ) : null}
     </span>
   );
 }

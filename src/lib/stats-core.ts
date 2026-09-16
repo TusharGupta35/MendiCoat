@@ -218,3 +218,50 @@ export function cutterOf(trick: PlayedTrick): { seat: number; card: string } | n
   }
   return null;
 }
+
+export interface RivalRecord {
+  userId: string;
+  name: string;
+  avatar: string | null;
+  image?: string | null;
+  /** Matches played against this person, and how they went for you. */
+  played: number;
+  won: number;
+  lost: number;
+}
+
+/**
+ * Your record against the people who sat on the *other* team.
+ *
+ * The mirror of partnerRecords: the same walk over the same matches, counting
+ * the seats whose team is not yours. A match against two opponents counts once
+ * per opponent, which is what "how do I do against them" means — it is not a
+ * tally of matches.
+ */
+export function rivalRecords(matches: PlayedMatch[]): RivalRecord[] {
+  const byRival = new Map<string, RivalRecord>();
+
+  for (const match of matches) {
+    // A draw is neither won nor lost, so it lifts `played` and nothing else.
+    const won = didWin(match);
+    const drawn = wasDrawn(match);
+    for (const other of match.others) {
+      if (other.team === match.team) continue;
+      const record = byRival.get(other.userId) ?? {
+        userId: other.userId,
+        name: other.name,
+        avatar: other.avatar,
+        ...(other.image ? { image: other.image } : {}),
+        played: 0,
+        won: 0,
+        lost: 0,
+      };
+      record.played += 1;
+      if (won) record.won += 1;
+      else if (!drawn) record.lost += 1;
+      byRival.set(other.userId, record);
+    }
+  }
+
+  return [...byRival.values()].sort((a, b) => b.played - a.played);
+}

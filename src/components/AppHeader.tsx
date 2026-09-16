@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 import { AvatarPicker } from '@/components/AvatarPicker';
-import { BrandMark, Wordmark } from '@/components/Logo';
+import { BrandMark, LogoMark, Wordmark } from '@/components/Logo';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getPlayerStats } from '@/lib/stats';
@@ -24,10 +24,24 @@ import type { Level } from '@/lib/progression';
 export async function AppHeader({
   level,
   wearing,
+  variant = 'full',
+  current = 'play',
 }: {
   level?: Level;
   /** The title being worn, already checked as earned by the calling page. */
   wearing?: string | null;
+  /**
+   * 'full' — the mark, the wordmark and who you are, for every page whose
+   * identity lives nowhere else.
+   *
+   * 'slim' — mark, wordmark and the page links only. The dashboard uses this:
+   * its left rail already carries the player at full size, and repeating the
+   * name and face in a bar above it says the same thing twice.
+   */
+  variant?: 'full' | 'slim';
+  /** Which slim-bar link is the page you are on. Only its styling changes —
+   *  every pill stays a real link, so none of them can end up dead. */
+  current?: 'play' | 'record' | 'players';
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return null;
@@ -39,6 +53,74 @@ export async function AppHeader({
   if (!user) return null;
 
   const accountName = user.username ?? user.name ?? session.user.name ?? 'player';
+
+  if (variant === 'slim') {
+    return (
+      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 sm:gap-x-4">
+        <Link
+          href="/dashboard"
+          className="group flex items-center gap-3"
+          aria-label="Dehel Pakad — all games"
+        >
+          <LogoMark className="h-14 w-auto shrink-0 drop-shadow-[0_0_18px_rgba(255,194,51,0.25)] transition duration-200 group-hover:scale-105 group-hover:drop-shadow-[0_0_22px_rgba(255,194,51,0.5)] sm:h-16" />
+          <Wordmark size="sm" className="hidden sm:flex" />
+        </Link>
+        {/* Every item is a link, including the current one: styling says
+            where you are, but a nav item that is not clickable is just a
+            button that does nothing. */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <nav className="flex items-center gap-1">
+          {(
+            [
+              { key: 'play', href: '/dashboard', label: 'Play', short: 'Play' },
+              // "Your record" is the honest name for the page and too long for
+              // a phone, where the bar has to hold three links and a face on
+              // one line. The short form is shown, the full one is announced.
+              { key: 'record', href: '/stats', label: 'Your record', short: 'Record' },
+              { key: 'players', href: '/players', label: 'Players', short: 'Players' },
+            ] as const
+          ).map((item) => (
+            <Link
+              key={item.key}
+              href={item.href}
+              aria-current={item.key === current ? 'page' : undefined}
+              className={`relative rounded-full px-3 py-1.5 text-[13px] transition duration-150 sm:px-4 sm:py-2 sm:text-sm ${
+                item.key === current
+                  ? // The lit pill's hover is the arcade-key press in globals.css
+                    // (a.bg-amber-400:hover) — brighter, and up a pixel.
+                    'bg-amber-400 font-semibold text-amber-950'
+                  : // The old hover was bg-slate-800, which the theme repaints to
+                    // a plum a shade off the ground, so it barely showed. A gold
+                    // tint, a gold edge and an underline that grows from the
+                    // middle make the other two feel like keys too.
+                    `font-medium text-slate-400 hover:-translate-y-px hover:bg-amber-400/10 hover:text-amber-200 hover:ring-1 hover:ring-inset hover:ring-amber-300/35 active:translate-y-0 motion-reduce:transform-none
+                     after:pointer-events-none after:absolute after:inset-x-4 after:bottom-1 after:h-0.5 after:origin-center after:scale-x-0 after:rounded-full after:bg-amber-300 after:shadow-[0_0_8px_rgba(255,194,51,0.8)] after:transition-transform after:duration-200 after:content-[''] hover:after:scale-x-100`
+              }`}
+            >
+              <span className="sm:hidden">{item.short}</span>
+              <span className="hidden sm:inline">{item.label}</span>
+            </Link>
+          ))}
+        </nav>
+
+        {/* The one way to change your face and your name, and the reason it
+            is in the bar rather than on the rail's card: the bar is on every
+            page, and a setting you can only reach from the dashboard is a
+            setting people stop finding. Small enough to read as a control
+            next to the links rather than as a second portrait. */}
+        <AvatarPicker
+          avatar={user.avatar}
+          userKey={user.id}
+          name={accountName}
+          photo={user.image}
+          username={user.username}
+          size="sm"
+        />
+        </div>
+      </header>
+    );
+  }
+
 
   // Only pages that have not already read the record pay for this. The title
   // has to be re-checked against what was actually earned, so it cannot be
