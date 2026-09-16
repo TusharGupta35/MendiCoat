@@ -64,7 +64,17 @@ export type TableCue =
   /** Teen Ki Tigdi: a called card lands and a hidden partner is named. */
   | 'reveal'
   /** Teen Ki Tigdi: the auction closes and someone owns the hand. */
-  | 'bid';
+  | 'bid'
+  /** Doodle Dhamaka: you guessed it. */
+  | 'correct'
+  /** Doodle Dhamaka: one second gone, in the last ten. */
+  | 'tick'
+  /** Doodle Dhamaka: a round's surprise rule is revealed. */
+  | 'dhamaka'
+  /** Doodle Dhamaka: everyone got the drawing. */
+  | 'perfect'
+  /** Doodle Dhamaka: nobody did. */
+  | 'disaster';
 
 /** Named cues, so call sites read as intent instead of raw frequencies. */
 export function playCue(cue: TableCue) {
@@ -112,5 +122,30 @@ export function playCue(cue: TableCue) {
       // A gavel: two flat knocks.
       tone(196, 0.09, 0, 0.06, 'triangle');
       tone(196, 0.14, 0.11, 0.06, 'triangle');
+      return;
+    case 'correct':
+      // A bright little "ding-ding" — the best sound in the game.
+      tone(880, 0.08, 0, 0.05, 'triangle');
+      tone(1319, 0.2, 0.07, 0.05, 'triangle');
+      return;
+    case 'tick':
+      tone(1200, 0.03, 0, 0.03, 'square');
+      return;
+    case 'dhamaka':
+      // A low boom under a rising zip: something is about to go wrong.
+      tone(110, 0.35, 0, 0.07, 'sawtooth');
+      tone(330, 0.1, 0.05, 0.04, 'square');
+      tone(660, 0.18, 0.12, 0.04, 'square');
+      return;
+    case 'perfect':
+      [659, 784, 988, 1319].forEach((frequency, index) =>
+        tone(frequency, index === 3 ? 0.45 : 0.12, index * 0.09, 0.05, 'triangle'),
+      );
+      return;
+    case 'disaster':
+      // A sad trombone, near enough.
+      [392, 370, 349, 262].forEach((frequency, index) =>
+        tone(frequency, index === 3 ? 0.6 : 0.22, index * 0.24, 0.05, 'sawtooth'),
+      );
   }
 }

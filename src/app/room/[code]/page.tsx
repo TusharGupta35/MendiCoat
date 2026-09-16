@@ -7,8 +7,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { gameForRoom } from "@/games/registry";
 import { GameEmblem } from "@/components/GameEmblem";
 import { RoomCode } from "@/components/RoomCode";
-import { SocketRoomClient } from "@/games/mendi-coat/RoomClient";
-import { TigdiRoomClient } from "@/games/teen-ki-tigdi/RoomClient";
+import { uiFor } from "@/games/ui";
 import { titleLabelById } from "@/lib/titles";
 
 export const dynamic = "force-dynamic";
@@ -50,24 +49,16 @@ export default async function RoomPage({
   // rendered here. Rooms made before rooms carried a game fall back to Mendi
   // Coat, which is what they were.
   const game = gameForRoom(room.gameId);
-  const table =
-    game.id === "TEEN_KI_TIGDI" ? (
-      <TigdiRoomClient
-        roomCode={room.code}
-        playerId={currentUser.id}
-        playerName={currentUser.username ?? currentUser.name ?? "Player"}
-        playerAvatar={currentUser.avatar}
-        playerTitle={wearing}
-      />
-    ) : (
-      <SocketRoomClient
-        roomCode={room.code}
-        playerId={currentUser.id}
-        playerName={currentUser.username ?? currentUser.name ?? "Player"}
-        playerAvatar={currentUser.avatar}
-        playerTitle={wearing}
-      />
-    );
+  const { RoomClient } = uiFor(game.id);
+  const table = (
+    <RoomClient
+      roomCode={room.code}
+      playerId={currentUser.id}
+      playerName={currentUser.username ?? currentUser.name ?? "Player"}
+      playerAvatar={currentUser.avatar}
+      playerTitle={wearing}
+    />
+  );
 
   return (
     <main className="min-h-screen bg-slate-950 px-2 pb-6 pt-4 sm:px-6 sm:pb-8 sm:pt-6 lg:px-8">
