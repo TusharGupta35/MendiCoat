@@ -13,5 +13,8 @@ export const DOODLE_REACTIONS = [
   { emoji: '👏', label: 'Nice' },
 ] as const;
 
+/** Small typing-friendly set for chat messages, separate from floating reactions. */
+export const DOODLE_CHAT_EMOJIS = ['😀', '😂', '😅', '🔥', '💀', '👀', '👏', '❤️', '🎨', '🤔', '😭', '🎉'] as const;
+
 export const isDoodleReaction = (value: unknown): value is string =>
   typeof value === 'string' && DOODLE_REACTIONS.some((reaction) => reaction.emoji === value);

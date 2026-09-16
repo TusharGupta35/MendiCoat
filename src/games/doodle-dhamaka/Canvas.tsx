@@ -241,10 +241,10 @@ export function DoodleCanvas({
   const mirrored = (effects.mirrorSelf && canDraw) || effects.flipped;
 
   return (
-    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-[#fffdf8] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)]">
+    <div className="relative box-border aspect-[4/3] w-full max-w-full overflow-hidden rounded-xl bg-[#fffdf8] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)]">
       <canvas
         ref={canvasRef}
-        className={`h-full w-full touch-none transition-transform duration-700 ${
+        className={`block h-full w-full max-w-full touch-none transition-transform duration-700 ${
           canDraw ? 'cursor-crosshair' : 'cursor-default'
         }`}
         style={mirrored ? { transform: 'scaleX(-1)' } : undefined}
