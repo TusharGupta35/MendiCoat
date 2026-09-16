@@ -11,6 +11,7 @@ import { DoodleCanvas, type CanvasEffects } from './Canvas';
 import { ROULETTE_MS, brushesFor, hasDhamaka } from './dhamakas';
 import { Lobby, type DoodleRoomPayload } from './Lobby';
 import {
+  ActiveDhamakas,
   ChoosePanel,
   DhamakaChips,
   DhamakaReveal,
@@ -401,8 +402,8 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
   const showReveal = phase === 'CHOOSING' && clock < revealUntil;
 
   return (
-    <div className="room-dashboard has-active-game flex flex-col gap-4">
-      <div className="room-sidebar order-2 flex flex-col gap-4 xl:order-none">
+    <div className="doodle-game-shell">
+      <div className="doodle-game-sidebar flex flex-col gap-4">
         <Scoreboard view={view} seats={seats} />
 
         <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-3">
@@ -456,12 +457,12 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
         </section>
       </div>
 
-      <section className="active-game-panel order-1 space-y-3 rounded-2xl border border-emerald-400/25 bg-gradient-to-b from-emerald-500/10 to-slate-900/60 p-2 sm:p-4 xl:order-none">
+      <section className="doodle-game-main space-y-3 rounded-2xl border border-emerald-400/25 bg-gradient-to-b from-emerald-500/10 to-slate-900/60 p-2 sm:space-y-4 sm:p-4">
         {noticeBar}
 
-        {/* Who is drawing, how long is left, and what is going wrong this round. */}
-        <div className="flex items-start justify-between gap-3 px-1">
-          <div className="min-w-0 space-y-1.5">
+        {/* A short status bar first, then the persistent rule reminder below it. */}
+        <div className="doodle-round-bar flex items-start justify-between gap-3 px-1">
+          <div className="min-w-0">
             <p className="flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-slate-950/70 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">
                 Round {view.round.number}/{view.totalRounds}
@@ -470,16 +471,8 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
                 🎨 {isDrawer ? 'You are drawing' : `${drawerName} is drawing`}
               </span>
             </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <DhamakaChips ids={dhamakas} />
-              {view.round.combo ? (
-                <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black uppercase text-amber-950">
-                  {view.round.combo}
-                </span>
-              ) : null}
-            </div>
             {!isDrawer && view.yourTurnIn ? (
-              <p className="text-[11px] text-slate-400">
+              <p className="mt-1 text-[11px] text-slate-400">
                 Your turn to draw in {view.yourTurnIn} round{view.yourTurnIn === 1 ? '' : 's'}
               </p>
             ) : null}
@@ -495,8 +488,10 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
           </div>
         </div>
 
+        <ActiveDhamakas ids={dhamakas} combo={view.round.combo} />
+
         {/* The word, as much of it as this player may see. */}
-        <div className="flex min-h-12 flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-xl bg-slate-950/70 px-3 py-2 text-center">
+        <div className="doodle-answer-strip flex min-h-12 flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-xl bg-slate-950/70 px-3 py-2 text-center">
           {phase === 'DRAWING' && view.round.hint ? (
             <>
               <span className="font-mono text-xl font-black tracking-[0.18em] text-white sm:text-2xl">
@@ -528,8 +523,12 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
           ) : null}
         </div>
 
-        <div className="game-play-layout">
-          <div className="min-w-0 space-y-2">
+        <div className="doodle-play-area">
+          <div className="doodle-canvas-column min-w-0 space-y-2">
+            <div className="flex items-center justify-between px-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
+              <span>{canDraw ? 'Your drawing board' : 'Guess the drawing'}</span>
+              {phase === 'DRAWING' ? <span className="text-emerald-300">{isDrawer ? 'Draw here' : 'Type below'}</span> : null}
+            </div>
             <div className="relative">
               <DoodleCanvas
                 strokesRef={strokesRef}
@@ -579,7 +578,7 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
               ) : null}
 
               {phase === 'CHOOSING' ? (
-                <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-slate-950/85 p-3 backdrop-blur-sm">
+                <div className="absolute inset-0 z-20 flex items-center justify-center overflow-y-auto rounded-xl bg-slate-950/95 p-2 backdrop-blur-sm sm:p-3">
                   {showReveal ? (
                     <DhamakaReveal ids={dhamakas} combo={view.round.combo} />
                   ) : isDrawer && view.round.choices ? (
@@ -601,7 +600,7 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
               ) : null}
 
               {phase === 'ROUND_END' && view.round.result ? (
-                <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-slate-950/85 p-3 backdrop-blur-[2px]">
+                <div className="absolute inset-0 z-20 flex items-center justify-center overflow-hidden rounded-xl bg-slate-950/95 p-2 backdrop-blur-[2px] sm:p-3">
                   <RoundResultCard
                     result={view.round.result}
                     names={names}
@@ -631,7 +630,11 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
             ) : null}
           </div>
 
-          <div className="flex h-72 min-h-0 flex-col rounded-xl border border-slate-800 bg-slate-950/70 p-2 lg:h-auto lg:max-h-[38rem]">
+          <div className="doodle-feed-panel flex min-h-0 flex-col rounded-xl border border-slate-800 bg-slate-950/70 p-2">
+            <div className="doodle-feed-heading flex items-center justify-between border-b border-slate-800 px-1 pb-2">
+              <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-300">Table chat</span>
+              <span className="text-[10px] text-slate-500">Guesses appear here</span>
+            </div>
             <Feed entries={view.round.feed} you={playerId} />
             <GuessBar
               mode={guessMode}
