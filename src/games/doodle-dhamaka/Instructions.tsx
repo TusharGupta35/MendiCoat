@@ -71,6 +71,7 @@ export function DoodleInstructions() {
       intro="Someone draws, everyone guesses — and every round, a Dhamaka changes the rules. You know how to play. You never know what the next round will do."
       steps={QUICK_STEPS}
       rules={RULES}
+      theme="doodle"
     />
   );
 }

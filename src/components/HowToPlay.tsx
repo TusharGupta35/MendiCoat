@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { ChevronDown } from 'lucide-react';
+import { Bomb, ChevronDown, MessageCircle, Paintbrush, UsersRound } from 'lucide-react';
 
 /**
  * A game's rules, the same shape for every game.
@@ -32,6 +32,8 @@ const SUITS = [
   { glyph: '♦', red: true },
 ];
 
+const DOODLE_MARKS: LucideIcon[] = [UsersRound, Paintbrush, MessageCircle, Bomb];
+
 /** Written out in full because Tailwind reads class names, not variables. */
 const COLUMNS: Record<number, string> = {
   3: 'lg:grid-cols-3',
@@ -45,13 +47,17 @@ export function HowToPlay({
   intro,
   steps,
   rules,
+  theme = 'cards',
 }: {
   heading: string;
   badge: string;
   intro: string;
   steps: HowToStep[];
   rules: HowToRule[];
+  theme?: 'cards' | 'doodle';
 }) {
+  const isDoodle = theme === 'doodle';
+
   return (
     <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -70,31 +76,65 @@ export function HowToPlay({
         {steps.map((step, index) => {
           const suit = SUITS[index % SUITS.length];
           const ink = suit.red ? 'text-rose-400' : 'text-amber-300';
+          const DoodleMark = DOODLE_MARKS[index % DOODLE_MARKS.length];
           return (
             <li key={step.title} className="w-[236px] flex-none snap-start sm:w-auto">
-              {/* The player card's gold foil, thinner: a step is a card. */}
-              <div className="h-full rounded-[22px] bg-[linear-gradient(160deg,#ffe08a,#e0900c_38%,#7a4a06_62%,#ffd970)] p-[2px] max-sm:rounded-[20px]">
-                <div className="relative h-full overflow-hidden rounded-[20px] bg-[#211539] bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(0,0,0,0.26))] p-3.5 max-sm:rounded-[18px] sm:p-[18px]">
+              <div
+                className={`h-full rounded-[22px] p-[2px] max-sm:rounded-[20px] ${
+                  isDoodle
+                    ? 'bg-[linear-gradient(145deg,#fde68a,#34d399_38%,#0f766e_70%,#f9a8d4)]'
+                    : 'bg-[linear-gradient(160deg,#ffe08a,#e0900c_38%,#7a4a06_62%,#ffd970)]'
+                }`}
+              >
+                <div
+                  className={`relative h-full overflow-hidden rounded-[20px] p-3.5 max-sm:rounded-[18px] sm:p-[18px] ${
+                    isDoodle
+                      ? 'bg-[#122b30] bg-[linear-gradient(145deg,rgba(52,211,153,0.16),rgba(0,0,0,0.32))]'
+                      : 'bg-[#211539] bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(0,0,0,0.26))]'
+                  }`}
+                >
                   <span
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-[5px] rounded-[14px] border border-amber-300/15 sm:inset-[6px] sm:rounded-[15px]"
+                    className={`pointer-events-none absolute inset-[5px] rounded-[14px] sm:inset-[6px] sm:rounded-[15px] ${
+                      isDoodle ? 'border border-emerald-200/20' : 'border border-amber-300/15'
+                    }`}
                   />
                   <div className="relative flex items-start justify-between">
-                    {/* Numbered like a card's corner index: the rank, then the suit. */}
-                    <div className="flex flex-col items-center leading-none">
-                      <span className="font-display text-[22px] font-extrabold tabular-nums text-amber-300 sm:text-[26px]">
-                        {index + 1}
-                      </span>
-                      <span className={`text-[13px] sm:text-base ${ink}`} aria-hidden="true">
-                        {suit.glyph}
-                      </span>
-                    </div>
-                    <span
-                      aria-hidden="true"
-                      className={`font-display text-[52px] leading-[0.8] opacity-[0.12] sm:text-[64px] ${ink}`}
-                    >
-                      {suit.glyph}
-                    </span>
+                    {isDoodle ? (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <span className="font-display text-[22px] font-extrabold tabular-nums text-amber-200 sm:text-[26px]">
+                            {index + 1}
+                          </span>
+                          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-300/15 text-emerald-200 sm:h-9 sm:w-9">
+                            <DoodleMark className="h-4 w-4 sm:h-[18px] sm:w-[18px]" strokeWidth={2.2} />
+                          </span>
+                        </div>
+                        <DoodleMark
+                          aria-hidden="true"
+                          className="h-14 w-14 text-emerald-300/[0.13] sm:h-[68px] sm:w-[68px]"
+                          strokeWidth={1.2}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        {/* Numbered like a card's corner index: the rank, then the suit. */}
+                        <div className="flex flex-col items-center leading-none">
+                          <span className="font-display text-[22px] font-extrabold tabular-nums text-amber-300 sm:text-[26px]">
+                            {index + 1}
+                          </span>
+                          <span className={`text-[13px] sm:text-base ${ink}`} aria-hidden="true">
+                            {suit.glyph}
+                          </span>
+                        </div>
+                        <span
+                          aria-hidden="true"
+                          className={`font-display text-[52px] leading-[0.8] opacity-[0.12] sm:text-[64px] ${ink}`}
+                        >
+                          {suit.glyph}
+                        </span>
+                      </>
+                    )}
                   </div>
                   <h3 className="relative mt-2 text-lg font-semibold text-white sm:mt-2.5 sm:text-xl">
                     {step.title}
