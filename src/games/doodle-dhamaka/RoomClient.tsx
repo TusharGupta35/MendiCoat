@@ -400,6 +400,44 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
 
   const drawerName = names.get(view.round.drawerId) ?? 'Someone';
   const showReveal = phase === 'CHOOSING' && clock < revealUntil;
+  const roundDetails = (
+    <>
+      <ActiveDhamakas ids={dhamakas} combo={view.round.combo} />
+
+      {/* The word, as much of it as this player may see. */}
+      <div className="doodle-answer-strip flex min-h-12 flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-xl bg-slate-950/70 px-3 py-2 text-center">
+        {phase === 'DRAWING' && view.round.hint ? (
+          <>
+            <span className="font-mono text-xl font-black tracking-[0.18em] text-white sm:text-2xl">
+              {view.round.hint.mask}
+            </span>
+            <span className="text-xs text-slate-500">{view.round.hint.letters} letters</span>
+            {view.round.hint.category ? (
+              <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-bold text-sky-200">
+                {view.round.hint.emoji} {view.round.hint.category}
+              </span>
+            ) : null}
+          </>
+        ) : phase === 'DRAWING' && view.round.answer ? (
+          <span className="text-lg font-black text-emerald-300 sm:text-xl">
+            {isDrawer ? 'Draw: ' : '✓ You got it: '}
+            {view.round.answer.emoji} {view.round.answer.text}
+          </span>
+        ) : phase === 'CHOOSING' ? (
+          <span className="text-sm text-slate-400">{isDrawer ? 'Choose your word' : `${drawerName} is choosing a word…`}</span>
+        ) : view.round.answer ? (
+          <span className="text-lg font-black text-white">
+            {view.round.answer.emoji} {view.round.answer.text}
+          </span>
+        ) : null}
+        {view.round.suddenDeath ? (
+          <span className="animate-urgent rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-rose-950">
+            ⚠️ Sudden death
+          </span>
+        ) : null}
+      </div>
+    </>
+  );
 
   return (
     <div className="doodle-game-shell">
@@ -488,44 +526,11 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
           </div>
         </div>
 
-        <ActiveDhamakas ids={dhamakas} combo={view.round.combo} />
-
-        {/* The word, as much of it as this player may see. */}
-        <div className="doodle-answer-strip flex min-h-12 flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-xl bg-slate-950/70 px-3 py-2 text-center">
-          {phase === 'DRAWING' && view.round.hint ? (
-            <>
-              <span className="font-mono text-xl font-black tracking-[0.18em] text-white sm:text-2xl">
-                {view.round.hint.mask}
-              </span>
-              <span className="text-xs text-slate-500">{view.round.hint.letters} letters</span>
-              {view.round.hint.category ? (
-                <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-bold text-sky-200">
-                  {view.round.hint.emoji} {view.round.hint.category}
-                </span>
-              ) : null}
-            </>
-          ) : phase === 'DRAWING' && view.round.answer ? (
-            <span className="text-lg font-black text-emerald-300 sm:text-xl">
-              {isDrawer ? 'Draw: ' : '✓ You got it: '}
-              {view.round.answer.emoji} {view.round.answer.text}
-            </span>
-          ) : phase === 'CHOOSING' ? (
-            <span className="text-sm text-slate-400">{isDrawer ? 'Choose your word' : `${drawerName} is choosing a word…`}</span>
-          ) : view.round.answer ? (
-            <span className="text-lg font-black text-white">
-              {view.round.answer.emoji} {view.round.answer.text}
-            </span>
-          ) : null}
-          {view.round.suddenDeath ? (
-            <span className="animate-urgent rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-rose-950">
-              ⚠️ Sudden death
-            </span>
-          ) : null}
-        </div>
+        <div className="doodle-mobile-round-details space-y-3">{roundDetails}</div>
 
         <div className="doodle-play-area">
           <div className="doodle-canvas-column min-w-0 space-y-2">
-            <div className="flex items-center justify-between px-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
+            <div className="flex items-center justify-between px-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-300 sm:text-[11px] sm:tracking-[0.16em]">
               <span>{canDraw ? 'Your drawing board' : 'Guess the drawing'}</span>
               {phase === 'DRAWING' ? <span className="text-emerald-300">{isDrawer ? 'Draw here' : 'Type below'}</span> : null}
             </div>
@@ -559,12 +564,12 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
               </div>
 
               {isDrawer && phase === 'DRAWING' && hasDhamaka(dhamakas, 'opposite-hand') ? (
-                <p className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-slate-900/85 px-3 py-1 text-xs font-bold text-amber-200">
+                <p className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-slate-900/85 px-3 py-1 text-sm font-bold text-amber-200 sm:text-xs">
                   🤚 Other hand! We trust you.
                 </p>
               ) : null}
               {canDraw === false && isDrawer && phase === 'DRAWING' && oneStroke ? (
-                <p className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-slate-900/85 px-3 py-1 text-xs font-bold text-rose-200">
+                <p className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-slate-900/85 px-3 py-1 text-sm font-bold text-rose-200 sm:text-xs">
                   ✍️ Your one stroke is drawn
                 </p>
               ) : null}
@@ -631,7 +636,10 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
           </div>
 
           <div className="doodle-feed-panel flex min-h-0 flex-col rounded-xl border border-slate-800 bg-slate-950/70 p-2">
-            <div className="doodle-feed-heading flex items-center justify-between border-b border-slate-800 px-1 pb-2">
+            <div className="doodle-desktop-round-details space-y-2">
+              {roundDetails}
+            </div>
+            <div className="doodle-feed-heading mt-2 flex items-center justify-between border-t border-b border-slate-800 px-1 pb-2 pt-2">
               <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-300">Table chat</span>
               <span className="text-[10px] text-slate-500">Guesses appear here</span>
             </div>

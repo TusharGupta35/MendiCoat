@@ -161,6 +161,10 @@ body {
   max-width: 100%;
 }
 
+.doodle-canvas-surface {
+  aspect-ratio: 4 / 3;
+}
+
 .doodle-feed-panel {
   height: 19rem;
   min-width: 0;
@@ -201,6 +205,28 @@ body {
     position: sticky;
     top: 1rem;
   }
+
+  .doodle-mobile-round-details {
+    display: none;
+  }
+
+  .doodle-desktop-round-details {
+    display: block;
+  }
+
+  .doodle-canvas-surface {
+    aspect-ratio: 16 / 9;
+  }
+}
+
+.doodle-desktop-round-details {
+  display: none;
+}
+
+@media (min-width: 1180px) {
+  .doodle-desktop-round-details {
+    display: block;
+  }
 }
 
 @media (max-width: 899px) {
@@ -225,6 +251,12 @@ body {
 
   .doodle-answer-strip {
     min-height: 3.25rem;
+  }
+
+  /* Give the drawing more room on phones while keeping it comfortably inside
+     the viewport and preserving the wider desktop canvas. */
+  .doodle-canvas-surface {
+    aspect-ratio: 5 / 4;
   }
 
   .doodle-feed-panel {
@@ -252,6 +284,36 @@ body {
 
   .doodle-feed-panel .doodle-guess-bar {
     order: 2;
+  }
+}
+
+/* Landscape phones have enough width for the drawing and conversation to
+   work side by side. Keep this scoped below the desktop breakpoint so small
+   portrait screens retain the simpler vertical flow above. */
+@media (max-width: 899px) and (orientation: landscape) {
+  .doodle-game-main {
+    padding: 0.75rem;
+  }
+
+  .doodle-mobile-round-details {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+    gap: 0.5rem;
+  }
+
+  .doodle-play-area {
+    grid-template-columns: minmax(0, 1.45fr) minmax(15rem, 0.85fr);
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .doodle-canvas-surface {
+    aspect-ratio: 4 / 3;
+  }
+
+  .doodle-feed-panel {
+    height: clamp(15rem, calc(100svh - 9rem), 32rem);
+    min-height: 15rem;
   }
 }
 
