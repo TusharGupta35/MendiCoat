@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Eraser, Lock, Trash2, Undo2 } from 'lucide-react';
 import { Avatar } from '@/components/Avatar';
 import { COMBOS, PALETTE, dhamakaById } from './dhamakas';
-import type { Award, DhamakaId, DoodlePlayer, DoodleView, FeedEntry, PointsBreakdown, Prompt, RoundResult } from './types';
+import { DOODLE_CHAT_EMOJIS } from './reactions';
+import type { Award, DhamakaId, DoodlePlayer, DoodleView, FeedEntry, Prompt, RoundResult } from './types';
 import { DIFFICULTY_LABEL } from './words';
 
 /**
@@ -62,6 +63,36 @@ export function DhamakaChips({ ids }: { ids: DhamakaId[] }) {
   );
 }
 
+/** Persistent reminder of the rules currently affecting the round. */
+export function ActiveDhamakas({ ids, combo }: { ids: DhamakaId[]; combo?: string }) {
+  return (
+    <div className="rounded-xl border border-rose-400/30 bg-rose-500/[0.08] px-2.5 py-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-200">💥 This round</span>
+        {combo ? (
+          <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black uppercase text-amber-950">
+            {combo}
+          </span>
+        ) : null}
+      </div>
+      <div className="mt-1.5 grid gap-1 sm:grid-cols-2">
+        {ids.map((id) => {
+          const dhamaka = dhamakaById(id);
+          return (
+            <div key={id} className="flex min-w-0 items-start gap-1.5 rounded-lg bg-slate-950/35 px-2 py-1.5">
+              <span className="shrink-0 text-sm" aria-hidden="true">{dhamaka.emoji}</span>
+              <p className="min-w-0 text-[11px] leading-snug text-rose-50">
+                <span className="font-black">{dhamaka.name}</span>
+                <span className="text-rose-100/65"> — {dhamaka.rule}</span>
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /**
  * The big reveal at the start of a round. Shown over the canvas while the
  * drawer is choosing, so the drawer picks a word *knowing* what they are up
@@ -111,25 +142,25 @@ export function ChoosePanel({
   onChoose: (id: string) => void;
 }) {
   return (
-    <div className="w-full max-w-xl">
-      <p className="text-center text-sm font-semibold uppercase tracking-[0.2em] text-amber-300">
+    <div className="w-full max-w-2xl">
+      <p className="text-center text-xs font-semibold uppercase tracking-[0.16em] text-amber-300 sm:text-sm sm:tracking-[0.2em]">
         Pick what to draw · {secondsLeft}s
       </p>
-      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+      <div className="mt-2 grid grid-cols-3 gap-1.5 sm:mt-3 sm:gap-2">
         {choices.map((choice, index) => (
           <button
             key={choice.id}
             type="button"
             onClick={() => onChoose(choice.id)}
-            className={`animate-dhamaka-in flex flex-col items-center gap-1 rounded-2xl border-2 p-3 text-center transition hover:-translate-y-1 hover:shadow-xl active:translate-y-0 ${DIFFICULTY_STYLE[choice.difficulty]}`}
+            className={`animate-dhamaka-in flex min-h-32 flex-col items-center justify-center gap-1 rounded-2xl border-2 p-2 text-center transition hover:-translate-y-1 hover:shadow-xl active:translate-y-0 sm:min-h-44 sm:p-3 ${DIFFICULTY_STYLE[choice.difficulty]}`}
             style={{ animationDelay: `${index * 90}ms` }}
           >
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">
+            <span className="text-[8px] font-black uppercase tracking-[0.14em] opacity-80 sm:text-[10px] sm:tracking-[0.2em]">
               {index === 2 && choice.difficulty !== 'friends' ? 'Chaotic' : DIFFICULTY_LABEL[choice.difficulty]}
             </span>
-            <span className="text-3xl" aria-hidden="true">{choice.emoji}</span>
-            <span className="text-base font-bold leading-tight text-white">{choice.text}</span>
-            <span className="text-[10px] text-slate-400">{choice.category}</span>
+            <span className="text-2xl sm:text-3xl" aria-hidden="true">{choice.emoji}</span>
+            <span className="text-xs font-bold leading-tight text-white sm:text-base">{choice.text}</span>
+            <span className="text-[9px] text-slate-400 sm:text-[10px]">{choice.category}</span>
           </button>
         ))}
       </div>
@@ -270,7 +301,7 @@ export function Feed({ entries, you }: { entries: FeedEntry[]; you: string | nul
   }, [entries]);
 
   return (
-    <div ref={listRef} className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-1 py-2 text-sm" aria-live="polite">
+    <div ref={listRef} className="doodle-feed-scroll flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-1 py-2 text-sm" aria-live="polite">
       {entries.length === 0 ? (
         <p className="m-auto text-center text-xs text-slate-500">Guesses show up here.</p>
       ) : null}
@@ -343,6 +374,8 @@ export function GuessBar({
   onToggleLock: () => void;
   onSubmit: () => void;
 }) {
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const chatMode = mode === 'chat-all' || mode === 'chat-solved';
   const placeholder = {
     guess: lock ? '🔒 Lock in your answer…' : 'Type your guess…',
     'chat-solved': 'Chat with the ones who got it…',
@@ -358,7 +391,7 @@ export function GuessBar({
   };
 
   return (
-    <div>
+    <div className="doodle-guess-bar">
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -381,6 +414,37 @@ export function GuessBar({
           >
             <Lock className="h-4 w-4" />
           </button>
+        ) : null}
+        {chatMode ? (
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setEmojiOpen((open) => !open)}
+              aria-label="Add an emoji"
+              aria-expanded={emojiOpen}
+              className="rounded-lg p-2 text-lg leading-none text-slate-400 transition hover:bg-slate-800 hover:text-white"
+            >
+              🙂
+            </button>
+            {emojiOpen ? (
+              <div className="absolute bottom-full left-0 z-30 mb-2 grid w-52 grid-cols-6 gap-1 rounded-xl border border-slate-700 bg-slate-900 p-2 shadow-2xl sm:left-auto sm:right-0">
+                {DOODLE_CHAT_EMOJIS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => {
+                      onChange(value ? `${value} ${emoji}` : emoji);
+                      setEmojiOpen(false);
+                    }}
+                    aria-label={`Add ${emoji}`}
+                    className="rounded-lg p-1.5 text-lg leading-none transition hover:bg-slate-700"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
         ) : null}
         <input
           value={value}
@@ -501,16 +565,6 @@ function ScoreRow({
 
 // ── End of a round ──────────────────────────────────────────────────────────
 
-function Breakdown({ points }: { points: PointsBreakdown }) {
-  return (
-    <span className="text-[10px] text-slate-400">
-      {points.lines
-        .map((line) => (line.times ? `${line.label} ×${line.value}` : `${line.label} ${line.value > 0 ? '+' : ''}${line.value}`))
-        .join(' · ')}
-    </span>
-  );
-}
-
 export function RoundResultCard({
   result,
   names,
@@ -525,26 +579,28 @@ export function RoundResultCard({
   secondsLeft: number;
 }) {
   const earners = Object.entries(result.points).sort((a, b) => b[1].total - a[1].total);
+  const visibleEarners = earners.slice(0, 3);
   const nameOf = (id: string) => names.get(id) ?? 'Someone';
+  const outcome =
+    result.outcome === 'perfect' ? '🔥 Perfect draw' : result.outcome === 'disaster' ? '💀 Nobody got it' : 'Round complete';
   return (
-    <div className="flex max-h-full w-full max-w-lg flex-col items-center gap-2 overflow-y-auto text-center">
-      {result.outcome === 'perfect' ? (
-        <p className="animate-dhamaka-in text-3xl font-black uppercase tracking-wide text-emerald-300 drop-shadow-[0_0_24px_rgba(52,211,153,0.6)] sm:text-5xl">
-          🔥 Perfect draw!
+    <div className="w-full max-w-md overflow-hidden rounded-2xl border border-amber-300/25 bg-slate-900/95 p-2.5 text-center shadow-2xl sm:p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300">Round over</p>
+        <p className={`truncate text-[10px] font-black uppercase tracking-wide ${result.outcome === 'perfect' ? 'text-emerald-300' : result.outcome === 'disaster' ? 'text-slate-300' : 'text-slate-400'}`}>
+          {outcome}
         </p>
-      ) : result.outcome === 'disaster' ? (
-        <p className="animate-dhamaka-in text-3xl font-black uppercase tracking-wide text-slate-300 sm:text-5xl">
-          💀 Nobody got it
-        </p>
-      ) : null}
+      </div>
 
-      <p className="text-xs uppercase tracking-[0.25em] text-slate-400">The answer was</p>
-      <p className="animate-dhamaka-in text-3xl font-black text-white sm:text-4xl">
-        {result.prompt.emoji} {result.prompt.text.toUpperCase()}
-      </p>
-      <p className="text-xs text-slate-400">
+      <div className="mt-1.5 rounded-xl bg-slate-950/80 px-2.5 py-1.5">
+        <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">The answer</p>
+        <p className="mt-0.5 truncate text-lg font-black text-white sm:text-xl">
+          {result.prompt.emoji} {result.prompt.text}
+        </p>
+      </div>
+      <p className="mt-1.5 text-[10px] leading-snug text-slate-400">
         Drawn by <span className="font-semibold text-slate-200">{nameOf(result.drawerId)}</span> · {result.guessed}/
-        {result.eligible} got it
+        <span className="font-semibold text-emerald-300">{result.eligible}</span> guessed it
         {result.fastest ? (
           <>
             {' '}· fastest <span className="font-semibold text-amber-300">{nameOf(result.fastest.playerId)}</span>{' '}
@@ -554,41 +610,42 @@ export function RoundResultCard({
       </p>
 
       {result.awards.length ? (
-        <div className="flex flex-wrap justify-center gap-1.5">
-          {result.awards.map((award) => (
-            <AwardChip key={`${award.title}-${award.playerId}`} award={award} name={nameOf(award.playerId)} />
+        <div className="mt-1.5 flex flex-wrap justify-center gap-1">
+          {result.awards.slice(0, 2).map((award) => (
+            <span key={`${award.title}-${award.playerId}`} className="rounded-full border border-amber-300/30 bg-amber-400/10 px-2 py-0.5 text-[10px] text-amber-100">
+              {award.emoji} <span className="font-bold">{award.title}</span> · {nameOf(award.playerId)}
+            </span>
           ))}
         </div>
       ) : null}
 
-      {earners.length ? (
-        <div className="w-full space-y-1 rounded-xl bg-slate-950/70 p-2 text-left">
-          {earners.map(([id, points]) => (
-            <div key={id} className="flex items-start justify-between gap-2 px-1">
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-semibold text-slate-100">{nameOf(id)}</span>
-                <Breakdown points={points} />
+      {visibleEarners.length ? (
+        <div className="mt-1.5 rounded-xl bg-slate-950/70 px-2 py-1.5">
+          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500">Points this round</p>
+          <div className="mt-1 flex flex-wrap justify-center gap-1">
+            {visibleEarners.map(([id, points]) => (
+              <span key={id} className="rounded-full bg-slate-800 px-2 py-1 text-[10px] text-slate-200">
+                {nameOf(id)} <span className="font-black text-emerald-300">+{points.total}</span>
               </span>
-              <span
-                className={`shrink-0 text-sm font-black tabular-nums ${points.total >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}
-              >
-                {points.total >= 0 ? '+' : ''}
-                {points.total}
-              </span>
-            </div>
-          ))}
+            ))}
+            {earners.length > visibleEarners.length ? <span className="self-center text-[9px] text-slate-500">+ more on scoreboard</span> : null}
+          </div>
         </div>
       ) : null}
 
-      {nextDrawer ? (
-        <p className="text-sm text-slate-300">
-          Next: <span className="font-bold text-amber-300">{nextDrawer}</span> draws in {secondsLeft}s
-        </p>
-      ) : null}
-      {nextCount && nextCount >= 2 ? (
-        <p className="animate-urgent rounded-full bg-rose-500 px-3 py-1 text-xs font-black uppercase tracking-wider text-rose-950">
-          {countTitle(nextCount)} next round
-        </p>
+      {nextDrawer || (nextCount && nextCount >= 2) ? (
+        <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[10px]">
+          {nextDrawer ? (
+            <span className="text-slate-300">
+              Next: <span className="font-bold text-amber-300">{nextDrawer}</span> in {secondsLeft}s
+            </span>
+          ) : null}
+          {nextCount && nextCount >= 2 ? (
+            <span className="animate-urgent rounded-full bg-rose-500 px-2 py-0.5 font-black uppercase tracking-wider text-rose-950">
+              {countTitle(nextCount)} next
+            </span>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
