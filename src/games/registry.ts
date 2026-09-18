@@ -61,30 +61,19 @@ export const GAMES: Game[] = [
     accent: 'from-rose-400/20 to-rose-500/5 text-rose-300',
   },
   {
-    id: 'CALLBREAK',
-    slug: 'callbreak',
-    name: 'Callbreak',
-    tagline: 'Bid your tricks, then go and win them.',
-    blurb:
-      'Thirteen tricks, spades always trump. Before a card is played you call how many tricks you will take — hit the call and you score it, fall short and you lose it. No partners, five rounds, highest total wins.',
-    players: '4 players',
-    maxPlayers: 4,
-    bots: false,
-    status: 'soon',
-    emblem: '♠️',
-    accent: 'from-sky-400/20 to-sky-500/5 text-sky-300',
-  },
-  {
     id: 'IMPOSTOR',
     slug: 'impostor',
     name: 'Impostor',
     tagline: 'Everyone answers the question. One of you never saw it.',
     blurb:
       'Everybody gets the same question and answers it — except the impostor, who only sees the answers and has to invent one that fits. Then the table votes. Crew win by catching them; the impostor wins by surviving the vote.',
-    players: '4–10 players',
-    maxPlayers: 10,
-    bots: true,
-    status: 'soon',
+    players: '4–12 players',
+    maxPlayers: 12,
+    // A bot would have to invent a plausible answer and then survive being
+    // cross-examined about it. That is a much harder problem than playing a
+    // card, and a bad one poisons the round for everybody.
+    bots: false,
+    status: 'live',
     emblem: '🕵️',
     accent: 'from-violet-400/20 to-violet-500/5 text-violet-300',
   },
@@ -101,6 +90,20 @@ export const GAMES: Game[] = [
     status: 'live',
     emblem: '🎨',
     accent: 'from-emerald-400/20 to-emerald-500/5 text-emerald-300',
+  },
+  {
+    id: 'CALLBREAK',
+    slug: 'callbreak',
+    name: 'Callbreak',
+    tagline: 'Bid your tricks, then go and win them.',
+    blurb:
+      'Thirteen tricks, spades always trump. Before a card is played you call how many tricks you will take — hit the call and you score it, fall short and you lose it. No partners, five rounds, highest total wins.',
+    players: '4 players',
+    maxPlayers: 4,
+    bots: false,
+    status: 'soon',
+    emblem: '♠️',
+    accent: 'from-sky-400/20 to-sky-500/5 text-sky-300',
   },
 ];
 

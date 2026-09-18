@@ -165,8 +165,109 @@ function DoodleHeroArt() {
   );
 }
 
+/**
+ * Impostor is not about cards either. Its hero is the moment the game turns
+ * on: the same question in three hands, and a fourth holding nothing but a
+ * question mark.
+ *
+ * Drawn rather than photographed from the game so it reads at phone size — the
+ * three gold cards are identical on purpose, because the whole point is that
+ * the rose one is the odd card out and its holder does not know what the others
+ * are looking at.
+ */
+function ImpostorHeroArt() {
+  const asked = [
+    { x: 24, tilt: -9 },
+    { x: 130, tilt: -3 },
+    { x: 236, tilt: 3 },
+  ];
+
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute right-[-10px] top-2 h-[110px] w-[170px] sm:right-4 sm:h-[150px] sm:w-[280px] lg:relative lg:right-auto lg:top-auto lg:h-[200px] lg:w-auto"
+    >
+      <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(244,63,94,0.2),transparent_68%)] blur-xl" />
+      <svg viewBox="0 0 420 200" className="relative h-full w-full overflow-visible">
+        <defs>
+          <linearGradient id="imp-known" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#fff6da" />
+            <stop offset="1" stopColor="#ffd970" />
+          </linearGradient>
+          <linearGradient id="imp-blind" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#fda4af" />
+            <stop offset="1" stopColor="#f43f5e" />
+          </linearGradient>
+          <filter id="imp-shadow" x="-30%" y="-30%" width="160%" height="170%">
+            <feDropShadow dx="0" dy="9" stdDeviation="7" floodColor="#05020b" floodOpacity="0.5" />
+          </filter>
+        </defs>
+
+        {/* The three who saw it. Same card, same lines, three times. */}
+        {asked.map((seat) => (
+          <g key={seat.x} transform={`rotate(${seat.tilt} ${seat.x + 55} 110)`} filter="url(#imp-shadow)">
+            <rect x={seat.x} y="42" width="110" height="136" rx="14" fill="url(#imp-known)" />
+            <rect
+              x={seat.x + 8}
+              y="50"
+              width="94"
+              height="120"
+              rx="9"
+              fill="none"
+              stroke="#e0900c"
+              strokeOpacity="0.45"
+              strokeWidth="2"
+            />
+            <path
+              d={`M${seat.x + 22} 84h66M${seat.x + 22} 102h66M${seat.x + 22} 120h44`}
+              stroke="#b8791a"
+              strokeLinecap="round"
+              strokeOpacity="0.75"
+              strokeWidth="6"
+            />
+          </g>
+        ))}
+
+        {/* The one who did not, held a little higher so the eye lands on it. */}
+        <g transform="rotate(9 397 100)" filter="url(#imp-shadow)">
+          <rect x="342" y="32" width="110" height="136" rx="14" fill="url(#imp-blind)" />
+          <rect
+            x="350"
+            y="40"
+            width="94"
+            height="120"
+            rx="9"
+            fill="none"
+            stroke="#9f1239"
+            strokeOpacity="0.5"
+            strokeWidth="2"
+          />
+          <text
+            x="397"
+            y="104"
+            fill="#4c0519"
+            fontSize="76"
+            fontWeight="800"
+            textAnchor="middle"
+            dominantBaseline="central"
+          >
+            ?
+          </text>
+        </g>
+      </svg>
+    </div>
+  );
+}
+
+/** Each game's cover art, falling back to a fan of the cards it turns on. */
+const HERO_ART: Record<string, () => React.ReactElement> = {
+  DOODLE_DHAMAKA: DoodleHeroArt,
+  IMPOSTOR: ImpostorHeroArt,
+};
+
 function HeroVisual({ game }: { game: Game }) {
-  return game.id === 'DOODLE_DHAMAKA' ? <DoodleHeroArt /> : <HeroFan cards={HERO_CARDS[game.id] ?? HERO_CARDS.MENDI_COAT} />;
+  const Art = HERO_ART[game.id];
+  return Art ? <Art /> : <HeroFan cards={HERO_CARDS[game.id] ?? HERO_CARDS.MENDI_COAT} />;
 }
 
 export function GameHero({ game }: { game: Game }) {
