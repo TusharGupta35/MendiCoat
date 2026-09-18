@@ -11,7 +11,6 @@ import { DoodleCanvas, type CanvasEffects } from './Canvas';
 import { ROULETTE_MS, brushesFor, hasDhamaka } from './dhamakas';
 import { Lobby, type DoodleRoomPayload } from './Lobby';
 import {
-  ActiveDhamakas,
   ChoosePanel,
   DhamakaChips,
   DhamakaReveal,
@@ -400,141 +399,87 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
 
   const drawerName = names.get(view.round.drawerId) ?? 'Someone';
   const showReveal = phase === 'CHOOSING' && clock < revealUntil;
-  const roundDetails = (
-    <>
-      <ActiveDhamakas ids={dhamakas} combo={view.round.combo} />
 
-      {/* The word, as much of it as this player may see. */}
-      <div className="doodle-answer-strip flex min-h-12 flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-xl bg-slate-950/70 px-3 py-2 text-center">
-        {phase === 'DRAWING' && view.round.hint ? (
-          <>
-            <span className="font-mono text-xl font-black tracking-[0.18em] text-white sm:text-2xl">
-              {view.round.hint.mask}
-            </span>
-            <span className="text-xs text-slate-500">{view.round.hint.letters} letters</span>
-            {view.round.hint.category ? (
-              <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-bold text-sky-200">
-                {view.round.hint.emoji} {view.round.hint.category}
-              </span>
-            ) : null}
-          </>
-        ) : phase === 'DRAWING' && view.round.answer ? (
-          <span className="text-lg font-black text-emerald-300 sm:text-xl">
-            {isDrawer ? 'Draw: ' : '✓ You got it: '}
-            {view.round.answer.emoji} {view.round.answer.text}
-          </span>
-        ) : phase === 'CHOOSING' ? (
-          <span className="text-sm text-slate-400">{isDrawer ? 'Choose your word' : `${drawerName} is choosing a word…`}</span>
-        ) : view.round.answer ? (
-          <span className="text-lg font-black text-white">
-            {view.round.answer.emoji} {view.round.answer.text}
+  /* The word, as much of it as this player may see. It lives in the round bar
+     and nowhere else — this used to be rendered twice, once for each
+     breakpoint, with CSS hiding whichever copy did not apply. */
+  const wordBlock =
+    phase === 'DRAWING' && view.round.hint ? (
+      <>
+        <span className="doodle-word-mask font-mono text-lg font-black tracking-[0.18em] text-white sm:text-xl">
+          {view.round.hint.mask}
+        </span>
+        <span className="doodle-word-meta text-[11px] text-slate-500">{view.round.hint.letters} letters</span>
+        {view.round.hint.category ? (
+          <span className="doodle-word-meta rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] font-bold text-sky-200">
+            {view.round.hint.emoji} {view.round.hint.category}
           </span>
         ) : null}
-        {view.round.suddenDeath ? (
-          <span className="animate-urgent rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-rose-950">
-            ⚠️ Sudden death
-          </span>
-        ) : null}
-      </div>
-    </>
-  );
+      </>
+    ) : phase === 'DRAWING' && view.round.answer ? (
+      <span className="text-base font-black text-emerald-300 sm:text-lg">
+        {isDrawer ? 'Draw: ' : '✓ You got it: '}
+        {view.round.answer.emoji} {view.round.answer.text}
+      </span>
+    ) : phase === 'CHOOSING' ? (
+      <span className="text-sm text-slate-400">{isDrawer ? 'Choose your word' : `${drawerName} is choosing…`}</span>
+    ) : view.round.answer ? (
+      <span className="text-base font-black text-white sm:text-lg">
+        {view.round.answer.emoji} {view.round.answer.text}
+      </span>
+    ) : null;
 
   return (
-    <div className="doodle-game-shell">
-      <div className="doodle-game-sidebar flex flex-col gap-4">
+    <>
+      {/* Outside the shell: the shell is a named-area grid, and anything that
+          appears only sometimes would be auto-placed into a row of its own. */}
+      {noticeBar}
+
+      <div className="doodle-shell">
         <Scoreboard view={view} seats={seats} />
 
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-3">
-          <div className="flex flex-wrap gap-1.5">
-            {DOODLE_REACTIONS.map((reaction) => (
-              <button
-                key={reaction.emoji}
-                type="button"
-                onClick={() => socket?.emit('doodle:react', { roomCode, emoji: reaction.emoji })}
-                title={reaction.label}
-                aria-label={reaction.label}
-                className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xl leading-none transition hover:-translate-y-0.5 hover:border-amber-400/60 active:translate-y-0.5"
-              >
-                {reaction.emoji}
-              </button>
-            ))}
-          </div>
-          <div className="mt-2 flex items-center gap-1">
-            <button
-              type="button"
-              onClick={voice.toggleMic}
-              aria-pressed={voice.micOn}
-              title={voice.micOn ? 'Mute your microphone' : 'Speak to the table'}
-              className={`rounded-lg p-2 transition ${voice.micOn ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-400 hover:bg-slate-800'}`}
-            >
-              {voice.micOn ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
-            </button>
-            <button
-              type="button"
-              onClick={voice.toggleSpeaker}
-              aria-pressed={voice.speakerOn}
-              title={voice.speakerOn ? 'Mute other players' : 'Hear other players'}
-              className={`rounded-lg p-2 transition ${voice.speakerOn ? 'bg-amber-500/20 text-amber-300' : 'text-slate-400 hover:bg-slate-800'}`}
-            >
-              {voice.speakerOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-            </button>
-            <span className="ml-1 text-xs text-slate-500">
-              {voice.peerCount > 0 ? `${voice.peerCount} on the call` : 'Voice chat'}
-            </span>
-            {isAdmin ? (
-              <button
-                type="button"
-                onClick={endGame}
-                className="ml-auto rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-400 transition hover:border-rose-400/60 hover:text-rose-300"
-              >
-                End game
-              </button>
-            ) : null}
-          </div>
-          {voice.error ? <p className="mt-1 text-xs text-rose-300">{voice.error}</p> : null}
-        </section>
-      </div>
-
-      <section className="doodle-game-main space-y-3 rounded-2xl border border-emerald-400/25 bg-gradient-to-b from-emerald-500/10 to-slate-900/60 p-2 sm:space-y-4 sm:p-4">
-        {noticeBar}
-
-        {/* A short status bar first, then the persistent rule reminder below it. */}
-        <div className="doodle-round-bar flex items-start justify-between gap-3 px-1">
-          <div className="min-w-0">
-            <p className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-slate-950/70 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">
+        <section className="doodle-stage">
+          {/* One bar carries the four things you look up mid-round: which round,
+              who is drawing, what the word looks like, and how long is left. */}
+          <div className="doodle-round-bar flex items-center gap-3 rounded-2xl border border-emerald-400/25 bg-gradient-to-r from-emerald-500/10 to-slate-900/60 px-3 py-2">
+            <div className="doodle-round-who min-w-0">
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
                 Round {view.round.number}/{view.totalRounds}
               </span>
-              <span className="truncate text-sm font-black uppercase tracking-wide text-amber-300 sm:text-base">
+              <p className="truncate font-display text-sm font-bold text-amber-300 sm:text-base">
                 🎨 {isDrawer ? 'You are drawing' : `${drawerName} is drawing`}
-              </span>
-            </p>
-            {!isDrawer && view.yourTurnIn ? (
-              <p className="mt-1 text-[11px] text-slate-400">
-                Your turn to draw in {view.yourTurnIn} round{view.yourTurnIn === 1 ? '' : 's'}
               </p>
-            ) : null}
-          </div>
-          <div
-            className={`flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-full border-2 sm:h-16 sm:w-16 ${
-              urgent ? 'animate-urgent border-rose-400 bg-rose-500/20 text-rose-100' : 'border-amber-300/50 bg-slate-950/70 text-white'
-            }`}
-            aria-label={`${secondsLeft} seconds left`}
-          >
-            <span className="text-xl font-black tabular-nums leading-none sm:text-2xl">{secondsLeft}</span>
-            <span className="text-[9px] uppercase tracking-wider opacity-60">sec</span>
-          </div>
-        </div>
-
-        <div className="doodle-mobile-round-details space-y-3">{roundDetails}</div>
-
-        <div className="doodle-play-area">
-          <div className="doodle-canvas-column min-w-0 space-y-2">
-            <div className="flex items-center justify-between px-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-300 sm:text-[11px] sm:tracking-[0.16em]">
-              <span>{canDraw ? 'Your drawing board' : 'Guess the drawing'}</span>
-              {phase === 'DRAWING' ? <span className="text-emerald-300">{isDrawer ? 'Draw here' : 'Type below'}</span> : null}
+              {!isDrawer && view.yourTurnIn ? (
+                <p className="doodle-round-next text-[10px] text-slate-400">
+                  You draw in {view.yourTurnIn} round{view.yourTurnIn === 1 ? '' : 's'}
+                </p>
+              ) : null}
             </div>
-            <div className="relative">
+
+            <div className="doodle-word flex min-w-0 flex-1 flex-wrap items-center justify-end gap-x-2 gap-y-0.5 text-right">
+              {wordBlock}
+              {view.round.suddenDeath ? (
+                <span className="animate-urgent rounded-full bg-rose-500 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-rose-950">
+                  ⚠️ Sudden death
+                </span>
+              ) : null}
+            </div>
+
+            <div
+              className={`doodle-timer flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-full border-2 sm:h-14 sm:w-14 ${
+                urgent ? 'animate-urgent border-rose-400 bg-rose-500/20 text-rose-100' : 'border-amber-300/50 bg-slate-950/70 text-white'
+              }`}
+              aria-label={`${secondsLeft} seconds left`}
+            >
+              <span className="text-lg font-black tabular-nums leading-none sm:text-xl">{secondsLeft}</span>
+              <span className="doodle-timer-unit text-[9px] uppercase tracking-wider opacity-60">sec</span>
+            </div>
+          </div>
+
+          {dhamakas.length || view.round.combo ? <DhamakaChips ids={dhamakas} combo={view.round.combo} /> : null}
+
+          <div className="doodle-canvas-wrap">
+            <div className="doodle-canvas-box relative">
               <DoodleCanvas
                 strokesRef={strokesRef}
                 version={version}
@@ -616,47 +561,98 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
                 </div>
               ) : null}
             </div>
-
-            {isDrawer && phase === 'DRAWING' ? (
-              <Toolbar
-                tool={tool}
-                color={ink}
-                size={size}
-                colors={inksFor(view)}
-                sizes={brushesFor(dhamakas)}
-                colorLocked={Boolean(view.round.roulette)}
-                canErase={canErase}
-                onTool={setTool}
-                onColor={setColor}
-                onSize={setSize}
-                onUndo={undo}
-                onClear={clearCanvas}
-              />
-            ) : null}
           </div>
 
-          <div className="doodle-feed-panel flex min-h-0 flex-col rounded-xl border border-slate-800 bg-slate-950/70 p-2">
-            <div className="doodle-desktop-round-details space-y-2">
-              {roundDetails}
-            </div>
-            <div className="doodle-feed-heading mt-2 flex items-center justify-between border-t border-b border-slate-800 px-1 pb-2 pt-2">
-              <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-300">Table chat</span>
-              <span className="text-[10px] text-slate-500">Guesses appear here</span>
-            </div>
-            <Feed entries={view.round.feed} you={playerId} />
-            <GuessBar
-              mode={guessMode}
-              value={guess}
-              lock={lock}
-              lockAvailable={!(mine?.lockUsed ?? false)}
-              feedback={feedback}
-              onChange={setGuess}
-              onToggleLock={() => setLock((value) => !value)}
-              onSubmit={submitGuess}
+          {isDrawer && phase === 'DRAWING' ? (
+            <Toolbar
+              tool={tool}
+              color={ink}
+              size={size}
+              colors={inksFor(view)}
+              sizes={brushesFor(dhamakas)}
+              colorLocked={Boolean(view.round.roulette)}
+              canErase={canErase}
+              onTool={setTool}
+              onColor={setColor}
+              onSize={setSize}
+              onUndo={undo}
+              onClear={clearCanvas}
             />
+          ) : null}
+        </section>
+
+        {/* Reactions, voice and the host's way out. On a phone this sits right
+            above the chat, within thumb reach of the guess box. */}
+        <section className="doodle-social rounded-2xl border border-slate-800 bg-slate-900/80 p-2">
+          <div className="doodle-social-row flex items-center gap-1">
+            <div className="doodle-emotes flex gap-1">
+              {DOODLE_REACTIONS.map((reaction) => (
+                <button
+                  key={reaction.emoji}
+                  type="button"
+                  onClick={() => socket?.emit('doodle:react', { roomCode, emoji: reaction.emoji })}
+                  title={reaction.label}
+                  aria-label={reaction.label}
+                  className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-lg leading-none transition hover:-translate-y-0.5 hover:border-amber-400/60 active:translate-y-0.5"
+                >
+                  {reaction.emoji}
+                </button>
+              ))}
+            </div>
+            <div className="doodle-voice ml-auto flex items-center gap-1">
+              <button
+                type="button"
+                onClick={voice.toggleMic}
+                aria-pressed={voice.micOn}
+                title={voice.micOn ? 'Mute your microphone' : 'Speak to the table'}
+                className={`rounded-lg p-2 transition ${voice.micOn ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-400 hover:bg-slate-800'}`}
+              >
+                {voice.micOn ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
+              </button>
+              <button
+                type="button"
+                onClick={voice.toggleSpeaker}
+                aria-pressed={voice.speakerOn}
+                title={voice.speakerOn ? 'Mute other players' : 'Hear other players'}
+                className={`rounded-lg p-2 transition ${voice.speakerOn ? 'bg-amber-500/20 text-amber-300' : 'text-slate-400 hover:bg-slate-800'}`}
+              >
+                {voice.speakerOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+              </button>
+              <span className="doodle-voice-label text-xs text-slate-500">
+                {voice.peerCount > 0 ? `${voice.peerCount} on the call` : 'Voice chat'}
+              </span>
+              {isAdmin ? (
+                <button
+                  type="button"
+                  onClick={endGame}
+                  className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-400 transition hover:border-rose-400/60 hover:text-rose-300"
+                >
+                  End game
+                </button>
+              ) : null}
+            </div>
           </div>
-        </div>
-      </section>
-    </div>
+          {voice.error ? <p className="mt-1 text-xs text-rose-300">{voice.error}</p> : null}
+        </section>
+
+        <section className="doodle-chat flex min-h-0 flex-col rounded-2xl border border-slate-800 bg-slate-950/70 p-2">
+          <div className="doodle-feed-heading flex items-center justify-between border-b border-slate-800 px-1 pb-2">
+            <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-300">Table chat</span>
+            <span className="text-[10px] text-slate-500">Guesses appear here</span>
+          </div>
+          <Feed entries={view.round.feed} you={playerId} />
+          <GuessBar
+            mode={guessMode}
+            value={guess}
+            lock={lock}
+            lockAvailable={!(mine?.lockUsed ?? false)}
+            feedback={feedback}
+            onChange={setGuess}
+            onToggleLock={() => setLock((value) => !value)}
+            onSubmit={submitGuess}
+          />
+          </section>
+      </div>
+    </>
   );
 }

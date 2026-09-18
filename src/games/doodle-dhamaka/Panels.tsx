@@ -34,11 +34,23 @@ const countTitle = (count: number) =>
 
 // ── Dhamakas ────────────────────────────────────────────────────────────────
 
-/** The round's rules as small chips, each explaining itself on tap or hover. */
-export function DhamakaChips({ ids }: { ids: DhamakaId[] }) {
+/**
+ * The round's rules as one line of chips, each explaining itself on tap.
+ *
+ * These used to be printed in full — every rule, every round, in a block above
+ * the drawing. The reveal at the start of a round is where rules actually get
+ * read; from then on the chips are a reminder of *which* rules are on, and the
+ * text is one tap away for the player who needs it.
+ */
+export function DhamakaChips({ ids, combo }: { ids: DhamakaId[]; combo?: string }) {
   const [open, setOpen] = useState<DhamakaId | null>(null);
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="doodle-chip-strip flex items-center gap-1.5">
+      {combo ? (
+        <span className="shrink-0 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-950">
+          {combo}
+        </span>
+      ) : null}
       {ids.map((id) => {
         const dhamaka = dhamakaById(id);
         return (
@@ -47,48 +59,19 @@ export function DhamakaChips({ ids }: { ids: DhamakaId[] }) {
             type="button"
             onClick={() => setOpen(open === id ? null : id)}
             title={dhamaka.rule}
-            className="group relative flex items-center gap-1 rounded-full border border-rose-400/40 bg-rose-500/15 px-2 py-0.5 text-[11px] font-bold text-rose-100 transition hover:bg-rose-500/25"
+            aria-expanded={open === id}
+            className="group relative flex shrink-0 items-center gap-1 rounded-full border border-rose-400/40 bg-rose-500/15 px-2 py-0.5 text-[11px] font-bold text-rose-100 transition hover:bg-rose-500/25"
           >
             <span aria-hidden="true">{dhamaka.emoji}</span>
             {dhamaka.name}
             {open === id ? (
-              <span className="absolute left-0 top-full z-40 mt-1 w-56 rounded-lg border border-slate-700 bg-slate-950 p-2 text-left text-xs font-normal text-slate-200 shadow-xl">
+              <span className="absolute left-0 top-full z-40 mt-1 w-56 whitespace-normal rounded-lg border border-slate-700 bg-slate-950 p-2 text-left text-xs font-normal text-slate-200 shadow-xl">
                 {dhamaka.rule}
               </span>
             ) : null}
           </button>
         );
       })}
-    </div>
-  );
-}
-
-/** Persistent reminder of the rules currently affecting the round. */
-export function ActiveDhamakas({ ids, combo }: { ids: DhamakaId[]; combo?: string }) {
-  return (
-    <div className="rounded-xl border border-rose-400/30 bg-rose-500/[0.08] px-2.5 py-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[11px] font-black uppercase tracking-[0.16em] text-rose-200 sm:text-[10px] sm:tracking-[0.18em]">💥 This round</span>
-        {combo ? (
-          <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black uppercase text-amber-950">
-            {combo}
-          </span>
-        ) : null}
-      </div>
-      <div className="mt-1.5 grid gap-1 sm:grid-cols-2">
-        {ids.map((id) => {
-          const dhamaka = dhamakaById(id);
-          return (
-            <div key={id} className="flex min-w-0 items-start gap-1.5 rounded-lg bg-slate-950/35 px-2 py-1.5">
-              <span className="shrink-0 text-sm" aria-hidden="true">{dhamaka.emoji}</span>
-              <p className="min-w-0 text-xs leading-snug text-rose-50 sm:text-[11px]">
-                <span className="font-black">{dhamaka.name}</span>
-                <span className="text-rose-100/65"> — {dhamaka.rule}</span>
-              </p>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -199,8 +182,8 @@ export function Toolbar({
   onClear: () => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/70 p-2">
-      <div className="flex flex-wrap gap-1">
+    <div className="doodle-toolbar flex flex-wrap items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/70 p-2">
+      <div className="doodle-tool-inks flex flex-wrap gap-1">
         {colors.map((swatch) => (
           <button
             key={swatch}
@@ -225,7 +208,7 @@ export function Toolbar({
         ) : null}
       </div>
 
-      <div className="flex items-center gap-1 border-l border-slate-800 pl-2">
+      <div className="doodle-tool-sizes flex items-center gap-1 border-l border-slate-800 pl-2">
         {sizes.map((width) => (
           <button
             key={width}
@@ -245,7 +228,7 @@ export function Toolbar({
         ))}
       </div>
 
-      <div className="ml-auto flex items-center gap-1">
+      <div className="doodle-tool-acts ml-auto flex items-center gap-1">
         <button
           type="button"
           onClick={() => onTool(tool === 'eraser' ? 'pen' : 'eraser')}
@@ -486,14 +469,14 @@ export function Scoreboard({
   const rows = [...view.players].sort((a, b) => b.score - a.score);
   const solved = new Set(view.round.solvedBy);
   return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
-      <div className="flex items-baseline justify-between gap-3">
+    <section className="doodle-scores-card rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
+      <div className="doodle-scores-heading flex items-baseline justify-between gap-3">
         <h2 className="text-lg font-semibold text-white">Scores</h2>
         <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-semibold tabular-nums text-amber-300">
           Round {Math.min(view.round.number, view.totalRounds)}/{view.totalRounds}
         </span>
       </div>
-      <div className="mt-3 space-y-1.5">
+      <div className="doodle-scores mt-3">
         {rows.map((player, place) => (
           <ScoreRow
             key={player.id}
@@ -539,11 +522,11 @@ function ScoreRow({
 
   return (
     <div
-      className={`flex items-center gap-2 rounded-xl px-2 py-1.5 transition ${
-        solved ? 'bg-emerald-500/15' : drawing ? 'bg-amber-400/10' : you ? 'bg-slate-800/60' : ''
+      className={`doodle-score-row flex items-center gap-2 rounded-xl px-2 py-1.5 transition ${
+        solved ? 'is-solved bg-emerald-500/15' : drawing ? 'is-drawing bg-amber-400/10' : you ? 'bg-slate-800/60' : ''
       }`}
     >
-      <span className="w-5 shrink-0 text-center text-xs font-bold tabular-nums text-slate-500">
+      <span className="doodle-score-rank w-5 shrink-0 text-center text-xs font-bold tabular-nums text-slate-500">
         {place === 0 && player.score > 0 ? '👑' : place + 1}
       </span>
       <span className="relative shrink-0">
@@ -552,13 +535,13 @@ function ScoreRow({
           <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-slate-600 ring-2 ring-slate-900" title="Offline" />
         ) : null}
       </span>
-      <span className={`min-w-0 flex-1 truncate text-sm ${you ? 'font-bold text-white' : 'text-slate-200'}`}>
+      <span className={`doodle-score-name min-w-0 flex-1 truncate text-sm ${you ? 'font-bold text-white' : 'text-slate-200'}`}>
         {player.name}
         {player.streak >= 2 ? <span className="ml-1 text-[11px] text-orange-300">🔥{player.streak}</span> : null}
       </span>
-      {drawing ? <span className="text-base" title="Drawing">🎨</span> : null}
-      {solved ? <span className="text-sm font-bold text-emerald-300" title="Guessed it">✓</span> : null}
-      <span className="w-12 shrink-0 text-right text-sm font-bold tabular-nums text-white">{shown}</span>
+      {drawing ? <span className="shrink-0 text-base" title="Drawing">🎨</span> : null}
+      {solved ? <span className="shrink-0 text-sm font-bold text-emerald-300" title="Guessed it">✓</span> : null}
+      <span className="doodle-score-pts w-12 shrink-0 text-right text-sm font-bold tabular-nums text-white">{shown}</span>
     </div>
   );
 }
