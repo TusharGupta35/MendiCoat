@@ -73,7 +73,7 @@ const rooms = new Map<string, ImpostorRoom>();
 /**
  * The fewest people a game can start with.
  *
- * Four in production, always. In development it can be lowered to two with
+ * Three in production, always. In development it can be lowered to two with
  * `IMPOSTOR_MIN_PLAYERS`, which is the only way one person can look at both
  * sides of a secret — two browser windows, one of which is the impostor.
  *

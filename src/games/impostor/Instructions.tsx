@@ -3,8 +3,8 @@ import { HowToPlay } from '@/components/HowToPlay';
 
 const QUICK_STEPS = [
   {
-    title: 'Gather 4 or more',
-    body: 'Four to twelve friends, no bots — a bot cannot invent an answer and then defend it. Before starting, everyone can add their own questions about the group.',
+    title: 'Gather 3 or more',
+    body: 'Three to twelve friends, no bots — a bot cannot invent an answer and then defend it. Before starting, everyone can add their own questions about the group.',
   },
   {
     title: 'Read your card',
@@ -67,7 +67,7 @@ export function ImpostorInstructions() {
   return (
     <HowToPlay
       heading="How to play"
-      badge="4–12 players · no bots"
+      badge="3–12 players · no bots"
       intro="Everyone answers the same question. One of you never saw it. Find them — before they work out what was asked."
       steps={QUICK_STEPS}
       rules={RULES}

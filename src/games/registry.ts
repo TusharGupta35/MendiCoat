@@ -67,7 +67,7 @@ export const GAMES: Game[] = [
     tagline: 'Everyone answers the question. One of you never saw it.',
     blurb:
       'Everybody gets the same question and answers it — except the impostor, who only sees the answers and has to invent one that fits. Then the table votes. Crew win by catching them; the impostor wins by surviving the vote.',
-    players: '4–12 players',
+    players: '3–12 players',
     maxPlayers: 12,
     // A bot would have to invent a plausible answer and then survive being
     // cross-examined about it. That is a much harder problem than playing a
@@ -84,7 +84,7 @@ export const GAMES: Game[] = [
     tagline: "You know how to play. You never know what the next round will do.",
     blurb:
       'One player draws, everyone else races to guess — and every round a Dhamaka changes the rules: one stroke only, a blind artist, fake guesses in the chat, thirty seconds on the clock. Add your own inside jokes and watch your friends try to draw them.',
-    players: '4–12 players',
+    players: '3–12 players',
     maxPlayers: 12,
     bots: false,
     status: 'live',

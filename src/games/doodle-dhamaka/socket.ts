@@ -63,9 +63,9 @@ const rooms = new Map<string, DoodleRoom>();
 /**
  * The fewest people a game can start with.
  *
- * Four, always, in production. In development it can be lowered with
+ * Three, always, in production. In development it can be lowered with
  * `DOODLE_MIN_PLAYERS` so the game can be tried in two browser windows by
- * someone who does not have four Google accounts to sign in with. Never below
+ * someone who does not have three Google accounts to sign in with. Never below
  * two: a drawing needs somebody to guess it.
  *
  * Read on every call rather than once at import, because the socket server is

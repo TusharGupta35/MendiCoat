@@ -3,8 +3,8 @@ import { HowToPlay } from '@/components/HowToPlay';
 
 const QUICK_STEPS = [
   {
-    title: 'Gather 4 or more',
-    body: 'Four to twelve friends. Before starting, everyone can slip in their own words — inside jokes, places, each other.',
+    title: 'Gather 3 or more',
+    body: 'Three to twelve friends. Before starting, everyone can slip in their own words — inside jokes, places, each other.',
   },
   {
     title: 'Draw',
@@ -67,7 +67,7 @@ export function DoodleInstructions() {
   return (
     <HowToPlay
       heading="How to play"
-      badge="4–12 players · no bots"
+      badge="3–12 players · no bots"
       intro="Someone draws, everyone guesses — and every round, a Dhamaka changes the rules. You know how to play. You never know what the next round will do."
       steps={QUICK_STEPS}
       rules={RULES}
