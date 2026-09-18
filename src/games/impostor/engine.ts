@@ -31,7 +31,7 @@ import type {
  * allowed to see it. No other function in this file hands the question out.
  */
 
-export const MIN_PLAYERS = 4;
+export const MIN_PLAYERS = 3;
 export const MAX_PLAYERS = 12;
 
 /** Every phase's length, per mode. Quick is the same game in less time. */

@@ -119,10 +119,10 @@ async function drawing(count = 4) {
 }
 
 describe('a Doodle Dhamaka table', () => {
-  it('will not start with fewer than four people', async () => {
-    const { code, seats } = await table(3);
+  it('will not start with fewer than three people', async () => {
+    const { code, seats } = await table(2);
     const reply = await ask(seats[0].client, 'doodle:start', { roomCode: code });
-    expect(reply.error).toMatch(/at least 4/);
+    expect(reply.error).toMatch(/at least 3/);
   });
 
   it('can be lowered to two for local testing, but never in production', async () => {
@@ -134,7 +134,7 @@ describe('a Doodle Dhamaka table', () => {
 
       vi.stubEnv('NODE_ENV', 'production');
       const prod = await table(2);
-      expect((await ask(prod.seats[0].client, 'doodle:start', { roomCode: prod.code })).error).toMatch(/at least 4/);
+      expect((await ask(prod.seats[0].client, 'doodle:start', { roomCode: prod.code })).error).toMatch(/at least 3/);
     } finally {
       vi.unstubAllEnvs();
       if (saved.min === undefined) delete process.env.DOODLE_MIN_PLAYERS;

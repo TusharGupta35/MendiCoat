@@ -39,7 +39,7 @@ import { DIFFICULTY_LABEL, DIFFICULTY_MULTIPLIER, WORDS, wordsFor } from './word
  * be tested at any moment of a round without waiting for it.
  */
 
-export const MIN_PLAYERS = 4;
+export const MIN_PLAYERS = 3;
 export const MAX_PLAYERS = 12;
 
 export const ROUND_MS = 80_000;
