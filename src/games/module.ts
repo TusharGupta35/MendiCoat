@@ -2,6 +2,7 @@ import type { Server } from 'socket.io';
 import { closeMendiCoatRoom, registerMendiCoatHandlers } from '@/games/mendi-coat/socket';
 import { closeTigdiRoom, registerTigdiHandlers } from '@/games/teen-ki-tigdi/socket';
 import { closeDoodleRoom, registerDoodleHandlers } from '@/games/doodle-dhamaka/socket';
+import { closeImpostorRoom, registerImpostorHandlers } from '@/games/impostor/socket';
 
 /**
  * What a game has to offer the platform to be playable.
@@ -57,5 +58,11 @@ export const GAME_MODULES: GameModule[] = [
     register: registerDoodleHandlers,
     closeRoom: closeDoodleRoom,
     closedEvent: 'doodle:closed',
+  },
+  {
+    id: 'IMPOSTOR',
+    register: registerImpostorHandlers,
+    closeRoom: closeImpostorRoom,
+    closedEvent: 'imp:closed',
   },
 ];
