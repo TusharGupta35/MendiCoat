@@ -65,14 +65,19 @@ export default async function RoomPage({
       {/* Wider than the other pages' 86rem: the table and its sidebars want the
           room. Everything above the table is the same kit as every other page —
           the slim bar, then a panel that names what you are looking at. */}
-      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 sm:gap-5">
-        <AppHeader variant="slim" />
+      <div className="room-shell mx-auto flex w-full max-w-[1600px] flex-col gap-4 sm:gap-5">
+        {/* Both bars are marked as chrome: a table that needs the whole short
+            axis — Doodle Dhamaka on a sideways phone — folds them away from
+            CSS, without this page needing to know which game is on. */}
+        <div className="room-chrome contents">
+          <AppHeader variant="slim" />
+        </div>
 
         {/* The table's own bar. It used to be a heading inside one big panel
             that wrapped the whole game, which put every game panel inside a
             second panel; the game's panels now sit on the page like the rest
             of the app's. */}
-        <header className="flex flex-wrap items-center justify-between gap-x-5 gap-y-3 rounded-2xl border border-amber-300/30 bg-slate-900/80 px-4 py-3 sm:px-5">
+        <header className="room-chrome flex flex-wrap items-center justify-between gap-x-5 gap-y-3 rounded-2xl border border-amber-300/30 bg-slate-900/80 px-4 py-3 sm:px-5">
           <div className="flex min-w-0 items-center gap-3">
             <GameEmblem game={game} className="h-11 w-11 p-2" />
             <div className="min-w-0">
