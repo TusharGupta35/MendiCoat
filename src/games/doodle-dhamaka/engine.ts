@@ -601,10 +601,12 @@ export function endRound(state: DoodleState, now: number) {
     if (player) player.streak = 0;
   }
 
+  const secondsFor = (at: number) => Math.round((at - round.startedAt!) / 100) / 10;
+  const guessTimes = Object.fromEntries(guessed.map(([id, entry]) => [id, secondsFor(entry.guessedAt!)]));
+  const missed = round.eligible.filter((id) => round.guesses[id]?.guessedAt === undefined);
+
   const fastestEntry = guessed.sort((a, b) => a[1].guessedAt! - b[1].guessedAt!)[0];
-  const fastest = fastestEntry
-    ? { playerId: fastestEntry[0], seconds: Math.round((fastestEntry[1].guessedAt! - round.startedAt!) / 100) / 10 }
-    : undefined;
+  const fastest = fastestEntry ? { playerId: fastestEntry[0], seconds: secondsFor(fastestEntry[1].guessedAt!) } : undefined;
 
   const wrongGuesses: Record<string, number> = {};
   for (const [id, entry] of Object.entries(round.guesses)) if (entry.wrong) wrongGuesses[id] = entry.wrong;
@@ -625,6 +627,8 @@ export function endRound(state: DoodleState, now: number) {
     guessed: guessed.length,
     eligible: round.eligible.length,
     ...(fastest ? { fastest } : {}),
+    guessTimes,
+    missed,
     points,
     drawerPoints,
     wrongGuesses,

@@ -21,12 +21,14 @@ export interface SeatInfo {
   isOnline: boolean;
 }
 
-const DIFFICULTY_STYLE: Record<Prompt['difficulty'], string> = {
-  easy: 'border-emerald-400/40 bg-emerald-500/10 text-emerald-200',
-  medium: 'border-sky-400/40 bg-sky-500/10 text-sky-200',
-  hard: 'border-violet-400/40 bg-violet-500/10 text-violet-200',
-  dhamaka: 'border-rose-400/50 bg-rose-500/10 text-rose-200',
-  friends: 'border-amber-400/50 bg-amber-500/10 text-amber-200',
+/* The word choices are sticky notes, one colour per difficulty, in the same
+   crayon colours the drawing is made of (see PALETTE in `dhamakas.ts`). */
+const DIFFICULTY_NOTE: Record<Prompt['difficulty'], string> = {
+  easy: 'bg-[#dcfce7] border-[#16a34a]',
+  medium: 'bg-[#e0f2fe] border-[#0ea5e9]',
+  hard: 'bg-[#ede9fe] border-[#7c3aed]',
+  dhamaka: 'bg-[#ffe4e6] border-[#db2777]',
+  friends: 'bg-[#fef3c7] border-[#f97316]',
 };
 
 const countTitle = (count: number) =>
@@ -47,7 +49,7 @@ export function DhamakaChips({ ids, combo }: { ids: DhamakaId[]; combo?: string 
   return (
     <div className="doodle-chip-strip flex items-center gap-1.5">
       {combo ? (
-        <span className="shrink-0 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-950">
+        <span className="font-display shrink-0 rounded-full bg-amber-400 px-2.5 py-0.5 text-xs font-black uppercase tracking-wider text-amber-950 lg:text-sm">
           {combo}
         </span>
       ) : null}
@@ -60,12 +62,12 @@ export function DhamakaChips({ ids, combo }: { ids: DhamakaId[]; combo?: string 
             onClick={() => setOpen(open === id ? null : id)}
             title={dhamaka.rule}
             aria-expanded={open === id}
-            className="group relative flex shrink-0 items-center gap-1 rounded-full border border-rose-400/40 bg-rose-500/15 px-2 py-0.5 text-[11px] font-bold text-rose-100 transition hover:bg-rose-500/25"
+            className="group relative flex shrink-0 items-center gap-1.5 rounded-full border border-rose-400/40 bg-rose-500/15 px-2.5 py-1 text-sm font-bold text-rose-100 transition hover:bg-rose-500/25 lg:text-base"
           >
             <span aria-hidden="true">{dhamaka.emoji}</span>
             {dhamaka.name}
             {open === id ? (
-              <span className="absolute left-0 top-full z-40 mt-1 w-56 whitespace-normal rounded-lg border border-slate-700 bg-slate-950 p-2 text-left text-xs font-normal text-slate-200 shadow-xl">
+              <span className="absolute left-0 top-full z-40 mt-1 w-64 whitespace-normal rounded-lg border border-slate-700 bg-slate-950 p-2.5 text-left text-sm font-normal text-slate-200 shadow-xl">
                 {dhamaka.rule}
               </span>
             ) : null}
@@ -84,27 +86,34 @@ export function DhamakaChips({ ids, combo }: { ids: DhamakaId[]; combo?: string 
 export function DhamakaReveal({ ids, combo }: { ids: DhamakaId[]; combo?: string }) {
   const comboInfo = COMBOS.find((entry) => entry.name === combo);
   return (
-    <div className="flex flex-col items-center gap-3 text-center">
-      <p className="animate-dhamaka-in text-2xl font-black uppercase tracking-[0.12em] text-rose-300 drop-shadow-[0_0_24px_rgba(251,113,133,0.6)] sm:text-4xl">
+    <div className="m-auto flex flex-col items-center gap-3 text-center">
+      <p className="font-display animate-dhamaka-in text-3xl font-extrabold uppercase tracking-[0.12em] text-rose-300 drop-shadow-[0_0_24px_rgba(251,113,133,0.6)] sm:text-5xl lg:text-6xl">
         {countTitle(ids.length)}!
       </p>
       {comboInfo ? (
-        <p className="animate-dhamaka-in rounded-full bg-amber-400 px-3 py-1 text-xs font-black uppercase tracking-wider text-amber-950 [animation-delay:250ms]">
+        <p className="font-display animate-dhamaka-in rounded-full bg-amber-400 px-4 py-1 text-sm font-black uppercase tracking-wider text-amber-950 [animation-delay:250ms] lg:text-lg">
           {comboInfo.emoji} {comboInfo.name}
         </p>
       ) : null}
-      <div className="grid w-full max-w-xl grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:justify-center sm:gap-2">
+      {/* Each rule is a note torn off and stuck to the board. On a phone they
+          stack, because the rule is the part that has to be read and three
+          columns of it is three words per line. */}
+      <div className="grid w-full max-w-xl gap-2 sm:flex sm:flex-wrap sm:justify-center sm:gap-3">
         {ids.map((id, index) => {
           const dhamaka = dhamakaById(id);
           return (
             <div
               key={id}
-              className="animate-dhamaka-in min-w-0 rounded-2xl border border-rose-400/40 bg-slate-950/90 p-1.5 shadow-2xl sm:w-48 sm:p-3"
+              className={`doodle-paper animate-dhamaka-in flex min-w-0 items-center gap-3 rounded-2xl p-3 text-left sm:w-52 sm:flex-col sm:gap-1 sm:p-4 sm:text-center ${
+                index % 2 ? 'doodle-tilt-r' : 'doodle-tilt-l'
+              }`}
               style={{ animationDelay: `${300 + index * 220}ms` }}
             >
-              <p className="text-2xl sm:text-3xl" aria-hidden="true">{dhamaka.emoji}</p>
-              <p className="mt-1 break-words text-[10px] font-black uppercase leading-tight tracking-wide text-white sm:text-sm">{dhamaka.name}</p>
-              <p className="mt-1 text-[9px] leading-tight text-slate-400 sm:text-[11px] sm:leading-snug">{dhamaka.rule}</p>
+              <p className="text-4xl sm:text-5xl" aria-hidden="true">{dhamaka.emoji}</p>
+              <div className="min-w-0">
+                <p className="font-display break-words text-lg font-extrabold leading-tight sm:text-xl">{dhamaka.name}</p>
+                <p className="mt-0.5 text-sm font-semibold leading-snug text-[#1f1b2e]/70 sm:text-base">{dhamaka.rule}</p>
+              </div>
             </div>
           );
         })}
@@ -125,25 +134,33 @@ export function ChoosePanel({
   onChoose: (id: string) => void;
 }) {
   return (
-    <div className="w-full max-w-2xl">
-      <p className="text-center text-xs font-semibold uppercase tracking-[0.16em] text-amber-300 sm:text-sm sm:tracking-[0.2em]">
-        Pick what to draw · {secondsLeft}s
+    <div className="m-auto w-full max-w-2xl">
+      <p className="font-display text-center text-lg font-extrabold text-white sm:text-2xl lg:text-3xl">
+        Pick what to draw
+        <span className={`ml-2 tabular-nums ${secondsLeft <= 5 ? 'animate-urgent text-rose-300' : 'text-amber-300'}`}>
+          {secondsLeft}s
+        </span>
       </p>
-      <div className="mt-2 grid grid-cols-3 gap-1.5 sm:mt-3 sm:gap-2">
+      {/* A phone gets three notes stacked, because three columns on a 390px
+          screen is where the word ended up in 12px type. */}
+      <div className="mt-3 grid gap-2 sm:mt-4 sm:grid-cols-3 sm:gap-3">
         {choices.map((choice, index) => (
           <button
             key={choice.id}
             type="button"
             onClick={() => onChoose(choice.id)}
-            className={`animate-dhamaka-in flex min-h-32 flex-col items-center justify-center gap-1 rounded-2xl border-2 p-2 text-center transition hover:-translate-y-1 hover:shadow-xl active:translate-y-0 sm:min-h-44 sm:p-3 ${DIFFICULTY_STYLE[choice.difficulty]}`}
+            className={`animate-dhamaka-in flex items-center gap-3 rounded-2xl border-2 p-3 text-left text-[#1f1b2e] shadow-lg transition hover:-translate-y-1 hover:shadow-2xl active:translate-y-0 sm:min-h-48 sm:flex-col sm:justify-center sm:gap-1.5 sm:p-4 sm:text-center ${
+              DIFFICULTY_NOTE[choice.difficulty]
+            } ${index % 2 ? 'doodle-tilt-r' : 'doodle-tilt-l'}`}
             style={{ animationDelay: `${index * 90}ms` }}
           >
-            <span className="text-[8px] font-black uppercase tracking-[0.14em] opacity-80 sm:text-[10px] sm:tracking-[0.2em]">
-              {index === 2 && choice.difficulty !== 'friends' ? 'Chaotic' : DIFFICULTY_LABEL[choice.difficulty]}
+            <span className="text-4xl sm:text-5xl" aria-hidden="true">{choice.emoji}</span>
+            <span className="min-w-0 flex-1 sm:flex-none">
+              <span className="font-display block text-xl font-extrabold leading-tight sm:text-2xl lg:text-3xl">{choice.text}</span>
+              <span className="mt-0.5 block text-xs font-bold uppercase tracking-wider text-[#1f1b2e]/55 sm:text-sm">
+                {index === 2 && choice.difficulty !== 'friends' ? 'Chaotic' : DIFFICULTY_LABEL[choice.difficulty]} · {choice.category}
+              </span>
             </span>
-            <span className="text-2xl sm:text-3xl" aria-hidden="true">{choice.emoji}</span>
-            <span className="text-xs font-bold leading-tight text-white sm:text-base">{choice.text}</span>
-            <span className="text-[9px] text-slate-400 sm:text-[10px]">{choice.category}</span>
           </button>
         ))}
       </div>
@@ -438,12 +455,12 @@ export function GuessBar({
           autoCapitalize="off"
           spellCheck={false}
           placeholder={placeholder}
-          className="min-w-0 flex-1 bg-transparent px-2 py-2 text-base text-white outline-none placeholder:text-slate-500 disabled:cursor-not-allowed sm:text-sm"
+          className="min-w-0 flex-1 bg-transparent px-2 py-2 text-base text-white outline-none placeholder:text-slate-500 disabled:cursor-not-allowed lg:text-lg"
         />
         <button
           type="submit"
           disabled={mode === 'spent' || !value.trim()}
-          className={`shrink-0 rounded-lg px-4 py-2 text-sm font-bold transition disabled:opacity-40 ${
+          className={`shrink-0 rounded-lg px-4 py-2 text-base font-bold transition disabled:opacity-40 ${
             lock ? 'bg-amber-400 text-amber-950' : 'bg-emerald-500 text-emerald-950 hover:bg-emerald-400'
           }`}
         >
@@ -451,7 +468,7 @@ export function GuessBar({
         </button>
       </form>
       {feedback ? (
-        <p className={`mt-1 px-1 text-xs font-bold ${toneStyle[feedback.tone]}`}>{feedback.text}</p>
+        <p className={`mt-1 px-1 text-sm font-bold lg:text-base ${toneStyle[feedback.tone]}`}>{feedback.text}</p>
       ) : null}
     </div>
   );
@@ -561,70 +578,99 @@ export function RoundResultCard({
   nextCount: number | null;
   secondsLeft: number;
 }) {
-  const earners = Object.entries(result.points).sort((a, b) => b[1].total - a[1].total);
-  const visibleEarners = earners.slice(0, 3);
   const nameOf = (id: string) => names.get(id) ?? 'Someone';
+  const got = result.eligible - result.missed.length;
   const outcome =
-    result.outcome === 'perfect' ? '🔥 Perfect draw' : result.outcome === 'disaster' ? '💀 Nobody got it' : 'Round complete';
-  return (
-    <div className="w-full max-w-md overflow-hidden rounded-2xl border border-amber-300/25 bg-slate-900/95 p-2.5 text-center shadow-2xl sm:p-3">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300">Round over</p>
-        <p className={`truncate text-[10px] font-black uppercase tracking-wide ${result.outcome === 'perfect' ? 'text-emerald-300' : result.outcome === 'disaster' ? 'text-slate-300' : 'text-slate-400'}`}>
-          {outcome}
-        </p>
-      </div>
+    result.outcome === 'perfect'
+      ? { text: '🔥 Perfect draw — everyone got it', paint: 'bg-[#16a34a] text-white' }
+      : result.outcome === 'disaster'
+        ? { text: '💀 Nobody got it', paint: 'bg-[#dc2626] text-white' }
+        : { text: `${got} of ${result.eligible} got it`, paint: 'bg-[#facc15] text-[#1f1b2e]' };
 
-      <div className="mt-1.5 rounded-xl bg-slate-950/80 px-2.5 py-1.5">
-        <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">The answer</p>
-        <p className="mt-0.5 truncate text-lg font-black text-white sm:text-xl">
-          {result.prompt.emoji} {result.prompt.text}
-        </p>
-      </div>
-      <p className="mt-1.5 text-[10px] leading-snug text-slate-400">
-        Drawn by <span className="font-semibold text-slate-200">{nameOf(result.drawerId)}</span> · {result.guessed}/
-        <span className="font-semibold text-emerald-300">{result.eligible}</span> guessed it
-        {result.fastest ? (
-          <>
-            {' '}· fastest <span className="font-semibold text-amber-300">{nameOf(result.fastest.playerId)}</span>{' '}
-            {result.fastest.seconds}s
-          </>
-        ) : null}
+  // Everyone the round touched: whoever scored, then the drawer and the
+  // guessers who came away with nothing. A round nobody solved still owes the
+  // table an explanation, and a list of only the winners is not one.
+  const earners = Object.entries(result.points).sort((a, b) => b[1].total - a[1].total);
+  const rows: Array<[string, number]> = earners.map(([id, points]) => [id, points.total]);
+  for (const id of [result.drawerId, ...result.missed]) if (!result.points[id]) rows.push([id, 0]);
+  // A phone shows the first few and counts the rest; the card is on a square
+  // canvas and gone in eight seconds, so it cannot be a scrolling list.
+  const ROWS_ON_PHONE = 4;
+  const hiddenOnPhone = Math.max(0, rows.length - ROWS_ON_PHONE);
+  const didWhat = (id: string) =>
+    id === result.drawerId
+      ? { text: '🎨 Drew it', tone: 'text-[#b45309]' }
+      : result.guessTimes[id] !== undefined
+        ? { text: `✓ Guessed in ${result.guessTimes[id]}s`, tone: 'text-[#16a34a]' }
+        : { text: '✗ Didn’t get it', tone: 'text-[#1f1b2e]/45' };
+  const signed = (total: number) => (total > 0 ? `+${total}` : total < 0 ? `−${-total}` : '0');
+
+  return (
+    <div className="doodle-paper doodle-tilt-l doodle-taped m-auto w-full max-w-sm rounded-2xl p-3.5 text-center sm:max-w-md sm:p-5 lg:max-w-xl lg:rounded-3xl lg:p-7">
+      <p className="font-display text-xs font-bold uppercase tracking-[0.2em] text-[#1f1b2e]/55 lg:text-sm">
+        Round {result.number} · the word was
+      </p>
+      <p className="font-display mt-0.5 truncate text-3xl font-extrabold leading-tight sm:text-4xl lg:mt-1 lg:text-5xl">
+        {result.prompt.emoji} {result.prompt.text}
       </p>
 
+      <p className={`font-display mt-2 inline-block rounded-full px-3 py-1 text-sm font-bold lg:mt-3 lg:px-4 lg:text-lg ${outcome.paint}`}>
+        {outcome.text}
+      </p>
+
+      <ul className="mt-3 text-left lg:mt-5">
+        {rows.map(([id, total], index) => {
+          const did = didWhat(id);
+          return (
+            <li
+              key={id}
+              className={`doodle-ruled items-center gap-3 py-1.5 lg:py-2.5 ${index >= ROWS_ON_PHONE ? 'hidden lg:flex' : 'flex'}`}
+            >
+              <div className="min-w-0 flex-1">
+                <p className="font-display truncate text-base font-bold leading-tight lg:text-xl">{nameOf(id)}</p>
+                <p className={`truncate text-xs font-semibold lg:text-base ${did.tone}`}>{did.text}</p>
+              </div>
+              <p
+                className={`font-display shrink-0 text-lg font-extrabold tabular-nums lg:text-2xl ${
+                  total > 0 ? 'text-[#16a34a]' : total < 0 ? 'text-[#dc2626]' : 'text-[#1f1b2e]/35'
+                }`}
+              >
+                {signed(total)}
+              </p>
+            </li>
+          );
+        })}
+        {hiddenOnPhone ? (
+          <li className="doodle-ruled py-1.5 text-center text-xs font-semibold text-[#1f1b2e]/45 lg:hidden">
+            + {hiddenOnPhone} more on the scoreboard
+          </li>
+        ) : null}
+      </ul>
+
       {result.awards.length ? (
-        <div className="mt-1.5 flex flex-wrap justify-center gap-1">
-          {result.awards.slice(0, 2).map((award) => (
-            <span key={`${award.title}-${award.playerId}`} className="rounded-full border border-amber-300/30 bg-amber-400/10 px-2 py-0.5 text-[10px] text-amber-100">
-              {award.emoji} <span className="font-bold">{award.title}</span> · {nameOf(award.playerId)}
+        <div className="mt-2.5 flex flex-wrap justify-center gap-1.5 lg:mt-4 lg:gap-2">
+          {result.awards.map((award, index) => (
+            <span
+              key={`${award.title}-${award.playerId}`}
+              className={`rounded-full border-2 border-dashed border-[#1f1b2e]/30 px-2.5 py-0.5 text-xs font-bold lg:px-3.5 lg:py-1 lg:text-base ${
+                index >= 2 ? 'hidden lg:inline' : ''
+              }`}
+            >
+              {award.emoji} {award.title} · {nameOf(award.playerId)}
             </span>
           ))}
         </div>
       ) : null}
 
-      {visibleEarners.length ? (
-        <div className="mt-1.5 rounded-xl bg-slate-950/70 px-2 py-1.5">
-          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500">Points this round</p>
-          <div className="mt-1 flex flex-wrap justify-center gap-1">
-            {visibleEarners.map(([id, points]) => (
-              <span key={id} className="rounded-full bg-slate-800 px-2 py-1 text-[10px] text-slate-200">
-                {nameOf(id)} <span className="font-black text-emerald-300">+{points.total}</span>
-              </span>
-            ))}
-            {earners.length > visibleEarners.length ? <span className="self-center text-[9px] text-slate-500">+ more on scoreboard</span> : null}
-          </div>
-        </div>
-      ) : null}
-
       {nextDrawer || (nextCount && nextCount >= 2) ? (
-        <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[10px]">
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm font-semibold lg:mt-5 lg:gap-x-3 lg:text-lg">
           {nextDrawer ? (
-            <span className="text-slate-300">
-              Next: <span className="font-bold text-amber-300">{nextDrawer}</span> in {secondsLeft}s
+            <span className="text-[#1f1b2e]/70">
+              Next: <span className="font-display font-extrabold text-[#1f1b2e]">{nextDrawer}</span> draws in {secondsLeft}s
             </span>
           ) : null}
           {nextCount && nextCount >= 2 ? (
-            <span className="animate-urgent rounded-full bg-rose-500 px-2 py-0.5 font-black uppercase tracking-wider text-rose-950">
+            <span className="animate-urgent rounded-full bg-[#dc2626] px-2.5 py-0.5 text-xs font-black uppercase tracking-wider text-white lg:px-3 lg:py-1 lg:text-sm">
               {countTitle(nextCount)} next
             </span>
           ) : null}

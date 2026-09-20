@@ -406,25 +406,28 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
   const wordBlock =
     phase === 'DRAWING' && view.round.hint ? (
       <>
-        <span className="doodle-word-mask font-mono text-lg font-black tracking-[0.18em] text-white sm:text-xl">
+        {/* The blanks are the thing everyone stares at, so they are printed on
+            a strip of the same paper the drawing is on, at a size you can read
+            across a room. */}
+        <span className="doodle-word-mask rounded-lg bg-[#fffdf8] px-2.5 py-1 font-mono text-xl font-black tracking-[0.2em] text-[#1f1b2e] sm:text-2xl lg:px-3 lg:text-3xl">
           {view.round.hint.mask}
         </span>
-        <span className="doodle-word-meta text-[11px] text-slate-500">{view.round.hint.letters} letters</span>
+        <span className="doodle-word-meta text-xs text-slate-400 lg:text-sm">{view.round.hint.letters} letters</span>
         {view.round.hint.category ? (
-          <span className="doodle-word-meta rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] font-bold text-sky-200">
+          <span className="doodle-word-meta rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-bold text-sky-200 lg:text-sm">
             {view.round.hint.emoji} {view.round.hint.category}
           </span>
         ) : null}
       </>
     ) : phase === 'DRAWING' && view.round.answer ? (
-      <span className="text-base font-black text-emerald-300 sm:text-lg">
+      <span className="font-display text-lg font-extrabold text-emerald-300 sm:text-xl lg:text-2xl">
         {isDrawer ? 'Draw: ' : '✓ You got it: '}
         {view.round.answer.emoji} {view.round.answer.text}
       </span>
     ) : phase === 'CHOOSING' ? (
-      <span className="text-sm text-slate-400">{isDrawer ? 'Choose your word' : `${drawerName} is choosing…`}</span>
+      <span className="text-base text-slate-300 lg:text-lg">{isDrawer ? 'Choose your word' : `${drawerName} is choosing…`}</span>
     ) : view.round.answer ? (
-      <span className="text-base font-black text-white sm:text-lg">
+      <span className="font-display text-lg font-extrabold text-white sm:text-xl lg:text-2xl">
         {view.round.answer.emoji} {view.round.answer.text}
       </span>
     ) : null;
@@ -443,14 +446,14 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
               who is drawing, what the word looks like, and how long is left. */}
           <div className="doodle-round-bar flex items-center gap-3 rounded-2xl border border-emerald-400/25 bg-gradient-to-r from-emerald-500/10 to-slate-900/60 px-3 py-2">
             <div className="doodle-round-who min-w-0">
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
+              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 lg:text-xs">
                 Round {view.round.number}/{view.totalRounds}
               </span>
-              <p className="truncate font-display text-sm font-bold text-amber-300 sm:text-base">
+              <p className="truncate font-display text-base font-bold text-amber-300 sm:text-lg lg:text-xl">
                 🎨 {isDrawer ? 'You are drawing' : `${drawerName} is drawing`}
               </p>
               {!isDrawer && view.yourTurnIn ? (
-                <p className="doodle-round-next text-[10px] text-slate-400">
+                <p className="doodle-round-next text-xs text-slate-400">
                   You draw in {view.yourTurnIn} round{view.yourTurnIn === 1 ? '' : 's'}
                 </p>
               ) : null}
@@ -459,20 +462,20 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
             <div className="doodle-word flex min-w-0 flex-1 flex-wrap items-center justify-end gap-x-2 gap-y-0.5 text-right">
               {wordBlock}
               {view.round.suddenDeath ? (
-                <span className="animate-urgent rounded-full bg-rose-500 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-rose-950">
+                <span className="animate-urgent rounded-full bg-rose-500 px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-rose-950 lg:text-xs">
                   ⚠️ Sudden death
                 </span>
               ) : null}
             </div>
 
             <div
-              className={`doodle-timer flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-full border-2 sm:h-14 sm:w-14 ${
+              className={`doodle-timer flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-full border-2 sm:h-16 sm:w-16 ${
                 urgent ? 'animate-urgent border-rose-400 bg-rose-500/20 text-rose-100' : 'border-amber-300/50 bg-slate-950/70 text-white'
               }`}
               aria-label={`${secondsLeft} seconds left`}
             >
-              <span className="text-lg font-black tabular-nums leading-none sm:text-xl">{secondsLeft}</span>
-              <span className="doodle-timer-unit text-[9px] uppercase tracking-wider opacity-60">sec</span>
+              <span className="font-display text-2xl font-extrabold tabular-nums leading-none sm:text-3xl">{secondsLeft}</span>
+              <span className="doodle-timer-unit text-[10px] uppercase tracking-wider opacity-60">sec</span>
             </div>
           </div>
 
@@ -509,12 +512,12 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
               </div>
 
               {isDrawer && phase === 'DRAWING' && hasDhamaka(dhamakas, 'opposite-hand') ? (
-                <p className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-slate-900/85 px-3 py-1 text-sm font-bold text-amber-200 sm:text-xs">
+                <p className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-slate-900/85 px-3.5 py-1.5 text-sm font-bold text-amber-200 lg:text-base">
                   🤚 Other hand! We trust you.
                 </p>
               ) : null}
               {canDraw === false && isDrawer && phase === 'DRAWING' && oneStroke ? (
-                <p className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-slate-900/85 px-3 py-1 text-sm font-bold text-rose-200 sm:text-xs">
+                <p className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-slate-900/85 px-3.5 py-1.5 text-sm font-bold text-rose-200 lg:text-base">
                   ✍️ Your one stroke is drawn
                 </p>
               ) : null}
@@ -528,7 +531,7 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
               ) : null}
 
               {phase === 'CHOOSING' ? (
-                <div className="absolute inset-0 z-20 flex items-center justify-center overflow-y-auto rounded-xl bg-slate-950/95 p-2 backdrop-blur-sm sm:p-3">
+                <div className="absolute inset-0 z-20 flex overflow-y-auto rounded-xl bg-slate-950/90 p-2 backdrop-blur-sm sm:p-3">
                   {showReveal ? (
                     <DhamakaReveal ids={dhamakas} combo={view.round.combo} />
                   ) : isDrawer && view.round.choices ? (
@@ -538,10 +541,13 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
                       onChoose={(promptId) => emit('doodle:choose', { promptId })}
                     />
                   ) : (
-                    <div className="text-center">
-                      <p className="text-4xl" aria-hidden="true">🎨</p>
-                      <p className="mt-2 text-lg font-bold text-white">{drawerName} is choosing a word…</p>
-                      <div className="mt-3 flex justify-center">
+                    <div className="m-auto text-center">
+                      <p className="text-6xl lg:text-7xl" aria-hidden="true">🎨</p>
+                      <p className="font-display mt-3 text-2xl font-extrabold text-white lg:text-4xl">
+                        {drawerName} is picking a word…
+                      </p>
+                      <p className="mt-1 text-base text-slate-400 lg:text-lg">Get your guesses ready.</p>
+                      <div className="mt-4 flex justify-center">
                         <DhamakaChips ids={dhamakas} />
                       </div>
                     </div>
@@ -549,8 +555,10 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
                 </div>
               ) : null}
 
+              {/* Dimmed, not covered: the drawing everyone just guessed at
+                  stays visible around the scorecard. */}
               {phase === 'ROUND_END' && view.round.result ? (
-                <div className="absolute inset-0 z-20 flex items-center justify-center overflow-hidden rounded-xl bg-slate-950/95 p-2 backdrop-blur-[2px] sm:p-3">
+                <div className="absolute inset-0 z-20 flex overflow-y-auto rounded-xl bg-slate-950/55 p-3 backdrop-blur-[2px] sm:p-4">
                   <RoundResultCard
                     result={view.round.result}
                     names={names}

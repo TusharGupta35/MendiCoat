@@ -16,11 +16,13 @@ import {
   DefencePanel,
   FinalResults,
   FloatingReactions,
+  PhaseGuide,
   QuestionCard,
   ReactionBar,
   RevealPanel,
   RoleCard,
   RoundResultCard,
+  RulesSheet,
   Scoreboard,
   StealPanel,
   SuspicionRow,
@@ -262,7 +264,7 @@ export function ImpostorRoomClient({
             onAnswer={(text) => send('imp:answer', { text })}
           />
         ) : (
-          <p className="text-center text-sm text-slate-500">
+          <p className="text-center text-base text-slate-400">
             {round.answeringId ? 'Waiting on them…' : 'Everybody has answered.'}
           </p>
         );
@@ -344,6 +346,7 @@ export function ImpostorRoomClient({
                 urgent={finalDefence || phase === 'VOTE'}
                 note={phaseNote()}
               />
+              <PhaseGuide view={view} yourTurn={yourTurn} finalDefence={finalDefence} />
             </div>
           ) : null}
 
@@ -356,7 +359,7 @@ export function ImpostorRoomClient({
 
         <section className="impostor-social rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
           <h2 className="impostor-voice-label text-sm font-semibold text-white">Table talk</h2>
-          <p className="impostor-voice-label mt-1 text-[11px] text-slate-500">
+          <p className="impostor-voice-label mt-1 text-xs text-slate-400">
             The arguing is the game. Turn your mic on.
           </p>
           <div className="flex gap-2 lg:mt-3">
@@ -380,6 +383,10 @@ export function ImpostorRoomClient({
               {voice.speakerOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
               {voice.speakerOn ? 'Hearing' : 'Muted'}
             </button>
+          </div>
+
+          <div className="mt-3">
+            <RulesSheet />
           </div>
 
           {!connected ? (

@@ -58,7 +58,7 @@ export const CHAALS: Chaal[] = [
     id: 'safai',
     name: 'Safai',
     emoji: '⚖️',
-    rule: 'The two most suspected get twenty seconds each to defend themselves.',
+    rule: 'The two most suspected get thirty seconds each to defend themselves.',
     weight: 4,
     minPlayers: 4,
   },

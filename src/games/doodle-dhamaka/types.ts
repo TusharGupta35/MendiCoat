@@ -156,6 +156,10 @@ export interface RoundResult {
   guessed: number;
   eligible: number;
   fastest?: { playerId: string; seconds: number };
+  /** Seconds each player took to get it, for everyone who did. */
+  guessTimes: Record<string, number>;
+  /** Players who could have guessed and did not. */
+  missed: string[];
   points: Record<string, PointsBreakdown>;
   /** What the drawer made this round, for Best Artist at the end. */
   drawerPoints: number;

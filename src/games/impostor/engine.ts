@@ -46,31 +46,52 @@ interface Timings {
   result: number;
 }
 
+/**
+ * Long enough to think in.
+ *
+ * These were first tuned for a table that already knew the game: five seconds
+ * to read your role, twenty-five to write an answer, half a minute to vote.
+ * Played cold, every phase ran out while people were still working out what it
+ * wanted of them — so each one now holds the time to read the screen *and* do
+ * the thing it asks.
+ */
 const BASE: Timings = {
-  role: 5_000,
-  answer: 25_000,
-  discuss: 75_000,
-  defence: 20_000,
-  vote: 30_000,
-  reveal: 6_000,
-  steal: 20_000,
-  result: 11_000,
+  role: 10_000,
+  answer: 40_000,
+  discuss: 120_000,
+  defence: 30_000,
+  vote: 45_000,
+  reveal: 10_000,
+  steal: 30_000,
+  result: 15_000,
 };
 
 const QUICK: Timings = {
   ...BASE,
-  answer: 18_000,
-  discuss: 45_000,
-  vote: 20_000,
-  result: 8_000,
+  answer: 28_000,
+  discuss: 75_000,
+  vote: 30_000,
+  result: 11_000,
 };
 
 export const timingsFor = (mode: Mode): Timings => (mode === 'quick' ? QUICK : BASE);
 
+/**
+ * What is left of the vote once the last ballot is in.
+ *
+ * Only Khulla Vote ever gets here: every other round closes the moment the
+ * last person votes, because there is nothing left to wait for. Khulla Vote
+ * keeps its votes changeable, so it cannot close under somebody's finger — but
+ * holding the whole table for the rest of a forty-five second clock when
+ * everyone has already voted is dead air. A few seconds to change your mind,
+ * then on.
+ */
+export const VOTE_GRACE_MS = 8_000;
+
 /** The last stretch of discussion, when the page starts shouting about it. */
-export const FINAL_DEFENCE_MS = 15_000;
+export const FINAL_DEFENCE_MS = 20_000;
 /** Sudden Death is one plain round with a short argument and no way out. */
-export const SUDDEN_DEATH_DISCUSS_MS = 45_000;
+export const SUDDEN_DEATH_DISCUSS_MS = 60_000;
 
 const CREW_CORRECT = 2;
 const IMPOSTOR_PER_MISS = 1;
@@ -354,14 +375,14 @@ export function castVote(state: ImpostorState, playerId: string, targetId: strin
   if (already && state.round.chaal !== 'khulla-vote') return refuse('You have already voted.');
 
   state.round.votes[playerId] = targetId;
-  // A normal round ends the moment the last ballot lands — there is nothing
-  // left to wait for. Khulla Vote tells the table they can still change their
-  // mind, so it runs its clock out instead of closing under somebody's finger.
-  if (
-    state.round.chaal !== 'khulla-vote' &&
-    Object.keys(state.round.votes).length >= state.round.order.length
-  ) {
-    finishVoting(state, now);
+  if (Object.keys(state.round.votes).length >= state.round.order.length) {
+    // A normal round ends the moment the last ballot lands — there is nothing
+    // left to wait for. Khulla Vote tells the table they can still change their
+    // mind, so it cannot close under somebody's finger; it gets a few seconds
+    // instead of the rest of the clock. Only ever shortened, so a change of
+    // mind in the grace window cannot buy the table more time.
+    if (state.round.chaal !== 'khulla-vote') finishVoting(state, now);
+    else state.round.endsAt = Math.min(state.round.endsAt, now + VOTE_GRACE_MS);
   }
   return OK;
 }

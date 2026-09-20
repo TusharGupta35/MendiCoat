@@ -65,7 +65,7 @@ export function Countdown({
   return (
     <div className="flex items-center gap-3">
       {note ? (
-        <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-500">
+        <span className="shrink-0 text-xs font-semibold uppercase tracking-[0.15em] text-slate-400">
           {note}
         </span>
       ) : null}
@@ -85,6 +85,228 @@ export function Countdown({
         {seconds}s
       </span>
     </div>
+  );
+}
+
+// ── What to do now ──────────────────────────────────────────────────────────
+
+/**
+ * The briefing: what is happening, and what this player should be doing.
+ *
+ * Impostor is a talking game with private information, and a table that has
+ * never played it cannot work out from the screen alone whose turn it is, what
+ * a suspicion tap costs (nothing) or what a vote is worth (two, or one to the
+ * impostor for every vote that misses). Everything here was previously either
+ * in the rules page nobody opens mid-game or in somebody's head.
+ *
+ * It is one strip, in the same place every phase, and it always speaks to *you*
+ * — the impostor and the crew are told different things, which is why this
+ * cannot be a static rules box.
+ */
+interface Guide {
+  label: string;
+  title: string;
+  body: string;
+  /** What it is worth, when a phase has points riding on it. */
+  stakes?: string;
+  tone: 'crew' | 'impostor' | 'neutral';
+}
+
+function guideFor(view: ImpostorView, yourTurn: boolean, finalDefence: boolean): Guide | null {
+  const { phase } = view;
+  const { youAreImpostor, format, suddenDeath, answeringId, order, yourVote, voted, stealingIds } = view.round;
+  const impostor = youAreImpostor;
+  const watching = view.you === null || !order.includes(view.you);
+
+  if (phase === 'GAME_OVER') return null;
+  if (watching) {
+    return {
+      label: 'Watching',
+      title: 'You are sitting this round out',
+      body: 'The round started before you got here. You are dealt in for the next one — watch how people bluff.',
+      tone: 'neutral',
+    };
+  }
+
+  switch (phase) {
+    case 'ROLE':
+      return impostor
+        ? {
+            label: 'Your role',
+            title: 'You are the impostor',
+            body: `You will not be shown the question — only what the answer has to be: ${format.label} Listen to the others, work out what was asked, and answer as if you knew it all along.`,
+            tone: 'impostor',
+          }
+        : {
+            label: 'Your role',
+            title: 'You are crew',
+            body: 'You will see the question. Answer it so the table believes you read it — but not so exactly that the impostor can copy you.',
+            tone: 'crew',
+          };
+
+    case 'ANSWER':
+      if (yourTurn) {
+        return {
+          label: 'Your turn',
+          title: impostor ? 'Answer without the question' : 'Answer the question',
+          body: impostor
+            ? 'Everyone is watching. Give something that fits the shape of the answers so far and commit to it.'
+            : 'Short and human. Too vague and the table suspects you; too exact and you hand the impostor the question.',
+          tone: impostor ? 'impostor' : 'crew',
+        };
+      }
+      return {
+        label: 'Answers',
+        title: answeringId ? 'Listen to the answers' : 'Everybody has answered',
+        body: impostor
+          ? 'This is your evidence. Every answer narrows down what the question must have been.'
+          : 'One of these people never saw the question. Watch for the answer that is a shade too general.',
+        tone: impostor ? 'impostor' : 'neutral',
+      };
+
+    case 'DISCUSS':
+      return {
+        label: finalDefence ? 'Final defence' : 'Discuss',
+        title: finalDefence ? 'Last words before the vote' : 'Argue it out — out loud',
+        body: finalDefence
+          ? 'The vote opens in a moment. Anyone still under suspicion should be talking right now.'
+          : `Say whose answer sounds wrong and make them explain it.${
+              suddenDeath ? ' Sudden Death: this is a short one.' : ''
+            } Tapping a name below marks your suspicion — it is public as a count, costs nothing, and is not your vote.`,
+        tone: 'neutral',
+      };
+
+    case 'DEFENCE':
+      return {
+        label: 'Safai',
+        title: 'Two suspects get the floor',
+        body: 'The two most suspected each get thirty seconds, uninterrupted. Everyone else listens — then the vote opens.',
+        tone: 'neutral',
+      };
+
+    case 'VOTE':
+      return {
+        label: 'Vote',
+        title: yourVote !== undefined ? 'Your vote is in' : 'Name the impostor',
+        body:
+          yourVote !== undefined
+            ? `Waiting on the rest of the table — ${voted.length} of ${order.length} have voted.`
+            : 'Pick the one you believe never saw the question. You cannot vote for yourself.',
+        stakes: impostor
+          ? 'You score 1 for every vote that lands on somebody else. Survive this and the round is yours.'
+          : 'Name an impostor and you score 2. Every vote that misses hands the impostor a point.',
+        tone: impostor ? 'impostor' : 'crew',
+      };
+
+    case 'REVEAL':
+      return {
+        label: 'Reveal',
+        title: 'Who was lying, and who voted for whom',
+        body: 'Every vote is public now. A caught impostor still gets one last shot at the round.',
+        tone: 'neutral',
+      };
+
+    case 'STEAL': {
+      const yours = view.you !== null && stealingIds.includes(view.you);
+      return yours
+        ? {
+            label: 'Steal-back',
+            title: 'You were caught — take it back',
+            body: 'Three questions, one of them the real one. Pick it and the round is yours anyway.',
+            stakes: 'Naming the real question is worth 3.',
+            tone: 'impostor',
+          }
+        : {
+            label: 'Steal-back',
+            title: 'The impostor gets one last shot',
+            body: 'They are looking at three questions, one of them real. If they name it, they take the round back.',
+            tone: 'neutral',
+          };
+    }
+
+    case 'ROUND_END':
+      return {
+        label: 'Round over',
+        title: 'Points, with the working shown',
+        body: 'The next round deals a new impostor and a new question. Roles are weighted random — being it once does not rule you out.',
+        tone: 'neutral',
+      };
+
+    default:
+      return null;
+  }
+}
+
+const GUIDE_TONE: Record<Guide['tone'], string> = {
+  crew: 'border-emerald-400/40 bg-emerald-400/5',
+  impostor: 'border-rose-400/40 bg-rose-400/5',
+  neutral: 'border-slate-700 bg-slate-900/70',
+};
+
+const GUIDE_LABEL_TONE: Record<Guide['tone'], string> = {
+  crew: 'text-emerald-300',
+  impostor: 'text-rose-300',
+  neutral: 'text-amber-300',
+};
+
+export function PhaseGuide({
+  view,
+  yourTurn,
+  finalDefence,
+}: {
+  view: ImpostorView;
+  yourTurn: boolean;
+  finalDefence: boolean;
+}) {
+  const guide = guideFor(view, yourTurn, finalDefence);
+  if (!guide) return null;
+
+  return (
+    <div className={`rounded-2xl border px-3.5 py-3 sm:px-4 ${GUIDE_TONE[guide.tone]}`}>
+      <p className={`text-[11px] font-black uppercase tracking-[0.2em] ${GUIDE_LABEL_TONE[guide.tone]}`}>
+        {guide.label}
+      </p>
+      <p className="mt-1 text-base font-bold leading-snug text-white sm:text-lg">{guide.title}</p>
+      <p className="mt-1 text-sm leading-snug text-slate-300 sm:text-base">{guide.body}</p>
+      {guide.stakes ? (
+        <p className="mt-1.5 border-t border-white/10 pt-1.5 text-sm font-semibold text-amber-200">{guide.stakes}</p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The rules, on the table rather than on the game's page.
+ *
+ * Shut by default and one tap from every screen, for the player who has the
+ * gist but cannot remember what a Chaal is or what the steal-back pays.
+ */
+export function RulesSheet() {
+  const RULES: Array<[string, string]> = [
+    ['The point', 'Everyone answers the same question. One person never saw it. Crew win by voting them out; the impostor wins by surviving.'],
+    ['Answering', 'One at a time, in an order that changes every round. The impostor is told the shape of the answer — "a number", "one food item" — never the question.'],
+    ['Suspicion', 'During discussion, tapping a name marks who you suspect. Counts are public, who tapped whom is not, and it is not a vote.'],
+    ['The vote', 'Name an impostor: +2. The impostor scores +1 for every vote that lands somewhere else.'],
+    ['Steal-back', 'A caught impostor picks the real question out of three. Name it and take +3 anyway.'],
+    ['Chaals', 'About half the rounds carry a twist — two impostors, one word each, no discussion, open votes, or no impostor at all. The strip at the top says which.'],
+    ['Winning', 'One round per player, highest total wins. A tie at the top plays a Sudden Death round.'],
+  ];
+
+  return (
+    <details className="rounded-2xl border border-slate-800 bg-slate-900/80 p-3 sm:p-4">
+      <summary className={`${TAP} flex cursor-pointer list-none items-center gap-2 text-sm font-bold text-white`}>
+        <span aria-hidden="true">🕵️</span> How to play
+        <span className="ml-auto text-xs font-normal text-slate-500">tap to open</span>
+      </summary>
+      <dl className="mt-2 flex flex-col gap-2.5">
+        {RULES.map(([term, detail]) => (
+          <div key={term}>
+            <dt className="text-xs font-black uppercase tracking-wider text-amber-300">{term}</dt>
+            <dd className="mt-0.5 text-sm leading-snug text-slate-300">{detail}</dd>
+          </div>
+        ))}
+      </dl>
+    </details>
   );
 }
 
@@ -133,7 +355,7 @@ export function QuestionCard({ view, compact }: { view: ImpostorView; compact?: 
           compact ? 'px-3 py-2.5' : 'p-4 sm:p-5'
         }`}
       >
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-300">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-300">
           {question.emoji} {CATEGORY_LABEL[question.category]}
         </p>
         <p
@@ -154,26 +376,30 @@ export function QuestionCard({ view, compact }: { view: ImpostorView; compact?: 
         compact ? 'px-3 py-2.5' : 'p-4 sm:p-5'
       }`}
     >
-      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-rose-300">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-rose-300">
         {youAreImpostor ? '🕵️ You are the impostor' : '👀 Watching'}
       </p>
+      {/* The question, struck out. It keeps the crew card's shape — a glance
+          across the table still cannot tell the two apart — and says what has
+          been kept from you far faster than a sentence about it. */}
       <p
-        className={`mt-1.5 font-bold leading-snug text-white ${
+        aria-label={youAreImpostor ? 'The question is hidden from you' : 'You are not in this round'}
+        className={`mt-1.5 select-none font-black leading-snug tracking-[0.1em] text-rose-300/40 ${
           compact ? 'text-sm' : 'text-lg sm:text-xl'
         }`}
       >
-        {youAreImpostor ? 'You did not see the question.' : 'You are not in this round.'}
+        ███████ ████ ██████████ ███
       </p>
       <p
-        className={`mt-2 rounded-xl bg-slate-950/70 px-3 py-2 font-semibold text-rose-100 ${
-          compact ? 'text-xs' : 'text-sm'
+        className={`mt-2 rounded-xl bg-slate-950/70 px-3 py-2 font-bold text-rose-100 ${
+          compact ? 'text-xs' : 'text-sm sm:text-base'
         }`}
       >
-        {format.label}
+        {youAreImpostor ? `All you know: ${format.label}` : format.label}
       </p>
       {!compact && youAreImpostor ? (
-        <p className="mt-2 text-xs text-rose-200/70">
-          Read the answers. Work out what was asked. Do not be the one who sounds wrong.
+        <p className="mt-2 text-sm text-rose-200/70">
+          Read the answers, work out what was asked, and answer in the same shape. Do not be the one who sounds wrong.
         </p>
       ) : null}
     </div>
@@ -406,7 +632,7 @@ export function SuspicionRow({
   const { order, suspicion, yourSuspicion } = view.round;
   return (
     <div>
-      <p className="mb-2 text-center text-xs text-slate-400">
+      <p className="mb-2 text-center text-sm text-slate-300">
         Who smells wrong? Tap to say so — it is not a vote.
       </p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -455,7 +681,7 @@ export function DefencePanel({ view, people }: { view: ImpostorView; people: Per
 
   return (
     <div className="rounded-2xl border border-amber-300/40 bg-amber-400/5 p-5 text-center sm:p-6">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-300">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-300">
         ⚖️ Safai · {position} of {defendants.length}
       </p>
       <div className="mt-3 flex items-center justify-center gap-3">
@@ -500,10 +726,10 @@ export function VotePanel({
 
   return (
     <div>
-      <p className="mb-1 text-center text-sm font-bold text-white">
+      <p className="mb-1 text-center text-base font-bold text-white sm:text-lg">
         {locked ? 'Your vote is in.' : 'Who never saw the question?'}
       </p>
-      <p className="mb-2.5 text-center text-[11px] text-slate-500">
+      <p className="mb-2.5 text-center text-xs text-slate-400">
         {open ? 'Khulla Vote — public, and you can still change it.' : `${voted.length} of ${order.length} voted`}
       </p>
 
@@ -607,7 +833,7 @@ export function RevealPanel({ view, people }: { view: ImpostorView; people: Pers
       </div>
 
       <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3 sm:p-4">
-        <p className="text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+        <p className="text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
           The votes
         </p>
         <div className="mt-2.5 flex flex-col gap-1">
@@ -704,10 +930,47 @@ export function RoundResultCard({ result, people }: { result: RoundResult; peopl
   const chaal = chaalById(result.chaal);
   const scored = [...Object.entries(result.points)].sort((a, b) => b[1].total - a[1].total);
 
+  /* How the round actually ended, said in three words before any arithmetic.
+     The points below explain themselves line by line, but only once you know
+     whether the table won — so that goes first and goes loudest. */
+  const listed = (ids: string[]) => ids.map((id) => nameOf(people, id)).join(' and ');
+  const escaped = result.impostorIds.filter((id) => !result.caughtIds.includes(id));
+  const verdict =
+    result.impostorIds.length === 0
+      ? { stamp: '😇 Nobody was lying', line: 'A Sab Saaf round — everybody saw the question.', tone: 'crew' as const }
+      : result.stoleIds.length
+        ? {
+            stamp: '🃏 Stolen back',
+            line: `${listed(result.stoleIds)} got caught, then named the real question.`,
+            tone: 'impostor' as const,
+          }
+        : result.caughtIds.length
+          ? { stamp: '🚨 Caught', line: `The table found ${listed(result.caughtIds)}.`, tone: 'crew' as const }
+          : {
+              stamp: '🕵️ Got away with it',
+              line: `${listed(escaped)} never saw the question, and nobody pinned it on them.`,
+              tone: 'impostor' as const,
+            };
+
   return (
     <div className="flex flex-col gap-3">
+      <div
+        className={`rounded-2xl border-2 border-dashed px-4 py-3 text-center ${
+          verdict.tone === 'crew' ? 'border-emerald-400/60 bg-emerald-400/10' : 'border-rose-400/60 bg-rose-400/10'
+        }`}
+      >
+        <p
+          className={`text-xl font-black uppercase tracking-wide sm:text-2xl ${
+            verdict.tone === 'crew' ? 'text-emerald-300' : 'text-rose-300'
+          }`}
+        >
+          {verdict.stamp}
+        </p>
+        <p className="mt-1 text-sm text-slate-300 sm:text-base">{verdict.line}</p>
+      </div>
+
       <div className="rounded-2xl border border-amber-300/40 bg-amber-400/10 p-4 text-center">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-300">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-300">
           The question was
         </p>
         <p className="mt-2 text-base font-bold leading-snug text-white sm:text-lg">{result.question.text}</p>
@@ -719,7 +982,7 @@ export function RoundResultCard({ result, people }: { result: RoundResult; peopl
       </div>
 
       <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3 sm:p-4">
-        <p className="text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+        <p className="text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
           Points
         </p>
         <div className="mt-3 flex flex-col gap-2.5">
@@ -750,7 +1013,7 @@ export function RoundResultCard({ result, people }: { result: RoundResult; peopl
                   </span>
                 </p>
                 {breakdown.lines.map((line) => (
-                  <p key={line.label} className="text-[11px] leading-snug text-slate-500">
+                  <p key={line.label} className="text-xs leading-snug text-slate-400">
                     {line.label} · +{line.value}
                   </p>
                 ))}
