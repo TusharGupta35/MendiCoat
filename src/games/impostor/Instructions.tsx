@@ -16,7 +16,7 @@ const QUICK_STEPS = [
   },
   {
     title: 'Argue, then vote',
-    body: 'Seventy-five seconds of open discussion, a final fifteen, then everyone names who they think never saw it.',
+    body: 'Two minutes of open discussion, a final twenty seconds of warning, then everyone names who they think never saw it.',
   },
 ];
 

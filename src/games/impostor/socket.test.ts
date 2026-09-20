@@ -83,11 +83,11 @@ const ask = (seat: Seat, event: string, payload: Record<string, unknown>) =>
 /**
  * Wait until every seat's view satisfies the predicate.
  *
- * The default outlasts the role card, which holds the table for five seconds
+ * The default outlasts the role card, which holds the table for ten seconds
  * before the first answer is even possible — a shorter wait here fails on the
  * game working correctly.
  */
-async function settle(seats: Seat[], ready: (seat: Seat) => boolean, ms = 9_000) {
+async function settle(seats: Seat[], ready: (seat: Seat) => boolean, ms = 16_000) {
   const deadline = Date.now() + ms;
   while (Date.now() < deadline) {
     if (seats.every(ready)) return;

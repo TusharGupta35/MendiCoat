@@ -258,8 +258,8 @@ export function DoodleCanvas({
 
       {effects.hideFromSelf ? (
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 text-slate-400">
-          <span className="text-5xl">🙈</span>
-          <span className="text-sm font-semibold">Blind Artist — keep drawing, they can see it</span>
+          <span className="text-6xl">🙈</span>
+          <span className="px-4 text-center text-base font-bold lg:text-xl">Blind Artist — keep drawing, they can see it</span>
         </div>
       ) : null}
 

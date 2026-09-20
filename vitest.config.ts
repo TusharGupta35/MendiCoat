@@ -17,8 +17,12 @@ export default defineConfig({
      * and buys a result that can be trusted.
      */
     fileParallelism: false,
-    /** Room for a socket test that is genuinely waiting on the network. */
-    testTimeout: 20_000,
+    /**
+     * Room for a socket test that is genuinely waiting on the network — or on
+     * a phase of Impostor, which runs its real clock here rather than a mocked
+     * one, and whose role card alone holds the table for ten seconds.
+     */
+    testTimeout: 35_000,
   },
   resolve: {
     // Mirrors the "@/*" path alias in tsconfig.json so modules that use it
