@@ -550,7 +550,7 @@ export function DoodleRoomClient({ roomCode, playerId, playerName, playerAvatar,
               ) : null}
 
               {phase === 'ROUND_END' && view.round.result ? (
-                <div className="absolute inset-0 z-20 flex items-center justify-center overflow-hidden rounded-xl bg-slate-950/95 p-2 backdrop-blur-[2px] sm:p-3">
+                <div className="absolute inset-0 z-20 flex overflow-y-auto rounded-xl bg-slate-950/95 p-2 backdrop-blur-[2px] sm:p-3">
                   <RoundResultCard
                     result={view.round.result}
                     names={names}

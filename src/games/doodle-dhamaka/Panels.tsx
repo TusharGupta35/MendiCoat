@@ -564,26 +564,48 @@ export function RoundResultCard({
   const earners = Object.entries(result.points).sort((a, b) => b[1].total - a[1].total);
   const visibleEarners = earners.slice(0, 3);
   const nameOf = (id: string) => names.get(id) ?? 'Someone';
+  const got = result.eligible - result.missed.length;
   const outcome =
-    result.outcome === 'perfect' ? '🔥 Perfect draw' : result.outcome === 'disaster' ? '💀 Nobody got it' : 'Round complete';
+    result.outcome === 'perfect' ? (
+      <>
+        🔥 Perfect draw<span className="hidden lg:inline"> · everyone got it</span>
+      </>
+    ) : result.outcome === 'disaster' ? (
+      '💀 Nobody got it'
+    ) : (
+      `${got} of ${result.eligible} got it`
+    );
+  const outcomeTone =
+    result.outcome === 'perfect' ? 'text-emerald-300' : result.outcome === 'disaster' ? 'text-rose-300' : 'text-slate-300';
+
+  // Everyone the round touched, for the desktop list: whoever scored, then the
+  // drawer and guessers who came away with nothing.
+  const rows: Array<[string, number]> = earners.map(([id, points]) => [id, points.total]);
+  for (const id of [result.drawerId, ...result.missed]) if (!result.points[id]) rows.push([id, 0]);
+  const didWhat = (id: string) =>
+    id === result.drawerId
+      ? { text: '🎨 Drew it', tone: 'text-amber-200' }
+      : result.guessTimes[id] !== undefined
+        ? { text: `✓ Guessed in ${result.guessTimes[id]}s`, tone: 'text-emerald-300' }
+        : { text: '✗ Didn’t get it', tone: 'text-slate-500' };
+  const signed = (total: number) => (total > 0 ? `+${total}` : total < 0 ? `−${-total}` : '0');
+
   return (
-    <div className="w-full max-w-md overflow-hidden rounded-2xl border border-amber-300/25 bg-slate-900/95 p-2.5 text-center shadow-2xl sm:p-3">
+    <div className="m-auto w-full max-w-md overflow-hidden rounded-2xl border border-amber-300/25 bg-slate-900/95 p-2.5 text-center shadow-2xl sm:p-3 lg:max-w-xl lg:rounded-3xl lg:p-6">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300">Round over</p>
-        <p className={`truncate text-[10px] font-black uppercase tracking-wide ${result.outcome === 'perfect' ? 'text-emerald-300' : result.outcome === 'disaster' ? 'text-slate-300' : 'text-slate-400'}`}>
-          {outcome}
-        </p>
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300 lg:text-sm">Round {result.number} over</p>
+        <p className={`truncate text-[10px] font-black uppercase tracking-wide lg:text-sm ${outcomeTone}`}>{outcome}</p>
       </div>
 
-      <div className="mt-1.5 rounded-xl bg-slate-950/80 px-2.5 py-1.5">
-        <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">The answer</p>
-        <p className="mt-0.5 truncate text-lg font-black text-white sm:text-xl">
+      <div className="mt-1.5 rounded-xl bg-slate-950/80 px-2.5 py-1.5 lg:mt-4 lg:rounded-2xl lg:py-4">
+        <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 lg:text-xs">The word was</p>
+        <p className="mt-0.5 truncate text-lg font-black text-white sm:text-xl lg:mt-1 lg:text-4xl">
           {result.prompt.emoji} {result.prompt.text}
         </p>
       </div>
-      <p className="mt-1.5 text-[10px] leading-snug text-slate-400">
-        Drawn by <span className="font-semibold text-slate-200">{nameOf(result.drawerId)}</span> · {result.guessed}/
-        <span className="font-semibold text-emerald-300">{result.eligible}</span> guessed it
+      <p className="mt-1.5 text-[10px] leading-snug text-slate-400 lg:hidden">
+        Drawn by <span className="font-semibold text-slate-200">{nameOf(result.drawerId)}</span> · {got} of {result.eligible}{' '}
+        guessed it
         {result.fastest ? (
           <>
             {' '}· fastest <span className="font-semibold text-amber-300">{nameOf(result.fastest.playerId)}</span>{' '}
@@ -593,17 +615,48 @@ export function RoundResultCard({
       </p>
 
       {result.awards.length ? (
-        <div className="mt-1.5 flex flex-wrap justify-center gap-1">
-          {result.awards.slice(0, 2).map((award) => (
-            <span key={`${award.title}-${award.playerId}`} className="rounded-full border border-amber-300/30 bg-amber-400/10 px-2 py-0.5 text-[10px] text-amber-100">
+        <div className="mt-1.5 flex flex-wrap justify-center gap-1 lg:mt-4 lg:gap-2">
+          {result.awards.map((award, index) => (
+            <span
+              key={`${award.title}-${award.playerId}`}
+              className={`rounded-full border border-amber-300/30 bg-amber-400/10 px-2 py-0.5 text-[10px] text-amber-100 lg:px-3 lg:py-1 lg:text-sm ${
+                index >= 2 ? 'hidden lg:inline' : ''
+              }`}
+            >
               {award.emoji} <span className="font-bold">{award.title}</span> · {nameOf(award.playerId)}
             </span>
           ))}
         </div>
       ) : null}
 
+      {rows.length ? (
+        <div className="mt-5 hidden lg:block">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Points this round</p>
+          <ul className={`mt-2 grid gap-2 text-left ${rows.length > 6 ? 'grid-cols-2' : ''}`}>
+            {rows.map(([id, total]) => {
+              const did = didWhat(id);
+              return (
+                <li key={id} className="flex items-center gap-3 rounded-xl bg-slate-950/70 px-4 py-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-base font-bold text-white">{nameOf(id)}</p>
+                    <p className={`truncate text-sm ${did.tone}`}>{did.text}</p>
+                  </div>
+                  <p
+                    className={`shrink-0 text-xl font-black tabular-nums ${
+                      total > 0 ? 'text-emerald-300' : total < 0 ? 'text-rose-300' : 'text-slate-500'
+                    }`}
+                  >
+                    {signed(total)}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
+
       {visibleEarners.length ? (
-        <div className="mt-1.5 rounded-xl bg-slate-950/70 px-2 py-1.5">
+        <div className="mt-1.5 rounded-xl bg-slate-950/70 px-2 py-1.5 lg:hidden">
           <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500">Points this round</p>
           <div className="mt-1 flex flex-wrap justify-center gap-1">
             {visibleEarners.map(([id, points]) => (
@@ -617,14 +670,14 @@ export function RoundResultCard({
       ) : null}
 
       {nextDrawer || (nextCount && nextCount >= 2) ? (
-        <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[10px]">
+        <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[10px] lg:mt-5 lg:gap-x-3 lg:text-base">
           {nextDrawer ? (
             <span className="text-slate-300">
-              Next: <span className="font-bold text-amber-300">{nextDrawer}</span> in {secondsLeft}s
+              Next: <span className="font-bold text-amber-300">{nextDrawer}</span> draws in {secondsLeft}s
             </span>
           ) : null}
           {nextCount && nextCount >= 2 ? (
-            <span className="animate-urgent rounded-full bg-rose-500 px-2 py-0.5 font-black uppercase tracking-wider text-rose-950">
+            <span className="animate-urgent rounded-full bg-rose-500 px-2 py-0.5 font-black uppercase tracking-wider text-rose-950 lg:px-3 lg:py-1 lg:text-sm">
               {countTitle(nextCount)} next
             </span>
           ) : null}
