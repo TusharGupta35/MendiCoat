@@ -62,6 +62,29 @@ const displayName = (user: { username: string | null; name: string | null } | nu
 const newest = (a: Date | null, b: Date | null) =>
   !a ? b : !b ? a : a.getTime() >= b.getTime() ? a : b;
 
+/**
+ * When each player last finished a match of any game. The boards rank on
+ * Mendi Coat alone, but "last played" is about whether someone has been around,
+ * and an evening of Impostor counts for that.
+ */
+async function lastPlayedAcrossGames(userIds: string[]): Promise<Map<string, Date>> {
+  const seats = await prisma.matchPlayer.findMany({
+    where: { userId: { in: userIds }, match: { status: 'FINISHED', finishedAt: { not: null } } },
+    select: { userId: true, match: { select: { finishedAt: true } } },
+  });
+  const latest = new Map<string, Date>();
+  for (const seat of seats) {
+    const at = newest(latest.get(seat.userId) ?? null, seat.match.finishedAt);
+    if (at) latest.set(seat.userId, at);
+  }
+  return latest;
+}
+
+async function withLastPlayed<T extends { userId: string; lastPlayed: Date | null }>(rows: T[]): Promise<T[]> {
+  const latest = await lastPlayedAcrossGames(rows.map((row) => row.userId));
+  return rows.map((row) => ({ ...row, lastPlayed: newest(row.lastPlayed, latest.get(row.userId) ?? null) }));
+}
+
 export interface PlayerStats {
   stats: CareerStats;
   level: Level;
@@ -307,9 +330,11 @@ async function leaderboard(limit: number, since?: Date): Promise<LeaderboardRow[
     byUser.set(seat.userId, row);
   }
 
-  return [...byUser.values()]
-    .sort((a, b) => b.won - a.won || b.winRate - a.winRate || b.played - a.played)
-    .slice(0, limit);
+  return withLastPlayed(
+    [...byUser.values()]
+      .sort((a, b) => b.won - a.won || b.winRate - a.winRate || b.played - a.played)
+      .slice(0, limit),
+  );
 }
 
 export interface XpRow {
@@ -320,8 +345,9 @@ export interface XpRow {
   level: number;
   totalXp: number;
   band: string;
+  /** Finished matches of any game, not only the ones that paid XP. */
   played: number;
-  /** When they last finished a match — the only activity the app records. */
+  /** When they last finished a match of any game. */
   lastPlayed: Date | null;
 }
 
@@ -342,31 +368,47 @@ async function xpLeaderboard(limit: number): Promise<XpRow[]> {
   // feats and challenges off the trick log, so there is no aggregate that could
   // answer this in SQL. Fine at this size, and the alternative is one full
   // stats query per player.
-  const seats = await prisma.matchPlayer.findMany({
-    where: { match: { status: 'FINISHED', gameId: MENDI_COAT } },
-    select: {
-      ...MATCH_SELECT,
-      userId: true,
-      user: { select: { username: true, name: true, avatar: true, image: true } },
-    },
-  });
+  const [seats, everySeat] = await Promise.all([
+    prisma.matchPlayer.findMany({
+      where: { match: { status: 'FINISHED', gameId: MENDI_COAT } },
+      select: {
+        ...MATCH_SELECT,
+        userId: true,
+        user: { select: { username: true, name: true, avatar: true, image: true } },
+      },
+    }),
+    // Every finished seat of every game, so someone who has only ever played
+    // Impostor is still on the list. XP is Mendi Coat's alone for now, so they
+    // sit at level 1 — but they sit there, rather than not existing.
+    prisma.matchPlayer.findMany({
+      where: { match: { status: 'FINISHED' } },
+      select: {
+        userId: true,
+        user: { select: { username: true, name: true, avatar: true, image: true } },
+      },
+    }),
+  ]);
 
   const byUser = new Map<
     string,
-    { name: string; avatar: string | null; image: string | null; matches: PlayedMatch[] }
+    { name: string; avatar: string | null; image: string | null; matches: PlayedMatch[]; played: number }
   >();
-  for (const seat of seats) {
+  for (const seat of everySeat) {
     const player = byUser.get(seat.userId) ?? {
       name: displayName(seat.user),
       avatar: seat.user?.avatar ?? null,
       image: seat.user?.image ?? null,
       matches: [],
+      played: 0,
     };
-    player.matches.push(toPlayedMatch(seat.userId, seat));
+    player.played += 1;
     byUser.set(seat.userId, player);
   }
+  for (const seat of seats) {
+    byUser.get(seat.userId)?.matches.push(toPlayedMatch(seat.userId, seat));
+  }
 
-  return [...byUser.entries()]
+  const rows = [...byUser.entries()]
     .map(([userId, player]) => {
       const level = levelFromXp(totalXpFor(player.matches));
       return {
@@ -377,13 +419,12 @@ async function xpLeaderboard(limit: number): Promise<XpRow[]> {
         level: level.level,
         totalXp: level.totalXp,
         band: bandForLevel(level.level).name,
-        played: player.matches.length,
-        lastPlayed: player.matches.reduce<Date | null>(
-          (latest, match) => newest(latest, match.finishedAt),
-          null,
-        ),
+        played: player.played,
+        // Filled in across every game by withLastPlayed below.
+        lastPlayed: null,
       };
     })
     .sort((a, b) => b.totalXp - a.totalXp || b.played - a.played)
     .slice(0, limit);
+  return withLastPlayed(rows);
 }

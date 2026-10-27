@@ -223,12 +223,63 @@ function recordHand(room: TigdiRoom, state: TigdiState) {
     teams,
     names: state.players.map((player) => player.name),
   });
+  void persistHand(room, state);
   // A point apiece to whichever side took the hand. Deliberately the simplest
   // scoreboard that means anything — the bid itself is the drama, and a
   // Kaali Teeri-style ladder can come once the table has played a few nights.
   state.players.forEach((player, seat) => {
     if (player.team === result.winners) room.scores[seat] += 1;
   });
+}
+
+/**
+ * Keeps the finished hand, the way Impostor and Doodle Dhamaka keep a game. A
+ * hand is the unit here because it is the only thing that finishes — the table
+ * deals again for as long as people stay. No XP reads it yet; it is what puts
+ * a night of Tigdi on the activity feed and in everyone's "last played".
+ *
+ * Bot seats get no row: there is no user to attribute a result to.
+ */
+async function persistHand(room: TigdiRoom, state: TigdiState) {
+  const result = state.result;
+  if (!result) return;
+  try {
+    const { prisma } = await import('@/lib/prisma');
+    const row = await prisma.room.findUnique({ where: { code: room.roomCode }, select: { id: true, hostId: true } });
+    if (!row) return;
+    const humans = room.players.flatMap((player, seat) =>
+      player && !player.isBot ? [{ player, seat, team: state.players[seat]?.team ?? 'OPPONENT' }] : [],
+    );
+    if (humans.length === 0) return;
+    await prisma.match.create({
+      data: {
+        gameId: 'TEEN_KI_TIGDI',
+        roomId: row.id,
+        hostId: row.hostId,
+        status: 'FINISHED',
+        finishedAt: new Date(),
+        hadBots: room.players.some((player) => player?.isBot === true),
+        detail: JSON.parse(
+          JSON.stringify({
+            ...result,
+            names: state.players.map((player) => player.name),
+            teams: state.players.map((player) => player.team ?? 'OPPONENT'),
+          }),
+        ),
+        seats: {
+          create: humans.map(({ player, seat, team }) => ({
+            userId: player.id,
+            seat,
+            team,
+            won: team === result.winners,
+          })),
+        },
+        players: { connect: humans.map(({ player }) => ({ id: player.id })) },
+      },
+    });
+  } catch (error) {
+    console.error(`Could not record the Teen Ki Tigdi hand in room ${room.roomCode}:`, error);
+  }
 }
 
 const isBotSeat = (room: TigdiRoom, seat: TigdiSeat) => room.players[seat]?.isBot === true;

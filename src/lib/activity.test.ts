@@ -79,3 +79,64 @@ describe('describeMatch', () => {
     expect(describeMatch(match({ winnerTeam: null }), null)).toBeNull();
   });
 });
+
+describe('describeMatch for the other games', () => {
+  const party = (gameId: string, wonBy: string[]): ActivityMatch =>
+    match({
+      gameId,
+      winnerTeam: null,
+      seats: ['Kabir', 'Neha', 'Rohan'].map((name, index) => ({
+        userId: `u${index + 1}`,
+        name,
+        team: 'SOLO',
+        won: wonBy.includes(name),
+      })),
+    });
+
+  it('names the winner of an Impostor game', () => {
+    expect(describeMatch(party('IMPOSTOR', ['Neha']), 'u1')).toMatchObject({
+      kind: 'win',
+      headline: 'Neha won Impostor',
+      detail: '3 players',
+      mine: true,
+    });
+  });
+
+  it('names joint winners of Doodle Dhamaka, you first', () => {
+    expect(describeMatch(party('DOODLE_DHAMAKA', ['Kabir', 'Rohan']), 'u3')?.headline).toBe(
+      'You & Kabir won Doodle Dhamaka',
+    );
+  });
+
+  it('names the table when nobody scored', () => {
+    expect(describeMatch(party('IMPOSTOR', []), null)).toMatchObject({
+      kind: 'draw',
+      headline: 'Kabir, Neha & Rohan played Impostor',
+    });
+  });
+
+  const tigdi = (made: boolean): ActivityMatch =>
+    match({
+      gameId: 'TEEN_KI_TIGDI',
+      winnerTeam: null,
+      detail: { bid: 150, made, points: { BIDDER: made ? 160 : 120, OPPONENT: made ? 90 : 130 } },
+      seats: [
+        { userId: 'u1', name: 'Kabir', team: 'BIDDER', won: made },
+        { userId: 'u2', name: 'Neha', team: 'BIDDER', won: made },
+        { userId: 'u3', name: 'Rohan', team: 'OPPONENT', won: !made },
+      ],
+    });
+
+  it('writes a Teen Ki Tigdi bid that was made', () => {
+    expect(describeMatch(tigdi(true), null)).toMatchObject({
+      headline: 'Kabir & Neha made a 150 bid',
+      detail: '160–90 in Teen Ki Tigdi',
+    });
+  });
+
+  it('writes a Teen Ki Tigdi bid that went down, and stands in for a side of bots', () => {
+    expect(describeMatch(tigdi(false), 'u1')?.headline).toBe('You & Neha went down on a 150 bid');
+    const botBid = { ...tigdi(false), seats: tigdi(false).seats.filter((seat) => seat.team === 'OPPONENT') };
+    expect(describeMatch(botBid, null)?.headline).toBe('the bots went down on a 150 bid');
+  });
+});

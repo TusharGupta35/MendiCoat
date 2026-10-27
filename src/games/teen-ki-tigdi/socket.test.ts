@@ -24,6 +24,7 @@ vi.mock('@/lib/prisma', () => ({
       // Every room in these tests is hosted by whoever takes seat 0.
       findUnique: vi.fn(async () => ({ hostId: 'player-0' })),
     },
+    match: { create: vi.fn(async () => undefined) },
   },
 }));
 
