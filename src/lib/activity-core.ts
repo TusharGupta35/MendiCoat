@@ -28,6 +28,8 @@ export interface ActivitySeat {
   userId: string;
   name: string;
   team: string;
+  /** Whether this seat won. Only the games without fixed teams need it. */
+  won?: boolean;
 }
 
 export interface ActivityMatch {
@@ -37,6 +39,10 @@ export interface ActivityMatch {
   capturedTensA: number;
   capturedTensB: number;
   seats: ActivitySeat[];
+  /** Which game this was. Missing means Mendi Coat, the only game there once was. */
+  gameId?: string;
+  /** The game's own record of the result — see `Match.detail`. */
+  detail?: unknown;
 }
 
 /** "Kabir & Neha", "Kabir", "Kabir, Neha & Rohan" — however many sat there. */
@@ -61,6 +67,9 @@ const namesOn = (match: ActivityMatch, team: TeamId, meId: string | null) =>
  * because the wording is the whole feature.
  */
 export function describeMatch(match: ActivityMatch, meId: string | null): ActivityEntry | null {
+  if (match.gameId === 'TEEN_KI_TIGDI') return describeTigdiHand(match, meId);
+  if (match.gameId === 'IMPOSTOR') return describePartyGame(match, meId, 'Impostor');
+  if (match.gameId === 'DOODLE_DHAMAKA') return describePartyGame(match, meId, 'Doodle Dhamaka');
   if (!match.finishedAt || !match.winnerTeam) return null;
 
   const mine = meId !== null && match.seats.some((seat) => seat.userId === meId);
@@ -98,6 +107,80 @@ export function describeMatch(match: ActivityMatch, meId: string | null): Activi
     kind: 'win',
     headline: `${won} beat ${lost}`,
     detail: `${tensWon}–${tensLost} on 10s`,
+    mine,
+  };
+}
+
+/** The seats matching `keep`, written the way namesOn writes a team. */
+const namesWhere = (match: ActivityMatch, meId: string | null, keep: (seat: ActivitySeat) => boolean) =>
+  match.seats
+    .filter(keep)
+    .sort((a, b) => Number(b.userId === meId) - Number(a.userId === meId))
+    .map((seat) => (seat.userId === meId ? 'You' : seat.name));
+
+/**
+ * Impostor and Doodle Dhamaka: everyone for themselves, so the line is just who
+ * came out on top. A game where nobody scored names the table instead.
+ */
+function describePartyGame(match: ActivityMatch, meId: string | null, game: string): ActivityEntry | null {
+  if (!match.finishedAt || match.seats.length === 0) return null;
+  const mine = meId !== null && match.seats.some((seat) => seat.userId === meId);
+  const winners = namesWhere(match, meId, (seat) => seat.won === true);
+  const players = `${match.seats.length} ${match.seats.length === 1 ? 'player' : 'players'}`;
+
+  if (winners.length === 0) {
+    return {
+      matchId: match.id,
+      at: match.finishedAt,
+      kind: 'draw',
+      headline: `${joinNames(namesWhere(match, meId, () => true))} played ${game}`,
+      detail: null,
+      mine,
+    };
+  }
+  return {
+    matchId: match.id,
+    at: match.finishedAt,
+    kind: 'win',
+    headline: `${joinNames(winners)} won ${game}`,
+    detail: players,
+    mine,
+  };
+}
+
+interface TigdiDetail {
+  bid?: number;
+  made?: boolean;
+  points?: { BIDDER?: number; OPPONENT?: number };
+}
+
+/**
+ * One Teen Ki Tigdi hand. Bots are not recorded as seats, so a side made up
+ * entirely of bots is written as such rather than as "nobody".
+ */
+function describeTigdiHand(match: ActivityMatch, meId: string | null): ActivityEntry | null {
+  const detail = (match.detail ?? {}) as TigdiDetail;
+  if (!match.finishedAt || typeof detail.bid !== 'number' || typeof detail.made !== 'boolean') return null;
+
+  const mine = meId !== null && match.seats.some((seat) => seat.userId === meId);
+  const side = (team: string) => {
+    const names = namesWhere(match, meId, (seat) => seat.team === team);
+    return names.length > 0 ? joinNames(names) : 'the bots';
+  };
+  const bidders = side('BIDDER');
+  const score =
+    detail.points?.BIDDER !== undefined && detail.points.OPPONENT !== undefined
+      ? `${detail.points.BIDDER}–${detail.points.OPPONENT} in Teen Ki Tigdi`
+      : 'Teen Ki Tigdi';
+
+  return {
+    matchId: match.id,
+    at: match.finishedAt,
+    kind: 'win',
+    headline: detail.made
+      ? `${bidders} made a ${detail.bid} bid`
+      : `${bidders} went down on a ${detail.bid} bid`,
+    detail: score,
     mine,
   };
 }

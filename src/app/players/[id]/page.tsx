@@ -79,7 +79,8 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
   const [{ stats, level, band, partners, milestones, feats }, lastPlayed, mine] = await Promise.all([
     getPlayerStats(player.id),
     prisma.match.findFirst({
-      where: { status: 'FINISHED', gameId: 'MENDI_COAT', seats: { some: { userId: player.id } } },
+      // Any game counts here — this is about when they were last around.
+      where: { status: 'FINISHED', seats: { some: { userId: player.id } } },
       orderBy: { finishedAt: 'desc' },
       select: { finishedAt: true },
     }),
